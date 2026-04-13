@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+.uv/
+
+# zkm
+plugins/
+
+# Tools
+.git-lock-push.lock
+.DS_Store
+*.swp

@@ -72,7 +72,7 @@ This mirrors DiffMem's multi-depth context assembly:
 - No sync problem — git history is the history, by definition
 - `git bisect` style operations become possible for debugging knowledge conflicts
 - The store remains a plain directory of markdown files, queryable with standard unix tools
-- However, consider that commit dates may not reflect file or content dates, especially when importing historical memories!
+- However, consider that commit dates may not reflect file or content dates, especially when importing historical memories! It might be worth considering performing historical imports in orphan branches which are then merged into the main branch, but this might become unneccesarily messy
 
 ## Limitations
 

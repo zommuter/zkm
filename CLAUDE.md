@@ -26,10 +26,22 @@ src/zkm/
 plugins/                # Installed converter plugins (gitignored, cloned repos)
 │   └── zkm-imap/       # Example: each has plugin.yaml + convert.py
 docs/
+├── phase1-design.md    # Library choices and open questions for Phase 1
 ├── temporal-queries.md # Git-as-temporal-index pattern (DiffMem-inspired)
 ├── plugin-spec.md      # How to write a converter plugin
 └── entity-model.md     # NER, entity pages, WebUI design (Phase 3+)
 tests/
+pyproject.toml          # uv + hatchling, entry point: zkm = "zkm.cli:main"
+TODO.md                 # Phase 1 progress checklist
+```
+
+### Quick start (development)
+
+```bash
+cd ~/src/zkm
+uv sync
+uv run zkm --help
+ZKM_STORE=/tmp/my-kb uv run zkm init
 ```
 
 ## Plugin system
@@ -92,7 +104,8 @@ sha256: abc123...
 ## Phases
 
 ### Phase 1: MVP
-- [ ] `zkm init` — scaffold store + git init
+See `TODO.md` for the detailed, checked-off task list.
+- [x] `zkm init` — scaffold store + git init (replaced `zkm-init.sh`)
 - [ ] `zkm plugin add <url>` — clone plugin into plugins/
 - [ ] First plugin: `zkm-imap` (IMAP → markdown)
 - [ ] `zkm convert <plugin>` — run a plugin's converter
