@@ -1,5 +1,11 @@
 """zkm — ze knowledge manager CLI."""
 
+from __future__ import annotations
+
+import subprocess
+import sys
+from pathlib import Path
+
 import click
 
 from zkm import __version__
@@ -34,8 +40,6 @@ def main() -> None:
 )
 def cmd_init(store: str | None, backend: str) -> None:
     """Initialize the knowledge store."""
-    from pathlib import Path
-
     path = Path(store) if store else store_path()
     init_store(path, backend)
 
@@ -51,23 +55,47 @@ def cmd_plugin() -> None:
 
 
 @cmd_plugin.command("add")
-@click.argument("git_url")
-def cmd_plugin_add(git_url: str) -> None:
-    """Clone and register a plugin from GIT_URL."""
-    raise NotImplementedError("zkm plugin add — see TODO.md")
+@click.argument("source")
+def cmd_plugin_add(source: str) -> None:
+    """Install a plugin from a local PATH or git URL."""
+    from zkm.convert import add_plugin
+
+    try:
+        plugin = add_plugin(source)
+        click.echo(f"Installed plugin '{plugin.name}' {plugin.version} from {source}")
+    except FileExistsError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
 
 
 @cmd_plugin.command("list")
 def cmd_plugin_list() -> None:
     """List installed plugins."""
-    raise NotImplementedError("zkm plugin list — see TODO.md")
+    from zkm.convert import list_plugins
+
+    plugins = list_plugins()
+    if not plugins:
+        click.echo("No plugins installed. Run: zkm plugin add <path-or-url>")
+        return
+    for p in plugins:
+        click.echo(f"  {p.name:<20} {p.version:<10} {p.path}")
 
 
 @cmd_plugin.command("remove")
 @click.argument("name")
 def cmd_plugin_remove(name: str) -> None:
     """Remove an installed plugin by NAME."""
-    raise NotImplementedError("zkm plugin remove — see TODO.md")
+    from zkm.convert import remove_plugin
+
+    try:
+        remove_plugin(name)
+        click.echo(f"Removed plugin '{name}'")
+    except LookupError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
 
 
 # ---------------------------------------------------------------------------
@@ -77,10 +105,41 @@ def cmd_plugin_remove(name: str) -> None:
 
 @main.command("convert")
 @click.argument("plugin")
+@click.option(
+    "--store",
+    "store_override",
+    default=None,
+    metavar="PATH",
+    help="Store path (default: $ZKM_STORE or ~/knowledge)",
+)
 @click.option("--no-commit", is_flag=True, help="Skip auto-commit after conversion")
-def cmd_convert(plugin: str, no_commit: bool) -> None:
+def cmd_convert(plugin: str, store_override: str | None, no_commit: bool) -> None:
     """Run a plugin's converter against the store."""
-    raise NotImplementedError("zkm convert — see TODO.md")
+    from zkm.convert import run_convert
+
+    sdir = Path(store_override) if store_override else store_path()
+    if not (sdir / ".git").exists():
+        click.echo(f"Error: {sdir} is not an initialized store. Run: zkm init", err=True)
+        sys.exit(1)
+
+    try:
+        created = run_convert(plugin, sdir)
+    except (LookupError, ValueError, FileNotFoundError) as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+    n = len(created)
+    click.echo(f"Converted {n} file(s) via plugin '{plugin}'")
+    for p in created:
+        click.echo(f"  + {p.relative_to(sdir)}")
+
+    if n > 0 and not no_commit:
+        subprocess.run(["git", "add", "-A"], cwd=sdir, check=True)
+        result = subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=sdir)
+        if result.returncode != 0:
+            msg = f"chore({plugin}): ingest {n} file(s)"
+            subprocess.run(["git", "commit", "-m", msg], cwd=sdir, check=True)
+            click.echo(f"Committed: {msg}")
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,16 @@
+name: notes
+version: 0.1.0
+description: Import plain .txt/.md files from a directory as notes
+license: MIT
+
+creates_dirs:
+  - notes
+
+config:
+  NOTES_SOURCE_DIR:
+    required: true
+    description: Directory to scan recursively for .txt/.md files
+  NOTES_DEFAULT_TAGS:
+    required: false
+    default: ""
+    description: Comma-separated tags to add to every imported note

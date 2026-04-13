@@ -19,12 +19,13 @@ Plugins (source → md)  →  Store (md + git)  →  Index (BM25)  →  Query (C
 ```
 src/zkm/
 ├── cli.py              # Click CLI entry point
-├── convert.py          # Plugin loader + base converter interface
+├── convert.py          # Plugin registry + converter dispatch
 ├── index.py            # BM25 indexer
 ├── query.py            # Search + LLM context assembly
 └── store.py            # Store init, git helpers
-plugins/                # Installed converter plugins (gitignored, cloned repos)
-│   └── zkm-imap/       # Example: each has plugin.yaml + convert.py
+examples/
+└── zkm-notes/          # Bundled sample plugin (plain-text importer)
+plugins/                # User-installed plugins (gitignored, cloned/symlinked)
 docs/
 ├── phase1-design.md    # Library choices and open questions for Phase 1
 ├── temporal-queries.md # Git-as-temporal-index pattern (DiffMem-inspired)
@@ -57,7 +58,9 @@ plugins/zkm-imap/
 
 Plugins declare which subdirs they create (e.g., `mail/`) and what config they need. Secrets go in `$ZKM_STORE/.env` (gitignored). Plugin discovery: scan `plugins/*/plugin.yaml`.
 
-See `docs/plugin-spec.md` for the full interface contract.
+**Local install** (during development): `zkm plugin add ./examples/zkm-notes` creates a symlink in `plugins/`. Git URL install uses `git clone`. The installed plugins directory can be overridden with `$ZKM_PLUGINS_DIR`.
+
+See `docs/plugin-spec.md` for the full interface contract. See `examples/zkm-notes/` for a working reference implementation.
 
 ## Store layout (minimal skeleton)
 
@@ -106,15 +109,17 @@ sha256: abc123...
 ### Phase 1: MVP
 See `TODO.md` for the detailed, checked-off task list.
 - [x] `zkm init` — scaffold store + git init (replaced `zkm-init.sh`)
-- [ ] `zkm plugin add <url>` — clone plugin into plugins/
-- [ ] First plugin: `zkm-imap` (IMAP → markdown)
-- [ ] `zkm convert <plugin>` — run a plugin's converter
+- [x] `zkm plugin add/list/remove` — plugin registry (local symlink + git clone)
+- [x] Sample plugin: `examples/zkm-notes/` — plain text/md importer
+- [x] `zkm convert <plugin>` — dispatches to plugin's `convert()`, auto-commits
+- [ ] First production plugin: `zkm-imap` (IMAP → markdown, separate repo)
 - [ ] `zkm index` — BM25 index over all .md files
 - [ ] `zkm search "query"` — top-k with snippets
 - [ ] `zkm query "question"` — search + LLM context (OpenAI-compatible endpoint)
 
-### Phase 2: Richer search + sources
+### Phase 2: Richer search + sources + store management
 See `docs/phase2-plan.md` (to be written when Phase 1 is done).
+- **Store management** (`zkm remote`, `zkm clone`, `zkm push`, `zkm pull`) — git-like commands that dispatch correctly for annex/lfs/none backends. Reads `.zkm-config` to know which backend to use. See TODO.md for full spec.
 - Embedding index alongside BM25 (hybrid search)
 - Entity extraction (NER → frontmatter `entities`, written back to md)
 - Provenance tracking (SHA256 dedup, original→derived chains)

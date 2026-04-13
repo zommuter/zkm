@@ -10,23 +10,29 @@ See `CLAUDE.md` for architecture overview. See `docs/phase1-design.md` for libra
 - [x] `docs/phase1-design.md` — design decisions and open questions
 
 ## `zkm plugin` (`convert.py`)
-- [ ] `zkm plugin add <git-url>` — `git clone` into `plugins/`, validate `plugin.yaml`
-- [ ] `zkm plugin list` — read `plugins/*/plugin.yaml`, print name / version / path
-- [ ] `zkm plugin remove <name>` — `rm -rf plugins/<dir>`
+- [x] `zkm plugin add <path-or-url>` — local symlink or `git clone`; validates `plugin.yaml`
+- [x] `zkm plugin list` — reads `plugins/*/plugin.yaml`, prints name / version / path
+- [x] `zkm plugin remove <name>` — unlinks symlink or `rm -rf`
 - [ ] `.env` key prompting for missing required config on `plugin add`
 
-## First plugin: `zkm-imap` (separate repo)
+## Sample plugin: `zkm-notes` (`examples/zkm-notes/`)
+- [x] `plugin.yaml` — declares `notes` subdir, `NOTES_SOURCE_DIR` config
+- [x] `convert.py` — sha256 dedup, frontmatter preservation, mtime-based dates
+- [x] `README.md` — usage + plugin-author design notes
+- [x] End-to-end tests in `tests/test_plugin.py`
+
+## First production plugin: `zkm-imap` (separate repo, after zkm-notes)
 - [ ] Repo skeleton (`plugin.yaml` + `convert.py`) per `docs/plugin-spec.md`
 - [ ] `convert.py` using stdlib `imaplib`
 - [ ] Cursor-based incremental fetch (`UIDVALIDITY` + last UID in `.cursor`)
-- [ ] Idempotency via `sha256` dedup (skip existing files by hash)
+- [ ] Idempotency via `sha256` dedup
 
 ## `zkm convert <plugin>` (`convert.py`)
-- [ ] Load `plugin.yaml`, resolve `convert()` entry point
-- [ ] Load `$ZKM_STORE/.env`, filter to plugin's declared config keys
-- [ ] Invoke `convert(store_path, config)`, capture returned paths
-- [ ] Auto-commit to the store: `chore(<plugin>): ingest N files`
-- [ ] `--no-commit` flag to skip auto-commit
+- [x] Load `plugin.yaml`, resolve `convert()` entry point via `importlib`
+- [x] Load `$ZKM_STORE/.env`, apply defaults, filter to plugin's declared keys
+- [x] Invoke `convert(store_path, config)`, capture returned paths
+- [x] Auto-commit to the store: `chore(<plugin>): ingest N files`
+- [x] `--no-commit` flag to skip auto-commit
 
 ## `zkm index` (`index.py`)
 - [ ] Walk store for `*.md` (skip `plugins/`, `.zkm-index/`, `originals/`)
@@ -47,8 +53,22 @@ See `CLAUDE.md` for architecture overview. See `docs/phase1-design.md` for libra
 - [ ] Stream response to stdout
 - [ ] Config env vars: `ZKM_LLM_ENDPOINT`, `ZKM_LLM_MODEL`, `ZKM_LLM_KEY`
 
+## `zkm store` — git-like store management (Phase 2)
+
+The store is a git repo; zkm should expose a thin wrapper that handles
+git-annex / git-lfs automatically so the user doesn't have to think about it.
+
+- [ ] `zkm remote add <name> <url>` — `git remote add` on the store
+- [ ] `zkm remote list` — list store remotes
+- [ ] `zkm clone <url> [path]` — clone a store; auto-detect annex/lfs from `.zkm-config` and re-initialise
+- [ ] `zkm push [remote]` — push store commits; if annex: `git annex sync --content <remote>`; if lfs: `git lfs push --all <remote>`; else plain `git push`
+- [ ] `zkm pull [remote]` — pull/rebase store commits; if annex: `git annex sync <remote>`; if lfs: `git lfs pull`; else plain `git pull --rebase`
+- [ ] `--content` flag for `zkm push/pull` with annex: sync actual file content to/from remote (default: metadata only)
+
+Design note: these commands read `.zkm-config` to know the backend and dispatch accordingly. The user never has to type `git annex` directly.
+
 ## Ops / polish
-- [ ] `ruff check` clean (currently: only stub unused-arg warnings, acceptable)
-- [ ] `pytest` passing
+- [x] `ruff check` clean
+- [x] `pytest` passing (17/17)
 - [ ] `README.md` — quickstart (install, init, first plugin, search)
 - [ ] CI (GitHub Actions) — ruff + pytest on push
