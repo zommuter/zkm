@@ -58,7 +58,7 @@ def load_plugin_manifest(plugin_path: Path) -> Plugin:
         name=data["name"],
         version=data.get("version", "0.0.0"),
         description=data.get("description", ""),
-        path=plugin_path.resolve(),
+        path=plugin_path,
         config_keys=data.get("config") or {},
         creates_dirs=data.get("creates_dirs") or [],
     )

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import textwrap
 from pathlib import Path
 
 import pytest
@@ -21,6 +20,8 @@ from zkm.store import init_store
 # Fixtures
 # ---------------------------------------------------------------------------
 
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+
 
 @pytest.fixture()
 def isolated_plugins(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
@@ -38,95 +39,15 @@ def store(tmp_path: Path) -> Path:
     return sdir
 
 
+_EXAMPLES_NOTES = _REPO_ROOT / "examples" / "zkm-notes"
+
+
 @pytest.fixture()
-def notes_plugin_dir(tmp_path: Path) -> Path:
-    """Build a self-contained notes plugin directory in tmp_path.
-
-    Mirrors examples/zkm-notes but is created inline so tests don't depend
-    on untracked files being visible inside subprocesses.
-    """
-    plugin_dir = tmp_path / "zkm-notes"
-    plugin_dir.mkdir()
-
-    (plugin_dir / "plugin.yaml").write_text(textwrap.dedent("""\
-        name: notes
-        version: 0.1.0
-        description: Import plain .txt/.md files from a directory as notes
-        license: MIT
-        creates_dirs:
-          - notes
-        config:
-          NOTES_SOURCE_DIR:
-            required: true
-            description: Directory to scan recursively for .txt/.md files
-          NOTES_DEFAULT_TAGS:
-            required: false
-            default: ""
-            description: Comma-separated tags to add to every imported note
-    """))
-
-    (plugin_dir / "convert.py").write_text(textwrap.dedent("""\
-        from __future__ import annotations
-        import hashlib, re
-        from datetime import datetime, timezone
-        from pathlib import Path
-        import frontmatter
-
-        SUFFIXES = {".txt", ".md", ".markdown"}
-
-        def convert(store_path: Path, config: dict) -> list[Path]:
-            src = Path(config["NOTES_SOURCE_DIR"]).expanduser().resolve()
-            if not src.exists():
-                raise FileNotFoundError(f"NOTES_SOURCE_DIR does not exist: {src}")
-            notes_dir = store_path / "notes"
-            notes_dir.mkdir(parents=True, exist_ok=True)
-            raw_tags = config.get("NOTES_DEFAULT_TAGS", "").split(",")
-            default_tags = [t.strip() for t in raw_tags if t.strip()]
-            existing_shas = _scan_shas(notes_dir)
-            created: list[Path] = []
-            for f in sorted(src.rglob("*")):
-                if not f.is_file() or f.suffix.lower() not in SUFFIXES:
-                    continue
-                raw = f.read_text(encoding="utf-8", errors="replace")
-                sha = hashlib.sha256(raw.encode()).hexdigest()
-                if sha in existing_shas:
-                    continue
-                mtime = datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc).astimezone()
-                date_str = mtime.isoformat(timespec="seconds")
-                try:
-                    post = frontmatter.loads(raw)
-                    body, meta = post.content, dict(post.metadata)
-                except Exception:
-                    body, meta = raw, {}
-                meta.setdefault("source", "notes")
-                meta.setdefault("date", date_str)
-                existing_tags = list(meta.get("tags") or [])
-                meta["tags"] = existing_tags + [t for t in default_tags if t not in existing_tags]
-                meta["sha256"] = sha
-                meta["original_path"] = str(f)
-                slug = re.sub(r"_+", "_", re.sub(r"[^\\w\\-]+", "_",
-                              f.stem.lower())).strip("_") or "note"
-                out = notes_dir / f"{date_str[:10]}_{slug}.md"
-                i = 1
-                while out.exists():
-                    out = notes_dir / f"{date_str[:10]}_{slug}_{i}.md"; i += 1
-                out.write_text(frontmatter.dumps(frontmatter.Post(body, **meta)), encoding="utf-8")
-                created.append(out)
-                existing_shas.add(sha)
-            return created
-
-        def _scan_shas(d: Path) -> set[str]:
-            shas: set[str] = set()
-            for md in d.rglob("*.md"):
-                try:
-                    sha = frontmatter.load(md).metadata.get("sha256")
-                    if isinstance(sha, str): shas.add(sha)
-                except Exception:
-                    pass
-            return shas
-    """))
-
-    return plugin_dir
+def notes_plugin_dir() -> Path:
+    """Path to the bundled sample plugin at examples/zkm-notes/."""
+    if not (_EXAMPLES_NOTES / "plugin.yaml").exists():
+        pytest.skip(f"Bundled sample plugin not found at {_EXAMPLES_NOTES}")
+    return _EXAMPLES_NOTES
 
 
 # ---------------------------------------------------------------------------
