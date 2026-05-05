@@ -2,6 +2,20 @@
 
 See `CLAUDE.md` for architecture overview. See `docs/phase1-design.md` for library choices and open questions.
 
+## ⚠ HIGHEST PRIORITY: query quality
+
+BM25 search quality is abysmal for natural-language questions. The fix:
+
+- [ ] **LLM query expansion** (`query.py`) — before BM25, call the LLM with a cheap
+  prompt: "Extract 3–5 keyword search terms from this question: {question}". Parse the
+  returned terms, run BM25 for each, merge and re-rank the union of hits. This decouples
+  the user's natural-language intent from BM25's bag-of-words matching.
+  - Use a fast/cheap call (no streaming, short max_tokens, same endpoint/model)
+  - Fall back to raw query tokens if LLM call fails (graceful degradation)
+  - The expanded terms should also drive the temporal filter (extract any date phrases
+    from the question before sending to the LLM)
+  - Consider caching expansions keyed by query hash for repeated searches
+
 ## Scaffold
 - [x] `pyproject.toml` — uv + hatchling, Click + rank-bm25 + python-frontmatter + httpx, entry point `zkm`
 - [x] `src/zkm/` — package skeleton (`cli.py`, `store.py`, `convert.py`, `index.py`, `query.py`)
