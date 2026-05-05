@@ -16,7 +16,7 @@ import httpx
 from zkm.convert import load_env
 from zkm.index import Doc, Index, load_index, tokenize
 
-_DEFAULT_MAX_DOC_CHARS = 4000
+_DEFAULT_MAX_DOC_CHARS = 500  # ~125 tokens; fits 20 docs inside an 8k-token context
 _SNIPPET_WINDOW = 240
 
 
@@ -280,7 +280,13 @@ def llm_query(
     with httpx.stream(
         "POST", url, headers=headers, json=payload, timeout=120.0
     ) as resp:
-        resp.raise_for_status()
+        if resp.status_code >= 400:
+            body = resp.read().decode(errors="replace")
+            raise httpx.HTTPStatusError(
+                f"HTTP {resp.status_code} from {url}: {body[:400]}",
+                request=resp.request,
+                response=resp,
+            )
         for line in resp.iter_lines():
             if not line.startswith("data: "):
                 continue
