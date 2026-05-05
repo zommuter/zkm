@@ -28,14 +28,14 @@ See `CLAUDE.md` for architecture overview. See `docs/phase1-design.md` for libra
 - [x] `zkm convert --reprocess` / `--reprocess-all` — re-derive already-ingested files — covered by test_reprocess_* on 2026-05-05
 
 ## First production plugin: `zkm-eml` (separate repo, `~/src/zkm-eml/`)
-- [ ] Repo init + `CLAUDE.md` + `plugin.yaml`
-- [ ] `parse.py` — stdlib `email` → structured message dict
-- [ ] `threading.py` — References chain → thread_id, thread tree
-- [ ] `render.py` — body selection (plaintext preferred, HTML → markdownify fallback)
-- [ ] `frontmatter.py` — write per messaging-spec.md
-- [ ] `thread_index.py` — regenerate `mail/threads/<id>.md` for touched threads
-- [ ] End-to-end `convert.py` + `tests/`
-- [ ] `README.md` — mbsync setup + `zkm plugin add` walkthrough
+- [x] Repo init + `CLAUDE.md` + `plugin.yaml` — 2026-05-05
+- [x] `parse.py` — stdlib `email` → structured message dict — 18 tests passing 2026-05-05
+- [x] `threading.py` — References chain → thread_id — 18 tests passing 2026-05-05
+- [x] `render.py` — body selection (plaintext preferred, HTML → markdownify fallback) — 2026-05-05
+- [x] `frontmatter.py` — write per messaging-spec.md — 2026-05-05
+- [x] `thread_index.py` — regenerate `mail/threads/<id>.md` for touched threads — 2026-05-05
+- [x] End-to-end `convert.py` + `tests/` — 18/18 passing, ruff clean 2026-05-05
+- [x] `README.md` — mbsync setup + `zkm plugin add` walkthrough — 2026-05-05
 
 ## Deferred: `zkm-imap` (live IMAP fetch)
 - mbsync is preferred for now; zkm-imap is a thin future wrapper if needed
