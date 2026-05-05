@@ -16,10 +16,14 @@ references:                              # full ancestor chain, oldest first
   - "<grandparent@example.com>"
   - "<parent@example.com>"
 thread: "mail/threads/a1b2c3d4.md"       # relative path to the thread index file
-participants:                            # all addresses in From/To/Cc (or chat members)
-  - "Alice Example <alice@example.com>"
-  - "Bob <bob@example.com>"
-direction: incoming                      # incoming | outgoing | unknown
+participants:
+  - address: alice@example.com
+    name: Alice Example
+    role: from
+  - address: bob@example.com
+    role: to
+  - address: carol@example.com
+    role: cc
 ```
 
 ### Field notes
@@ -29,8 +33,35 @@ direction: incoming                      # incoming | outgoing | unknown
 - `in_reply_to` — omit (don't write `null`) for root/thread-starter messages.
 - `references` — use the `References` header for email; build it from the platform's reply graph for chat.
 - `thread` — path relative to the store root. Always `<source_dir>/threads/<thread_id>.md`.
-- `participants` — human-readable, deduplicated. Phase 2 will turn these into entity links via NER.
-- `direction` — `incoming` (received), `outgoing` (sent by the store owner), `unknown` (indeterminate or group).
+- `participants` — role-tagged list. `address` is required (lowercase); `name` is optional. `role` is required.
+- `direction` — **not emitted**. Direction is derivable: outgoing iff there exists a `participants` entry with `role: from` whose address is in the store owner's identity list (kept in `.env` / future global config, not baked into individual files).
+
+### Participant role vocabulary
+
+| Role | Description | Email | Group chat | Calendar |
+|------|-------------|-------|-----------|----------|
+| `from` | Originator | `From:` header | sender | (n/a) |
+| `reply-to` | Explicit reply target | `Reply-To:` header | (n/a) | (n/a) |
+| `to` | Direct recipient | `To:` header | DM target | (n/a) |
+| `cc` | Informational copy | `Cc:` header | (n/a) | (n/a) |
+| `bcc` | Blind copy (outgoing only) | `Bcc:` header | (n/a) | (n/a) |
+| `member` | Group member who could see message | mailing list | group roster | (n/a) |
+| `mentioned` | @-tagged in message body | (n/a) | @-mention | (n/a) |
+| `organizer` | Event/meeting organizer | (n/a) | (n/a) | `ORGANIZER` |
+| `attendee` | Confirmed attendee | (n/a) | (n/a) | `PARTSTAT=ACCEPTED` |
+| `optional` | Optional attendee | (n/a) | (n/a) | `ROLE=OPT-PARTICIPANT` |
+| `invitee` | Invited, not yet confirmed | (n/a) | (n/a) | `PARTSTAT=NEEDS-ACTION` |
+
+Plugins MAY add custom roles not in this table; custom roles SHOULD use an `x-` prefix to flag non-canonical use. The same person MAY appear multiple times with different roles (e.g. `from` + `reply-to`).
+
+### Owner identity and direction derivation
+
+The store owner's addresses are kept outside the per-message md to avoid rebaking every file if the owner list changes. They live in `$ZKM_STORE/.env` under a key defined by each plugin (`EML_OWNER_ADDRESSES` for `zkm-eml`). Future global config will unify these. Search and UI code loads the identity list into memory and applies it at query time:
+
+```python
+owner = {a.strip().lower() for a in config.get("EML_OWNER_ADDRESSES", "").split(",") if a}
+is_outgoing = any(p["address"] in owner for p in participants if p["role"] == "from")
+```
 
 ## Store layout
 
@@ -56,7 +87,7 @@ The `messages/` and `threads/` split is mandatory — it allows the thread index
 ---
 source: <plugin-name>
 thread_id: a1b2c3d4
-participants:
+participants:                 # flat-dedup "Name <addr>" strings across all messages
   - Alice Example <alice@example.com>
   - Bob <bob@example.com>
 first_date: 2026-04-10T09:15:00+02:00
