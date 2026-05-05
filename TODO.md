@@ -26,6 +26,7 @@ See `CLAUDE.md` for architecture overview. See `docs/phase1-design.md` for libra
 - [x] `docs/plugin-spec.md` — drift fixes (dotenv claim, original_path → original, processor_version) — 2026-05-05
 - [x] `zkm-notes` — emits `processor`, `processor_version`, `original` fields — covered by test_notes_convert_writes_processor_fields on 2026-05-05
 - [x] `zkm convert --reprocess` / `--reprocess-all` — re-derive already-ingested files — covered by test_reprocess_* on 2026-05-05
+- [x] `docs/messaging-spec.md` — role-tagged participants schema ({address, name?, role}), canonical role vocabulary, direction derivation pattern, thread-index flat-dedup note — 2026-05-05
 
 ## First production plugin: `zkm-eml` (separate repo, `~/src/zkm-eml/`)
 - [x] Repo init + `CLAUDE.md` + `plugin.yaml` — 2026-05-05
