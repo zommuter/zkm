@@ -103,5 +103,5 @@ Design note: these commands read `.zkm-config` to know the backend and dispatch 
 ## Ops / polish
 - [x] `ruff check` clean
 - [x] `pytest` passing (22/22)
-- [ ] `README.md` — quickstart (install, init, first plugin, search)
-- [ ] CI (GitHub Actions) — ruff + pytest on push
+- [x] `README.md` — quickstart (install, init, first plugin, search) — 2026-05-05
+- [x] CI (GitHub Actions) — ruff + pytest on push — 2026-05-05

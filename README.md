@@ -1,4 +1,4 @@
-# zkm - ze knowledge manager
+# zkm — ze knowledge manager
 
 > "I'm overwhelmed by the flood of AI generated knowledge managers, so let's create yet another one."
 
@@ -11,6 +11,170 @@ Could be any of:
 - a bad pun on German/French accented "the"
 - an abbreviated "Zettel(kasten)"
 - Zommuter's knowledge manager
-- "Zero knowledge manager" - irony in case it doesn't work
+- "Zero knowledge manager" — irony in case it doesn't work
 
 Also feel free to pronounce `zkm` simply "ze-kem".
+
+---
+
+## Quickstart
+
+### 1. Install
+
+Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/).
+
+```bash
+git clone <this-repo> ~/src/zkm
+cd ~/src/zkm
+uv sync
+uv run zkm --version
+```
+
+For a system-wide install:
+
+```bash
+uv tool install .
+zkm --version
+```
+
+### 2. Initialise the knowledge store
+
+```bash
+export ZKM_STORE=~/knowledge      # default if unset
+zkm init
+```
+
+`zkm init` creates `~/knowledge/` with `inbox/`, `notes/`, `originals/`, a
+git repo, and a gitignored `.env` for secrets.
+
+### 3. Install a plugin
+
+Plugins convert sources into markdown. Install the bundled example or any
+git-hosted plugin:
+
+```bash
+# bundled plain-text/markdown importer (development)
+zkm plugin add ./examples/zkm-notes
+
+# or a git-hosted plugin
+zkm plugin add https://github.com/yourname/zkm-myplugin
+```
+
+List installed plugins:
+
+```bash
+zkm plugin list
+```
+
+### 4. Convert (ingest)
+
+```bash
+# plain notes importer: set the source directory
+echo "NOTES_SOURCE_DIR=$HOME/Documents/notes" >> $ZKM_STORE/.env
+
+zkm convert notes
+```
+
+The command walks the source, writes frontmatter-tagged markdown into the
+store, and auto-commits. Re-running is safe — files are deduped by sha256.
+
+Use `--reprocess` to re-derive files whose `processor_version` differs from
+the current plugin version, or `--reprocess-all` to re-derive everything.
+
+### 5. Index
+
+Build (or refresh) the BM25 search index:
+
+```bash
+zkm index
+```
+
+The index lives in `$ZKM_STORE/.zkm-index/bm25.pkl` (gitignored). Re-running
+is incremental — only files whose mtime changed are re-tokenised.
+
+### 6. Search
+
+```bash
+zkm search "electricity bill"
+zkm search "apple" --top-k 5
+zkm search "recipe" --json
+```
+
+Output: ranked hits with score, date, and a text snippet.
+
+### 7. Query (LLM-augmented)
+
+Point zkm at any OpenAI-compatible endpoint:
+
+```bash
+export ZKM_LLM_ENDPOINT=http://localhost:11434   # Ollama
+export ZKM_LLM_MODEL=llama3
+export ZKM_LLM_KEY=ollama                        # placeholder for keyless servers
+
+zkm query "what bills are due this month?"
+```
+
+Or put the vars in `$ZKM_STORE/.env`:
+
+```
+ZKM_LLM_ENDPOINT=https://api.openai.com
+ZKM_LLM_MODEL=gpt-4o-mini
+ZKM_LLM_KEY=sk-...
+```
+
+The answer streams to stdout with a sources list at the end.
+
+---
+
+## Architecture
+
+```
+Plugins (source → md)  →  Store (md + git)  →  Index (BM25)  →  Query (CLI)
+```
+
+- **No vector DB in Phase 1.** BM25 over markdown. Embeddings are Phase 2.
+- **Git history = temporal index.** HEAD = current state; log/diff = evolution.
+- **LLM at query time only**, via any OpenAI-compatible API.
+
+See `docs/` for design notes, plugin spec, and future-phase plans.
+
+## Plugin development
+
+See [`docs/plugin-spec.md`](docs/plugin-spec.md) and the reference
+implementation in [`examples/zkm-notes/`](examples/zkm-notes/).
+
+A plugin is a directory (or git repo) containing:
+
+```
+plugin.yaml    # name, version, config_schema, creates_dirs
+convert.py     # def convert(store_path, config, *, progress=None) -> list[Path]
+```
+
+Install locally during development:
+
+```bash
+zkm plugin add ./my-plugin     # creates a symlink in plugins/
+```
+
+## Store layout
+
+```
+~/knowledge/
+├── inbox/          # drop zone — unsorted items
+├── notes/          # manual notes, diary, zettelkasten
+├── originals/      # binary originals (git-annex / git-lfs / plain)
+├── .env            # secrets (gitignored)
+├── .zkm-config     # binary_backend=annex|lfs|none
+└── .zkm-index/     # BM25 index (gitignored)
+```
+
+Plugins create additional directories on first run (e.g. `mail/`, `messages/`).
+
+## Phases
+
+| Phase | Status | Features |
+|-------|--------|----------|
+| 1 — MVP | **done** | init, plugins, convert, index, search, query |
+| 2 — Richer search | planned | embeddings, NER, store management commands |
+| 3 — Integration | planned | FastAPI WebUI, entity pages, Zelegator integration |
+| 4 — Temporal | planned | git-history queries, memory compaction |
