@@ -145,6 +145,12 @@ def cmd_convert(
         click.echo(f"Error: {sdir} is not an initialized store. Run: zkm init", err=True)
         sys.exit(1)
 
+    _BAR_FORMAT = (
+        "{desc:<14}{percentage:3.0f}%|{bar:30}| "
+        "{n_fmt:>6}/{total_fmt:<6} "
+        "[{elapsed}<{remaining}, {rate_fmt:>10}] "
+        "{postfix}"
+    )
     show_progress = not no_progress and sys.stdout.isatty()
     bar: tqdm | None = None
     cancel_status: str | None = None
@@ -166,7 +172,7 @@ def cmd_convert(
             nonlocal bar
             cancel.check()  # raises PluginInterrupt on soft cancel
             if bar is None:
-                bar = tqdm(total=total, unit="item", leave=False, file=sys.stderr)
+                bar = tqdm(total=total, unit="item", leave=False, file=sys.stderr, bar_format=_BAR_FORMAT)
                 if cancel_status:
                     bar.set_description(cancel_status)
             elif total is not None and bar.total != total:
