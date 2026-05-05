@@ -172,7 +172,9 @@ def cmd_convert(
             nonlocal bar
             cancel.check()  # raises PluginInterrupt on soft cancel
             if bar is None:
-                bar = tqdm(total=total, unit="item", leave=False, file=sys.stderr, bar_format=_BAR_FORMAT)
+                bar = tqdm(
+                    total=total, unit="item", leave=False, file=sys.stderr, bar_format=_BAR_FORMAT
+                )
                 if cancel_status:
                     bar.set_description(cancel_status)
             elif total is not None and bar.total != total:
@@ -241,9 +243,61 @@ def cmd_convert(
 
 
 @main.command("index")
-def cmd_index() -> None:
+@click.option(
+    "--store",
+    "store_override",
+    default=None,
+    metavar="PATH",
+    help="Store path (default: $ZKM_STORE or ~/knowledge)",
+)
+@click.option("--no-progress", is_flag=True, help="Suppress progress bar")
+def cmd_index(store_override: str | None, no_progress: bool) -> None:
     """Build or refresh the BM25 search index."""
-    raise NotImplementedError("zkm index — see TODO.md")
+    import time
+
+    from tqdm import tqdm
+
+    from zkm.index import build_index, save_index
+
+    sdir = Path(store_override) if store_override else store_path()
+    if not (sdir / ".git").exists():
+        click.echo(f"Error: {sdir} is not an initialized store. Run: zkm init", err=True)
+        sys.exit(1)
+
+    show_progress = not no_progress and sys.stdout.isatty()
+    bar: tqdm | None = None
+
+    _BAR_FORMAT = (
+        "{desc:<14}{percentage:3.0f}%|{bar:30}| "
+        "{n_fmt:>6}/{total_fmt:<6} "
+        "[{elapsed}<{remaining}, {rate_fmt:>10}] "
+        "{postfix}"
+    )
+
+    def progress_cb(current: int, total: int | None, message: str = "") -> None:
+        nonlocal bar
+        if not show_progress:
+            return
+        if bar is None:
+            bar = tqdm(
+                total=total, unit="file", leave=False, file=sys.stderr, bar_format=_BAR_FORMAT
+            )
+        if total is not None and bar.total != total:
+            bar.total = total
+            bar.refresh()
+        delta = current - bar.n
+        if delta > 0:
+            bar.update(delta)
+        if message:
+            bar.set_postfix_str(message[:60])
+
+    t0 = time.monotonic()
+    idx = build_index(sdir, progress=progress_cb if show_progress else None)
+    if bar is not None:
+        bar.close()
+    save_index(sdir, idx)
+    elapsed = time.monotonic() - t0
+    click.echo(f"Indexed {len(idx.docs)} document(s) in {elapsed:.1f}s")
 
 
 # ---------------------------------------------------------------------------
@@ -255,9 +309,43 @@ def cmd_index() -> None:
 @click.argument("query")
 @click.option("-k", "--top-k", default=10, show_default=True, help="Number of results")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
-def cmd_search(query: str, top_k: int, as_json: bool) -> None:
+@click.option(
+    "--store",
+    "store_override",
+    default=None,
+    metavar="PATH",
+    help="Store path (default: $ZKM_STORE or ~/knowledge)",
+)
+def cmd_search(query: str, top_k: int, as_json: bool, store_override: str | None) -> None:
     """Search the knowledge store with BM25."""
-    raise NotImplementedError("zkm search — see TODO.md")
+    import json as _json
+
+    from zkm.query import search
+
+    sdir = Path(store_override) if store_override else store_path()
+    try:
+        hits = search(sdir, query, top_k=top_k)
+    except FileNotFoundError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+    if as_json:
+        records = [
+            {"path": h.path, "score": h.score, "date": h.date, "snippet": h.snippet} for h in hits
+        ]
+        click.echo(_json.dumps(records, ensure_ascii=False))
+        return
+
+    if not hits:
+        click.echo("No results.")
+        return
+
+    for h in hits:
+        date_str = f"  ({h.date})" if h.date else ""
+        click.echo(f"{h.score:6.2f}  {h.path}{date_str}")
+        if h.snippet:
+            click.echo(f"       {h.snippet}")
+        click.echo()
 
 
 # ---------------------------------------------------------------------------
@@ -268,6 +356,36 @@ def cmd_search(query: str, top_k: int, as_json: bool) -> None:
 @main.command("query")
 @click.argument("question")
 @click.option("-k", "--top-k", default=5, show_default=True, help="Context documents")
-def cmd_query(question: str, top_k: int) -> None:
+@click.option(
+    "--store",
+    "store_override",
+    default=None,
+    metavar="PATH",
+    help="Store path (default: $ZKM_STORE or ~/knowledge)",
+)
+def cmd_query(question: str, top_k: int, store_override: str | None) -> None:
     """Answer a question using BM25 context + LLM."""
-    raise NotImplementedError("zkm query — see TODO.md")
+    import httpx
+
+    from zkm.query import llm_query, search
+
+    sdir = Path(store_override) if store_override else store_path()
+    try:
+        hits = search(sdir, question, top_k=top_k)
+        for chunk in llm_query(sdir, question, top_k=top_k):
+            click.echo(chunk, nl=False)
+            sys.stdout.flush()
+        click.echo()
+        if hits:
+            click.echo("\nSources:")
+            for h in hits:
+                click.echo(f"  - {h.path}")
+    except FileNotFoundError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    except httpx.HTTPError as e:
+        click.echo(f"Error: LLM request failed: {e}", err=True)
+        sys.exit(1)

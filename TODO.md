@@ -49,23 +49,23 @@ See `CLAUDE.md` for architecture overview. See `docs/phase1-design.md` for libra
 - [x] `--no-commit` flag to skip auto-commit
 
 ## `zkm index` (`index.py`)
-- [ ] Walk store for `*.md` (skip `plugins/`, `.zkm-index/`, `originals/`)
-- [ ] Parse frontmatter with `python-frontmatter`
-- [ ] Build `rank_bm25` index → `$ZKM_STORE/.zkm-index/bm25.pkl`
-- [ ] Incremental: skip files unchanged since last index (compare mtime or git hash)
+- [x] Walk store for `*.md` (skip `plugins/`, `.zkm-index/`, `originals/`) — 2026-05-05
+- [x] Parse frontmatter with `python-frontmatter` — 2026-05-05
+- [x] Build `rank_bm25` index → `$ZKM_STORE/.zkm-index/bm25.pkl` — 2026-05-05
+- [x] Incremental: skip files unchanged since last index (mtime_ns cache) — 2026-05-05
 
 ## `zkm search "query"` (`index.py`, `query.py`)
-- [ ] Load BM25 index, return top-k hits
-- [ ] Render: file path + frontmatter `date` + text snippet
-- [ ] `--json` flag for programmatic use
-- [ ] `-k / --top-k` (default 10)
+- [x] Load BM25 index, return top-k hits — 2026-05-05
+- [x] Render: file path + frontmatter `date` + text snippet — 2026-05-05
+- [x] `--json` flag for programmatic use — 2026-05-05
+- [x] `-k / --top-k` (default 10) — 2026-05-05
 
 ## `zkm query "question"` (`query.py`)
-- [ ] Call `search()` → top-k context documents
-- [ ] Assemble prompt with document snippets
-- [ ] POST to `ZKM_LLM_ENDPOINT` (`/v1/chat/completions`) via `httpx`
-- [ ] Stream response to stdout
-- [ ] Config env vars: `ZKM_LLM_ENDPOINT`, `ZKM_LLM_MODEL`, `ZKM_LLM_KEY`
+- [x] Call `search()` → top-k context documents — 2026-05-05
+- [x] Assemble prompt with document snippets — 2026-05-05
+- [x] POST to `ZKM_LLM_ENDPOINT` (`/v1/chat/completions`) via `httpx` — 2026-05-05
+- [x] Stream response to stdout — 2026-05-05
+- [x] Config env vars: `ZKM_LLM_ENDPOINT`, `ZKM_LLM_MODEL`, `ZKM_LLM_KEY` — 2026-05-05
 
 ## `zkm store` — git-like store management (Phase 2)
 
