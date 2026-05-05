@@ -80,8 +80,15 @@ git-annex / git-lfs automatically so the user doesn't have to think about it.
 
 Design note: these commands read `.zkm-config` to know the backend and dispatch accordingly. The user never has to type `git annex` directly.
 
+## Plugin progress indication
+- [x] `progress=` kwarg contract in `run_convert` / `run_reprocess` with `inspect.signature` dispatch — 2026-05-05
+- [x] tqdm bar on TTY in `cli.py`, `--no-progress` flag — 2026-05-05
+- [x] `zkm-notes` and `zkm-eml` updated to accept and call progress — 2026-05-05
+- [x] `docs/plugin-spec.md` documents mandatory progress contract — 2026-05-05
+- [x] `pytest` passing (22/22) — 2026-05-05
+
 ## Ops / polish
 - [x] `ruff check` clean
-- [x] `pytest` passing (20/20)
+- [x] `pytest` passing (22/22)
 - [ ] `README.md` — quickstart (install, init, first plugin, search)
 - [ ] CI (GitHub Actions) — ruff + pytest on push
