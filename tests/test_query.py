@@ -65,20 +65,40 @@ def test_chat_url_trailing_slash() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_missing_endpoint_raises(indexed_store: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_defaults_used_when_no_config(indexed_store: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """No env vars set → falls back to localhost:8080 + qwen3.5-0.8b, no error."""
     monkeypatch.delenv("ZKM_LLM_ENDPOINT", raising=False)
     monkeypatch.delenv("ZKM_LLM_MODEL", raising=False)
     monkeypatch.delenv("ZKM_LLM_KEY", raising=False)
-    with pytest.raises(ValueError, match="ZKM_LLM_ENDPOINT"):
-        list(llm_query(indexed_store, "anything"))
 
+    requests_made: list[dict] = []
 
-def test_missing_model_raises(indexed_store: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("ZKM_LLM_ENDPOINT", "http://localhost:11434")
-    monkeypatch.delenv("ZKM_LLM_MODEL", raising=False)
-    monkeypatch.delenv("ZKM_LLM_KEY", raising=False)
-    with pytest.raises(ValueError, match="ZKM_LLM_MODEL"):
-        list(llm_query(indexed_store, "anything"))
+    class MockResponse:
+        status_code = 200
+
+        def raise_for_status(self) -> None:
+            pass
+
+        def iter_lines(self):
+            import json
+            yield f"data: {json.dumps({'choices': [{'delta': {'content': 'ok'}}]})}"
+            yield "data: [DONE]"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+    def mock_stream(method, url, *, headers, json, timeout):
+        requests_made.append({"url": url, "model": json["model"]})
+        return MockResponse()
+
+    monkeypatch.setattr(httpx, "stream", mock_stream)
+    list(llm_query(indexed_store, "electricity"))
+
+    assert requests_made[0]["url"] == "http://localhost:8080/v1/chat/completions"
+    assert requests_made[0]["model"] == "qwen3.5-0.8b"
 
 
 def test_config_from_dot_env(indexed_store: Path, monkeypatch: pytest.MonkeyPatch) -> None:

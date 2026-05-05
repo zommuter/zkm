@@ -89,6 +89,10 @@ def _make_snippet(path: Path, q_tokens: list[str]) -> str:
     return snippet
 
 
+_DEFAULT_ENDPOINT = "http://localhost:8080"
+_DEFAULT_MODEL = "qwen3.5-0.8b"
+
+
 def _resolve_llm_config(
     store: Path,
     endpoint: str | None,
@@ -97,21 +101,18 @@ def _resolve_llm_config(
 ) -> tuple[str, str, str]:
     env = load_env(store)
 
-    def _get(key: str, override: str | None) -> str:
+    def _get(key: str, override: str | None, default: str) -> str:
         if override:
             return override
         if key in os.environ:
             return os.environ[key]
         if key in env:
             return env[key]
-        raise ValueError(
-            f"Missing required LLM config: {key}\n"
-            f"Set it in the environment or add it to {store / '.env'}"
-        )
+        return default
 
-    resolved_endpoint = _get("ZKM_LLM_ENDPOINT", endpoint)
-    resolved_model = _get("ZKM_LLM_MODEL", model)
-    resolved_key = _get("ZKM_LLM_KEY", api_key)
+    resolved_endpoint = _get("ZKM_LLM_ENDPOINT", endpoint, _DEFAULT_ENDPOINT)
+    resolved_model = _get("ZKM_LLM_MODEL", model, _DEFAULT_MODEL)
+    resolved_key = _get("ZKM_LLM_KEY", api_key, "")
     return resolved_endpoint, resolved_model, resolved_key
 
 
