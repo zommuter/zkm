@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
 
 from zkm.index import build_index, save_index
-from zkm.query import search
+from zkm.query import _temporal_filter, search
 from zkm.store import init_store
 
 
@@ -105,3 +106,82 @@ def test_snippet_fallback_to_body_head(indexed_store: Path) -> None:
 def test_search_raises_when_no_index(store: Path) -> None:
     with pytest.raises(FileNotFoundError, match="zkm index"):
         search(store, "anything")
+
+
+# ---------------------------------------------------------------------------
+# Temporal filtering
+# ---------------------------------------------------------------------------
+
+
+def test_temporal_filter_last_month() -> None:
+    today = date.today()
+    first_this = today.replace(day=1)
+    end = first_this - timedelta(days=1)
+    start = end.replace(day=1)
+    assert _temporal_filter("what are last month's highlights") == (start, end)
+
+
+def test_temporal_filter_this_month() -> None:
+    today = date.today()
+    result = _temporal_filter("this month's expenses")
+    assert result is not None
+    assert result[0] == today.replace(day=1)
+    assert result[1] == today
+
+
+def test_temporal_filter_this_year() -> None:
+    today = date.today()
+    result = _temporal_filter("what happened this year?")
+    assert result == (date(today.year, 1, 1), today)
+
+
+def test_temporal_filter_none_for_plain_query() -> None:
+    assert _temporal_filter("electricity bill stadtwerke") is None
+
+
+def test_temporal_search_returns_date_filtered_docs(store: Path) -> None:
+    today = date.today()
+    first_this = today.replace(day=1)
+    last_month_end = first_this - timedelta(days=1)
+    last_month_start = last_month_end.replace(day=1)
+    last_month_mid = last_month_start.replace(day=min(15, last_month_end.day))
+    old_date = "2018-03-01"
+
+    _write_note(store, "notes/recent.md", "meeting with Frank",
+                f"date: {last_month_mid.isoformat()}\nsource: notes")
+    _write_note(store, "notes/old.md", "meeting with Frank",
+                f"date: {old_date}\nsource: notes")
+    idx = build_index(store)
+    save_index(store, idx)
+
+    hits = search(store, "what happened last month?")
+    paths = [h.path for h in hits]
+    assert "notes/recent.md" in paths
+    assert "notes/old.md" not in paths
+
+
+def test_temporal_search_most_recent_first(store: Path) -> None:
+    today = date.today()
+    first_this = today.replace(day=1)
+    last_month_end = first_this - timedelta(days=1)
+    day1 = last_month_end.replace(day=1)
+    day15 = last_month_end.replace(day=min(15, last_month_end.day))
+
+    _write_note(store, "notes/early.md", "early note", f"date: {day1.isoformat()}\nsource: notes")
+    _write_note(store, "notes/later.md", "later note", f"date: {day15.isoformat()}\nsource: notes")
+    idx = build_index(store)
+    save_index(store, idx)
+
+    hits = search(store, "last month highlights")
+    assert hits[0].path == "notes/later.md"  # more recent first
+
+
+def test_temporal_search_falls_back_on_empty_window(store: Path) -> None:
+    """If no docs fall in the date window, all docs are returned (fallback)."""
+    _write_note(store, "notes/old.md", "some content", "date: 2018-01-01\nsource: notes")
+    idx = build_index(store)
+    save_index(store, idx)
+
+    hits = search(store, "last month recap")
+    # Falls back to full corpus — old doc still returned
+    assert len(hits) == 1

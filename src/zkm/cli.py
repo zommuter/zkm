@@ -355,7 +355,7 @@ def cmd_search(query: str, top_k: int, as_json: bool, store_override: str | None
 
 @main.command("query")
 @click.argument("question")
-@click.option("-k", "--top-k", default=5, show_default=True, help="Context documents")
+@click.option("-k", "--top-k", default=20, show_default=True, help="Context documents")
 @click.option(
     "--store",
     "store_override",
