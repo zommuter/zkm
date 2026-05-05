@@ -80,6 +80,13 @@ git-annex / git-lfs automatically so the user doesn't have to think about it.
 
 Design note: these commands read `.zkm-config` to know the backend and dispatch accordingly. The user never has to type `git annex` directly.
 
+## Plugin cancellation
+- [x] `cancel.py` — `CancelController` context manager, `PluginInterrupt`, 30s soft window, ESC watcher — 2026-05-05
+- [x] CLI `cmd_convert` — wrapped in CancelController; countdown in tqdm; commits partial work; exit 130 — 2026-05-05
+- [x] `plugin-spec.md` — cancellation contract documented (PluginInterrupt, try/finally, atomic writes) — 2026-05-05
+- [x] `zkm-eml` convert+reprocess loops wrapped in try/finally for thread index cleanup on cancel — 2026-05-05
+- [x] Soft-cancel test: PluginInterrupt leaves partial files on disk, run resumable — 2026-05-05
+
 ## Plugin progress indication
 - [x] `progress=` kwarg contract in `run_convert` / `run_reprocess` with `inspect.signature` dispatch — 2026-05-05
 - [x] tqdm bar on TTY in `cli.py`, `--no-progress` flag — 2026-05-05
