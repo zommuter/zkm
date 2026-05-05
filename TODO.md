@@ -96,8 +96,8 @@ Design note: these commands read `.zkm-config` to know the backend and dispatch 
 
 ## inbox/ backlinks
 - [x] `docs/plugin-spec.md` — "Inbox handoff and origin sidecar" section: schema v1, one-canonical-symlink dedup policy, incremental vs reprocess-all update strategies — 2026-05-05
-- [ ] `zkm-eml` `originals.py` — implement sidecar write/merge in `symlink_inbox`; switch dedup from one-symlink-per-message-date to one-canonical-symlink-per-CAS + sidecar listing all producers
-- [ ] `zkm-eml` `tests/test_attachments.py` — multi-message-same-attachment round-trip: assert single canonical symlink, sidecar schema, producer list
+- [x] `zkm-eml` `originals.py` — implement sidecar write/merge in `symlink_inbox`; one-canonical-symlink-per-CAS + sidecar listing all producers — covered by tests (57/57 passing) on 2026-05-05
+- [x] `zkm-eml` `tests/test_attachments.py` — multi-message-same-attachment round-trip: single canonical symlink, sidecar schema, producer list — covered by test_inbox_sidecar_multi_producer on 2026-05-05
 
 ## Ops / polish
 - [x] `ruff check` clean
