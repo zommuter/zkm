@@ -22,10 +22,10 @@ See `CLAUDE.md` for architecture overview. See `docs/phase1-design.md` for libra
 - [x] End-to-end tests in `tests/test_plugin.py`
 
 ## Plugin spec + conventions
-- [x] `docs/messaging-spec.md` — cross-plugin frontmatter + store layout for conversation sources
-- [x] `docs/plugin-spec.md` — drift fixes (dotenv claim, original_path → original, processor_version)
-- [x] `zkm-notes` — emits `processor`, `processor_version`, `original` fields
-- [x] `zkm convert --reprocess` / `--reprocess-all` — re-derive already-ingested files
+- [x] `docs/messaging-spec.md` — cross-plugin frontmatter + store layout for conversation sources — 2026-05-05
+- [x] `docs/plugin-spec.md` — drift fixes (dotenv claim, original_path → original, processor_version) — 2026-05-05
+- [x] `zkm-notes` — emits `processor`, `processor_version`, `original` fields — covered by test_notes_convert_writes_processor_fields on 2026-05-05
+- [x] `zkm convert --reprocess` / `--reprocess-all` — re-derive already-ingested files — covered by test_reprocess_* on 2026-05-05
 
 ## First production plugin: `zkm-eml` (separate repo, `~/src/zkm-eml/`)
 - [ ] Repo init + `CLAUDE.md` + `plugin.yaml`
@@ -82,6 +82,6 @@ Design note: these commands read `.zkm-config` to know the backend and dispatch 
 
 ## Ops / polish
 - [x] `ruff check` clean
-- [x] `pytest` passing (17/17)
+- [x] `pytest` passing (20/20)
 - [ ] `README.md` — quickstart (install, init, first plugin, search)
 - [ ] CI (GitHub Actions) — ruff + pytest on push
