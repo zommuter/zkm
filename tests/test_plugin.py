@@ -253,6 +253,42 @@ def test_progress_callback_invoked(
     assert calls[-1][0] == calls[-1][1]  # final current == total
 
 
+def test_cancel_soft_stops_after_item(
+    isolated_plugins: Path, store: Path, tmp_path: Path, notes_plugin_dir: Path
+) -> None:
+    """Soft cancel via PluginInterrupt from progress callback stops the run cleanly."""
+    from zkm.cancel import PluginInterrupt
+
+    src = tmp_path / "src_notes"
+    src.mkdir()
+    for i in range(5):
+        (src / f"note{i}.txt").write_text(f"Content {i}")
+
+    add_plugin(str(notes_plugin_dir))
+
+    interrupt_after = 2
+    call_count = 0
+
+    def cancelling_progress(current: int, total: int | None, message: str = "") -> None:
+        nonlocal call_count
+        call_count += 1
+        if call_count >= interrupt_after:
+            raise PluginInterrupt("test cancel")
+
+    # run_convert propagates PluginInterrupt
+    with pytest.raises(PluginInterrupt):
+        run_convert(
+            "notes",
+            store,
+            extra_env={"NOTES_SOURCE_DIR": str(src)},
+            progress=cancelling_progress,
+        )
+
+    # Files processed before cancel are on disk
+    created_files = list((store / "notes").rglob("*.md"))
+    assert 0 < len(created_files) <= 5
+
+
 def test_progress_not_passed_to_plugin_without_kwarg(
     isolated_plugins: Path, store: Path, tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
 ) -> None:

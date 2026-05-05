@@ -116,6 +116,35 @@ def reprocess(store_path: Path, config: dict, existing: list[Path], *, progress:
     ...
 ```
 
+## Cancellation
+
+`zkm convert` installs a two-tier signal / ESC handler:
+
+- **First Ctrl+C, SIGTERM, or ESC** (in TTY) → *soft cancel*. The progress callback raises `PluginInterrupt` at the next item boundary. A 30-second countdown is shown; if the plugin doesn't yield within the deadline, hard cancel fires automatically.
+- **Second signal, or 30s timer expiry** → *hard cancel*. `KeyboardInterrupt` is raised in the main thread at the next interpreter check (interrupts blocking I/O).
+- **SIGKILL** → OS-handled; no graceful path possible.
+
+Plugin contract for cancel:
+
+- `progress()` **may raise `PluginInterrupt`** (a `KeyboardInterrupt` subclass). Plugins must not swallow `KeyboardInterrupt` in their main loop.
+- Use `try/finally` for cleanup that must run on cancel (e.g., regenerating index files, flushing partial writes).
+- Write output files **atomically** (write-then-rename or use a temp path) so a mid-item hard cancel doesn't leave corrupt state.
+- Idempotent dedup means re-running after a cancel safely resumes from where the run stopped.
+
+```python
+def convert(store_path, config, *, progress=None):
+    created = []
+    touched = set()
+    try:
+        for i, item in enumerate(items, 1):
+            _process(item, created, touched)
+            if progress:
+                progress(i, total, item.name)  # may raise PluginInterrupt
+    finally:
+        _regenerate_indexes(touched)  # runs even on cancel
+    return created
+```
+
 If `reprocess` is not exported, `zkm convert --reprocess` falls back to calling `convert()` with `ZKM_REPROCESS` set in the environment (`"outdated"` or `"all"`). Simple plugins can check `os.environ.get("ZKM_REPROCESS")` and skip sha256 dedup accordingly.
 
 ## Frontmatter

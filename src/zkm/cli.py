@@ -137,6 +137,7 @@ def cmd_convert(
     """Run a plugin's converter against the store."""
     from tqdm import tqdm
 
+    from zkm.cancel import CancelController, PluginInterrupt
     from zkm.convert import run_convert, run_reprocess
 
     sdir = Path(store_override) if store_override else store_path()
@@ -146,33 +147,64 @@ def cmd_convert(
 
     show_progress = not no_progress and sys.stdout.isatty()
     bar: tqdm | None = None
+    cancel_status: str | None = None
 
-    def progress_cb(current: int, total: int | None, message: str = "") -> None:
-        nonlocal bar
-        if bar is None:
-            bar = tqdm(total=total, unit="item", leave=False, file=sys.stderr)
-        elif total is not None and bar.total != total:
-            bar.total = total
-            bar.refresh()
-        delta = current - bar.n
-        if delta > 0:
-            bar.update(delta)
-        if message:
-            bar.set_postfix_str(message[:60])
-
-    progress = progress_cb if show_progress else None
-
-    try:
-        if reprocess_mode:
-            created = run_reprocess(plugin, sdir, mode=reprocess_mode, progress=progress)
-        else:
-            created = run_convert(plugin, sdir, progress=progress)
-    except (LookupError, ValueError, FileNotFoundError) as e:
-        click.echo(f"Error: {e}", err=True)
-        sys.exit(1)
-    finally:
+    def update_status(s: str) -> None:
+        nonlocal cancel_status
+        cancel_status = s
         if bar is not None:
-            bar.close()
+            bar.set_description(s)
+            bar.refresh()
+        else:
+            click.echo(f"\r{s}", err=True, nl=False)
+
+    cancelled = False
+    created: list[Path] = []
+
+    with CancelController(on_status=update_status) as cancel:
+        def progress_cb(current: int, total: int | None, message: str = "") -> None:
+            nonlocal bar
+            cancel.check()  # raises PluginInterrupt on soft cancel
+            if bar is None:
+                bar = tqdm(total=total, unit="item", leave=False, file=sys.stderr)
+                if cancel_status:
+                    bar.set_description(cancel_status)
+            elif total is not None and bar.total != total:
+                bar.total = total
+                bar.refresh()
+            delta = current - bar.n
+            if delta > 0:
+                bar.update(delta)
+            if message:
+                bar.set_postfix_str(message[:60])
+
+        progress = progress_cb if show_progress else None
+
+        try:
+            if reprocess_mode:
+                created = run_reprocess(plugin, sdir, mode=reprocess_mode, progress=progress)
+            else:
+                created = run_convert(plugin, sdir, progress=progress)
+        except (LookupError, ValueError, FileNotFoundError) as e:
+            if bar is not None:
+                bar.close()
+            click.echo(f"Error: {e}", err=True)
+            sys.exit(1)
+        except PluginInterrupt:
+            cancelled = True
+        except KeyboardInterrupt:
+            cancelled = True
+        finally:
+            if bar is not None:
+                bar.close()
+
+    if cancelled:
+        click.echo("", err=True)  # ensure newline after any in-place status
+        click.echo(
+            f"Cancelled. Re-run `zkm convert {plugin}` to resume"
+            " (already-processed items are skipped).",
+            err=True,
+        )
 
     n = len(created)
     verb = "Reprocessed" if reprocess_mode else "Converted"
@@ -188,8 +220,13 @@ def cmd_convert(
                 msg = f"refactor({plugin}): reprocess {n} file(s)"
             else:
                 msg = f"chore({plugin}): ingest {n} file(s)"
+            if cancelled:
+                msg += " (partial — cancelled)"
             subprocess.run(["git", "commit", "-m", msg], cwd=sdir, check=True)
             click.echo(f"Committed: {msg}")
+
+    if cancelled:
+        sys.exit(130)  # standard shell convention for SIGINT
 
 
 # ---------------------------------------------------------------------------
