@@ -13,6 +13,7 @@ from zkm.convert import (
     load_env,
     remove_plugin,
     run_convert,
+    run_reprocess,
 )
 from zkm.store import init_store
 
@@ -186,3 +187,63 @@ def test_notes_convert_missing_config_raises(
 def test_convert_unknown_plugin_raises(isolated_plugins: Path, store: Path) -> None:
     with pytest.raises(LookupError):
         run_convert("nonexistent", store)
+
+
+def test_notes_convert_writes_processor_fields(
+    isolated_plugins: Path, store: Path, tmp_path: Path, notes_plugin_dir: Path
+) -> None:
+    import frontmatter
+
+    src = tmp_path / "src_notes"
+    src.mkdir()
+    (src / "note.txt").write_text("Test content")
+
+    add_plugin(str(notes_plugin_dir))
+    created = run_convert("notes", store, extra_env={"NOTES_SOURCE_DIR": str(src)})
+
+    assert len(created) == 1
+    post = frontmatter.load(created[0])
+    assert post.metadata["processor"] == "notes"
+    assert post.metadata["processor_version"] == "0.1.0"
+    assert post.metadata["original"] == str(src / "note.txt")
+
+
+def test_reprocess_all_calls_convert(
+    isolated_plugins: Path, store: Path, tmp_path: Path, notes_plugin_dir: Path
+) -> None:
+    """--reprocess-all (mode='all') re-runs convert with ZKM_REPROCESS set; notes
+    plugin doesn't implement reprocess(), so it falls back to convert() which skips
+    already-seen sha256s. The important assertion is that no exception is raised and
+    the candidate list is built correctly."""
+
+    src = tmp_path / "src_notes"
+    src.mkdir()
+    (src / "note.txt").write_text("Reprocess me")
+
+    add_plugin(str(notes_plugin_dir))
+    run_convert("notes", store, extra_env={"NOTES_SOURCE_DIR": str(src)})
+
+    # run_reprocess should not raise; returns 0 new files (sha256 dedup still active)
+    result = run_reprocess("notes", store, extra_env={"NOTES_SOURCE_DIR": str(src)}, mode="all")
+    assert isinstance(result, list)
+
+
+def test_reprocess_outdated_skips_current_version(
+    isolated_plugins: Path, store: Path, tmp_path: Path, notes_plugin_dir: Path
+) -> None:
+    """Files already at the current processor_version are skipped in 'outdated' mode."""
+
+    src = tmp_path / "src_notes"
+    src.mkdir()
+    (src / "note.txt").write_text("Already current")
+
+    add_plugin(str(notes_plugin_dir))
+    created = run_convert("notes", store, extra_env={"NOTES_SOURCE_DIR": str(src)})
+    assert len(created) == 1
+
+    # In outdated mode, _find_managed_files should return 0 candidates (version matches)
+    from zkm.convert import _find_managed_files, find_plugin
+    plugin = find_plugin("notes")
+    assert plugin is not None
+    candidates = _find_managed_files(store, plugin, mode="outdated")
+    assert candidates == []

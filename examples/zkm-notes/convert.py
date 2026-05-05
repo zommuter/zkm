@@ -11,10 +11,13 @@ from __future__ import annotations
 
 import hashlib
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import frontmatter
+
+PLUGIN_NAME = "notes"
+PLUGIN_VERSION = "0.1.0"
 
 SUFFIXES = {".txt", ".md", ".markdown"}
 
@@ -47,7 +50,7 @@ def convert(store_path: Path, config: dict) -> list[Path]:
         if sha in existing_shas:
             continue
 
-        mtime = datetime.fromtimestamp(src_file.stat().st_mtime, tz=timezone.utc).astimezone()
+        mtime = datetime.fromtimestamp(src_file.stat().st_mtime, tz=UTC).astimezone()
         date_str = mtime.isoformat(timespec="seconds")
 
         try:
@@ -58,12 +61,14 @@ def convert(store_path: Path, config: dict) -> list[Path]:
             body = raw
             meta = {}
 
-        meta.setdefault("source", "notes")
+        meta.setdefault("source", PLUGIN_NAME)
         meta.setdefault("date", date_str)
         existing_tags = list(meta.get("tags") or [])
         meta["tags"] = existing_tags + [t for t in default_tags if t not in existing_tags]
         meta["sha256"] = sha
-        meta["original_path"] = str(src_file)
+        meta["original"] = str(src_file)
+        meta["processor"] = PLUGIN_NAME
+        meta["processor_version"] = PLUGIN_VERSION
 
         slug = _slugify(src_file.stem)
         out = _unique_path(notes_dir, date_str[:10], slug)

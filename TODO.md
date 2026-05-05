@@ -21,11 +21,24 @@ See `CLAUDE.md` for architecture overview. See `docs/phase1-design.md` for libra
 - [x] `README.md` — usage + plugin-author design notes
 - [x] End-to-end tests in `tests/test_plugin.py`
 
-## First production plugin: `zkm-imap` (separate repo, after zkm-notes)
-- [ ] Repo skeleton (`plugin.yaml` + `convert.py`) per `docs/plugin-spec.md`
-- [ ] `convert.py` using stdlib `imaplib`
-- [ ] Cursor-based incremental fetch (`UIDVALIDITY` + last UID in `.cursor`)
-- [ ] Idempotency via `sha256` dedup
+## Plugin spec + conventions
+- [x] `docs/messaging-spec.md` — cross-plugin frontmatter + store layout for conversation sources
+- [x] `docs/plugin-spec.md` — drift fixes (dotenv claim, original_path → original, processor_version)
+- [x] `zkm-notes` — emits `processor`, `processor_version`, `original` fields
+- [x] `zkm convert --reprocess` / `--reprocess-all` — re-derive already-ingested files
+
+## First production plugin: `zkm-eml` (separate repo, `~/src/zkm-eml/`)
+- [ ] Repo init + `CLAUDE.md` + `plugin.yaml`
+- [ ] `parse.py` — stdlib `email` → structured message dict
+- [ ] `threading.py` — References chain → thread_id, thread tree
+- [ ] `render.py` — body selection (plaintext preferred, HTML → markdownify fallback)
+- [ ] `frontmatter.py` — write per messaging-spec.md
+- [ ] `thread_index.py` — regenerate `mail/threads/<id>.md` for touched threads
+- [ ] End-to-end `convert.py` + `tests/`
+- [ ] `README.md` — mbsync setup + `zkm plugin add` walkthrough
+
+## Deferred: `zkm-imap` (live IMAP fetch)
+- mbsync is preferred for now; zkm-imap is a thin future wrapper if needed
 
 ## `zkm convert <plugin>` (`convert.py`)
 - [x] Load `plugin.yaml`, resolve `convert()` entry point via `importlib`

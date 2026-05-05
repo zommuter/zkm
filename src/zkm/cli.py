@@ -113,9 +113,24 @@ def cmd_plugin_remove(name: str) -> None:
     help="Store path (default: $ZKM_STORE or ~/knowledge)",
 )
 @click.option("--no-commit", is_flag=True, help="Skip auto-commit after conversion")
-def cmd_convert(plugin: str, store_override: str | None, no_commit: bool) -> None:
+@click.option(
+    "--reprocess",
+    "reprocess_mode",
+    flag_value="outdated",
+    default=None,
+    help="Re-process files whose processor_version differs from the current plugin version",
+)
+@click.option(
+    "--reprocess-all",
+    "reprocess_mode",
+    flag_value="all",
+    help="Re-process all files managed by this plugin",
+)
+def cmd_convert(
+    plugin: str, store_override: str | None, no_commit: bool, reprocess_mode: str | None
+) -> None:
     """Run a plugin's converter against the store."""
-    from zkm.convert import run_convert
+    from zkm.convert import run_convert, run_reprocess
 
     sdir = Path(store_override) if store_override else store_path()
     if not (sdir / ".git").exists():
@@ -123,13 +138,17 @@ def cmd_convert(plugin: str, store_override: str | None, no_commit: bool) -> Non
         sys.exit(1)
 
     try:
-        created = run_convert(plugin, sdir)
+        if reprocess_mode:
+            created = run_reprocess(plugin, sdir, mode=reprocess_mode)
+        else:
+            created = run_convert(plugin, sdir)
     except (LookupError, ValueError, FileNotFoundError) as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
 
     n = len(created)
-    click.echo(f"Converted {n} file(s) via plugin '{plugin}'")
+    verb = "Reprocessed" if reprocess_mode else "Converted"
+    click.echo(f"{verb} {n} file(s) via plugin '{plugin}'")
     for p in created:
         click.echo(f"  + {p.relative_to(sdir)}")
 
@@ -137,7 +156,10 @@ def cmd_convert(plugin: str, store_override: str | None, no_commit: bool) -> Non
         subprocess.run(["git", "add", "-A"], cwd=sdir, check=True)
         result = subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=sdir)
         if result.returncode != 0:
-            msg = f"chore({plugin}): ingest {n} file(s)"
+            if reprocess_mode:
+                msg = f"refactor({plugin}): reprocess {n} file(s)"
+            else:
+                msg = f"chore({plugin}): ingest {n} file(s)"
             subprocess.run(["git", "commit", "-m", msg], cwd=sdir, check=True)
             click.echo(f"Committed: {msg}")
 

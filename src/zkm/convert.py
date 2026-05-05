@@ -6,6 +6,7 @@ import importlib.util
 import os
 import shutil
 import subprocess
+import types
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -204,19 +205,101 @@ def run_convert(
     for d in plugin.creates_dirs:
         (store_path / d).mkdir(parents=True, exist_ok=True)
 
-    # Dynamically load convert.py
+    mod = _load_plugin_module(plugin)
+    result = mod.convert(store_path, config)
+    return [Path(p) for p in (result or [])]
+
+
+def run_reprocess(
+    name: str,
+    store_path: Path,
+    extra_env: dict[str, str] | None = None,
+    mode: str = "outdated",
+) -> list[Path]:
+    """
+    Re-derive already-ingested markdown files by calling the plugin's reprocess()
+    hook (if exported) or falling back to convert() with ZKM_REPROCESS set in env.
+
+    mode: "outdated" — only files where processor_version != current plugin version
+          "all"      — all .md files managed by this plugin
+    """
+    plugin = find_plugin(name)
+    if plugin is None:
+        raise LookupError(f"Plugin not installed: '{name}'. Run: zkm plugin list")
+
+    env = load_env(store_path)
+    if extra_env:
+        env.update(extra_env)
+    for k in plugin.config_keys:
+        if k not in env and k in os.environ:
+            env[k] = os.environ[k]
+
+    config: dict[str, str] = {}
+    missing = []
+    for k, spec in plugin.config_keys.items():
+        if k in env:
+            config[k] = env[k]
+        elif "default" in spec:
+            config[k] = spec["default"]
+        elif spec.get("required"):
+            missing.append(k)
+
+    if missing:
+        raise ValueError(
+            f"Plugin '{name}' requires missing config keys: {', '.join(missing)}\n"
+            f"Add them to {store_path / '.env'}"
+        )
+
+    mod = _load_plugin_module(plugin)
+    candidates = _find_managed_files(store_path, plugin, mode)
+
+    if hasattr(mod, "reprocess"):
+        result = mod.reprocess(store_path, config, candidates)
+    else:
+        old = os.environ.get("ZKM_REPROCESS")
+        os.environ["ZKM_REPROCESS"] = mode
+        try:
+            result = mod.convert(store_path, config)
+        finally:
+            if old is None:
+                os.environ.pop("ZKM_REPROCESS", None)
+            else:
+                os.environ["ZKM_REPROCESS"] = old
+
+    return [Path(p) for p in (result or [])]
+
+
+def _load_plugin_module(plugin: Plugin) -> types.ModuleType:
     convert_py = plugin.path / "convert.py"
     if not convert_py.exists():
         raise FileNotFoundError(f"{convert_py} not found")
-
-    spec_obj = importlib.util.spec_from_file_location(f"zkm_plugin_{name}", convert_py)
+    spec_obj = importlib.util.spec_from_file_location(f"zkm_plugin_{plugin.name}", convert_py)
     if spec_obj is None or spec_obj.loader is None:
         raise ImportError(f"Could not load {convert_py}")
     mod = importlib.util.module_from_spec(spec_obj)
     spec_obj.loader.exec_module(mod)  # type: ignore[union-attr]
-
     if not hasattr(mod, "convert"):
-        raise AttributeError(f"Plugin '{name}': convert.py has no convert() function")
+        raise AttributeError(f"Plugin '{plugin.name}': convert.py has no convert() function")
+    return mod
 
-    result = mod.convert(store_path, config)
-    return [Path(p) for p in (result or [])]
+
+def _find_managed_files(store_path: Path, plugin: Plugin, mode: str) -> list[Path]:
+    """Return .md files under creates_dirs that were written by this plugin."""
+    import frontmatter as _fm
+
+    candidates: list[Path] = []
+    for d in plugin.creates_dirs:
+        dir_path = store_path / d
+        if not dir_path.exists():
+            continue
+        for md in sorted(dir_path.rglob("*.md")):
+            try:
+                post = _fm.load(md)
+                if post.metadata.get("processor") != plugin.name:
+                    continue
+                if mode == "outdated" and post.metadata.get("processor_version") == plugin.version:
+                    continue
+                candidates.append(md)
+            except Exception:
+                continue
+    return candidates
