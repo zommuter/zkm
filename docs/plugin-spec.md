@@ -165,6 +165,52 @@ The `original` field is optional for sources without binary originals (e.g. a ge
 
 For plugins that handle conversations (email, chat, SMS), see [docs/messaging-spec.md](messaging-spec.md) for additional required fields (`message_id`, `thread_id`, `in_reply_to`, etc.).
 
+## Inbox handoff and origin sidecar
+
+Plugins that produce binary attachments (e.g. `zkm-eml`, `zkm-whatsapp`) place them in `inbox/<subdir>/YYYY/MM/` as symlinks into `store_path/mail/_objects/<aa>/<rest>` (or an equivalent CAS store). This lets downstream plugins (`zkm-pdf`, `zkm-photo`) pick them up without re-fetching.
+
+### One canonical symlink per CAS object
+
+When the same attachment content (by sha256) is referenced by more than one source item, only **one** inbox symlink is created. Its date path corresponds to the lexicographically earliest producer path — for date-sharded message paths this is the chronologically earliest message. Additional producers are recorded in the sidecar only.
+
+### Sidecar file
+
+Every inbox symlink MUST have an adjacent `.origin.json` sidecar at `<symlink-path>.origin.json`. The sidecar is a derived file: plugins write or rewrite it whenever they write or update the symlink.
+
+Schema v1:
+
+```json
+{
+  "schema": 1,
+  "sha256": "<sha256 of the bytes the symlink targets>",
+  "producers": [
+    {
+      "plugin": "eml",
+      "message": "mail/messages/2026/04/2026-04-13-1430-abc12345-invoice.md",
+      "sha256": "<sha256 of the producing message's original .eml>"
+    }
+  ]
+}
+```
+
+Invariants:
+- `sha256` matches the content-addressable object the symlink points to (verifiable with `sha256sum`)
+- `producers` is never empty; ordered by `message` path (ascending) so the list is stable across re-runs
+- All paths are relative to `store_path`
+
+### Update strategies
+
+**Incremental run** (processing new items): if a sidecar already exists for a CAS object (another message already produced this attachment), read the existing sidecar, append the new producer entry (dedup by `message` path), sort, and write atomically (write-to-temp → rename).
+
+**`--reprocess-all`**: rebuild the sidecar from scratch by scanning all managed `.md` files for attachment references. This guarantees the sidecar is consistent with the current store state even if messages were deleted or renamed.
+
+### Plugin contract
+
+- A plugin that writes inbox symlinks MUST also write/update `.origin.json` sidecars.
+- Sidecars MUST be written atomically (tmp-file + rename) so a mid-write cancel doesn't leave a corrupt JSON file.
+- Downstream plugins MUST NOT assume the sidecar exists — gracefully handle its absence.
+- The `zkm convert` auto-commit picks up sidecar files via `git add -A`; plugins do not need to return them from `convert()`.
+
 ## Secret management
 
 Secrets live in `$ZKM_STORE/.env`, which is gitignored. Format:
