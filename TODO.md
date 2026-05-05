@@ -94,6 +94,9 @@ Design note: these commands read `.zkm-config` to know the backend and dispatch 
 - [x] `docs/plugin-spec.md` documents mandatory progress contract — 2026-05-05
 - [x] `pytest` passing (22/22) — 2026-05-05
 
+## inbox/ backlinks
+- [ ] `<file>.origin.json` sidecar next to each `inbox/<plugin>/...` symlink — lists the message path(s) and sha256 that produced it, so other plugins can trace an attachment back to its source; spec the schema in `docs/plugin-spec.md`
+
 ## Ops / polish
 - [x] `ruff check` clean
 - [x] `pytest` passing (22/22)
