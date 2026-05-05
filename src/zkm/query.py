@@ -166,7 +166,9 @@ def llm_query(
     ]
 
     url = _chat_url(ep)
-    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+    headers: dict[str, str] = {"Content-Type": "application/json"}
+    if key:
+        headers["Authorization"] = f"Bearer {key}"
     payload = {"model": mdl, "messages": messages, "stream": True}
 
     with httpx.stream(
