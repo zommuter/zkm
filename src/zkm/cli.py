@@ -126,10 +126,17 @@ def cmd_plugin_remove(name: str) -> None:
     flag_value="all",
     help="Re-process all files managed by this plugin",
 )
+@click.option("--no-progress", is_flag=True, help="Suppress progress bar")
 def cmd_convert(
-    plugin: str, store_override: str | None, no_commit: bool, reprocess_mode: str | None
+    plugin: str,
+    store_override: str | None,
+    no_commit: bool,
+    reprocess_mode: str | None,
+    no_progress: bool,
 ) -> None:
     """Run a plugin's converter against the store."""
+    from tqdm import tqdm
+
     from zkm.convert import run_convert, run_reprocess
 
     sdir = Path(store_override) if store_override else store_path()
@@ -137,14 +144,35 @@ def cmd_convert(
         click.echo(f"Error: {sdir} is not an initialized store. Run: zkm init", err=True)
         sys.exit(1)
 
+    show_progress = not no_progress and sys.stdout.isatty()
+    bar: tqdm | None = None
+
+    def progress_cb(current: int, total: int | None, message: str = "") -> None:
+        nonlocal bar
+        if bar is None:
+            bar = tqdm(total=total, unit="item", leave=False, file=sys.stderr)
+        elif total is not None and bar.total != total:
+            bar.total = total
+            bar.refresh()
+        delta = current - bar.n
+        if delta > 0:
+            bar.update(delta)
+        if message:
+            bar.set_postfix_str(message[:60])
+
+    progress = progress_cb if show_progress else None
+
     try:
         if reprocess_mode:
-            created = run_reprocess(plugin, sdir, mode=reprocess_mode)
+            created = run_reprocess(plugin, sdir, mode=reprocess_mode, progress=progress)
         else:
-            created = run_convert(plugin, sdir)
+            created = run_convert(plugin, sdir, progress=progress)
     except (LookupError, ValueError, FileNotFoundError) as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
+    finally:
+        if bar is not None:
+            bar.close()
 
     n = len(created)
     verb = "Reprocessed" if reprocess_mode else "Converted"

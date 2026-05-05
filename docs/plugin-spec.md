@@ -49,15 +49,21 @@ config:
 ## convert.py interface
 
 ```python
+from __future__ import annotations
+from collections.abc import Callable
 from pathlib import Path
 
-def convert(store_path: Path, config: dict) -> list[Path]:
+ProgressCallback = Callable[[int, int | None, str], None]
+
+def convert(store_path: Path, config: dict, *, progress: ProgressCallback | None = None) -> list[Path]:
     """
     Convert source data into markdown files in the store.
 
     Args:
         store_path: Root of the knowledge store (e.g., ~/knowledge/)
         config: Dict of config values from .env, filtered to this plugin's keys
+        progress: Optional callback(current, total, message). Call once per item
+                  processed. total=None is allowed when the count isn't known upfront.
 
     Returns:
         List of created/updated markdown file paths (for indexing)
@@ -70,6 +76,7 @@ def convert(store_path: Path, config: dict) -> list[Path]:
     - Place binary originals in store_path/originals/ with git-lfs-friendly extensions
     - Be idempotent: re-running should not duplicate existing entries (use sha256 dedup)
     - Create its declared dirs if they don't exist
+    - Accept a `progress` keyword argument and call it once per processed item when non-None
 
     The converter MUST NOT:
     - Call any LLM or external AI service
@@ -79,10 +86,25 @@ def convert(store_path: Path, config: dict) -> list[Path]:
     ...
 ```
 
+The `progress` kwarg is **mandatory** in new plugins. zkm core passes it only when the plugin declares the parameter (checked via `inspect.signature`), so third-party plugins that omit it still load cleanly.
+
+Minimal example of a progress-aware loop:
+
+```python
+def convert(store_path, config, *, progress=None):
+    items = list(_discover_items(config))
+    total = len(items)
+    for i, item in enumerate(items, 1):
+        _process(item)
+        if progress:
+            progress(i, total, item.name)
+    return created
+```
+
 Plugins may optionally export a `reprocess` function to support `zkm convert <plugin> --reprocess`:
 
 ```python
-def reprocess(store_path: Path, config: dict, existing: list[Path]) -> list[Path]:
+def reprocess(store_path: Path, config: dict, existing: list[Path], *, progress: ProgressCallback | None = None) -> list[Path]:
     """
     Re-derive already-ingested markdown files from their originals.
 

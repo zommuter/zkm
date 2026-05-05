@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import importlib.util
+import inspect
 import os
 import shutil
 import subprocess
 import types
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -162,15 +164,20 @@ def load_env(store_path: Path) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 
 
+ProgressCallback = Callable[[int, "int | None", str], None]
+
+
 def run_convert(
     name: str,
     store_path: Path,
     extra_env: dict[str, str] | None = None,
+    progress: ProgressCallback | None = None,
 ) -> list[Path]:
     """
     Load plugin by name, resolve config, and call its convert() function.
 
     extra_env: additional key/value pairs that supplement (not replace) .env.
+    progress: optional callback(current, total, message) called by the plugin.
     Returns the list of created/updated paths as reported by the plugin.
     """
     plugin = find_plugin(name)
@@ -206,7 +213,10 @@ def run_convert(
         (store_path / d).mkdir(parents=True, exist_ok=True)
 
     mod = _load_plugin_module(plugin)
-    result = mod.convert(store_path, config)
+    kwargs: dict = {}
+    if progress is not None and _supports_progress(mod.convert):
+        kwargs["progress"] = progress
+    result = mod.convert(store_path, config, **kwargs)
     return [Path(p) for p in (result or [])]
 
 
@@ -215,6 +225,7 @@ def run_reprocess(
     store_path: Path,
     extra_env: dict[str, str] | None = None,
     mode: str = "outdated",
+    progress: ProgressCallback | None = None,
 ) -> list[Path]:
     """
     Re-derive already-ingested markdown files by calling the plugin's reprocess()
@@ -222,6 +233,7 @@ def run_reprocess(
 
     mode: "outdated" — only files where processor_version != current plugin version
           "all"      — all .md files managed by this plugin
+    progress: optional callback(current, total, message) called by the plugin.
     """
     plugin = find_plugin(name)
     if plugin is None:
@@ -254,12 +266,18 @@ def run_reprocess(
     candidates = _find_managed_files(store_path, plugin, mode)
 
     if hasattr(mod, "reprocess"):
-        result = mod.reprocess(store_path, config, candidates)
+        kwargs: dict = {}
+        if progress is not None and _supports_progress(mod.reprocess):
+            kwargs["progress"] = progress
+        result = mod.reprocess(store_path, config, candidates, **kwargs)
     else:
         old = os.environ.get("ZKM_REPROCESS")
         os.environ["ZKM_REPROCESS"] = mode
         try:
-            result = mod.convert(store_path, config)
+            kwargs = {}
+            if progress is not None and _supports_progress(mod.convert):
+                kwargs["progress"] = progress
+            result = mod.convert(store_path, config, **kwargs)
         finally:
             if old is None:
                 os.environ.pop("ZKM_REPROCESS", None)
@@ -281,6 +299,14 @@ def _load_plugin_module(plugin: Plugin) -> types.ModuleType:
     if not hasattr(mod, "convert"):
         raise AttributeError(f"Plugin '{plugin.name}': convert.py has no convert() function")
     return mod
+
+
+def _supports_progress(fn: object) -> bool:
+    """Return True if fn declares a 'progress' keyword parameter."""
+    try:
+        return "progress" in inspect.signature(fn).parameters  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return False
 
 
 def _find_managed_files(store_path: Path, plugin: Plugin, mode: str) -> list[Path]:

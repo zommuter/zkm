@@ -22,11 +22,12 @@ PLUGIN_VERSION = "0.1.0"
 SUFFIXES = {".txt", ".md", ".markdown"}
 
 
-def convert(store_path: Path, config: dict) -> list[Path]:
+def convert(store_path: Path, config: dict, *, progress=None) -> list[Path]:
     """
     Import notes from NOTES_SOURCE_DIR into store_path/notes/.
 
     Returns a list of paths to newly created .md files.
+    progress: optional callback(current, total, message) — called once per file processed.
     """
     src = Path(config["NOTES_SOURCE_DIR"]).expanduser().resolve()
     if not src.exists():
@@ -40,14 +41,20 @@ def convert(store_path: Path, config: dict) -> list[Path]:
     ]
     existing_shas = _scan_existing_shas(notes_dir)
 
+    candidates = [
+        f
+        for f in sorted(src.rglob("*"))
+        if f.is_file() and f.suffix.lower() in SUFFIXES
+    ]
+    total = len(candidates)
     created: list[Path] = []
-    for src_file in sorted(src.rglob("*")):
-        if not src_file.is_file() or src_file.suffix.lower() not in SUFFIXES:
-            continue
 
+    for i, src_file in enumerate(candidates, 1):
         raw = src_file.read_text(encoding="utf-8", errors="replace")
         sha = hashlib.sha256(raw.encode("utf-8")).hexdigest()
         if sha in existing_shas:
+            if progress:
+                progress(i, total, src_file.name)
             continue
 
         mtime = datetime.fromtimestamp(src_file.stat().st_mtime, tz=UTC).astimezone()
@@ -77,6 +84,9 @@ def convert(store_path: Path, config: dict) -> list[Path]:
         out.write_text(frontmatter.dumps(new_post), encoding="utf-8")
         created.append(out)
         existing_shas.add(sha)
+
+        if progress:
+            progress(i, total, src_file.name)
 
     return created
 

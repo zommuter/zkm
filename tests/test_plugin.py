@@ -228,6 +228,53 @@ def test_reprocess_all_calls_convert(
     assert isinstance(result, list)
 
 
+def test_progress_callback_invoked(
+    isolated_plugins: Path, store: Path, tmp_path: Path, notes_plugin_dir: Path
+) -> None:
+    """run_convert passes progress= to plugins that declare it; notes plugin does."""
+    src = tmp_path / "src_notes"
+    src.mkdir()
+    (src / "a.txt").write_text("Alpha")
+    (src / "b.txt").write_text("Beta")
+
+    add_plugin(str(notes_plugin_dir))
+
+    calls: list[tuple[int, int | None, str]] = []
+    run_convert(
+        "notes",
+        store,
+        extra_env={"NOTES_SOURCE_DIR": str(src)},
+        progress=lambda c, t, m: calls.append((c, t, m)),
+    )
+
+    assert len(calls) == 2
+    currents = [c for c, _, _ in calls]
+    assert currents == sorted(currents)
+    assert calls[-1][0] == calls[-1][1]  # final current == total
+
+
+def test_progress_not_passed_to_plugin_without_kwarg(
+    isolated_plugins: Path, store: Path, tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
+) -> None:
+    """Plugins that don't declare progress= must not receive it (no TypeError)."""
+    plugin_dir = tmp_path_factory.mktemp("minimal_plugin")
+    (plugin_dir / "plugin.yaml").write_text(
+        "name: minimal\nversion: 0.1.0\ncreates_dirs: []\nconfig: {}\n"
+    )
+    (plugin_dir / "convert.py").write_text(
+        "from pathlib import Path\n"
+        "def convert(store_path: Path, config: dict) -> list[Path]:\n"
+        "    return []\n"
+    )
+
+    add_plugin(str(plugin_dir))
+    called = []
+    # Must not raise TypeError even though the plugin has no progress param
+    result = run_convert("minimal", store, progress=lambda c, t, m: called.append(c))
+    assert result == []
+    assert called == []  # callback not invoked — plugin doesn't know about it
+
+
 def test_reprocess_outdated_skips_current_version(
     isolated_plugins: Path, store: Path, tmp_path: Path, notes_plugin_dir: Path
 ) -> None:
