@@ -47,27 +47,42 @@ def _temporal_filter(query: str) -> tuple[date, date] | None:
     today = date.today()
     q = query.lower()
 
-    if re.search(r"\blast month\b|\bprevious month\b|\bvorigen monat\b", q):
+    if re.search(
+        r"\blast month\b|\bprevious month\b"
+        r"|\b(vorigen|letzten|letztem|vergangenen)\s+monat\b",
+        q,
+    ):
         first_this = today.replace(day=1)
         end = first_this - timedelta(days=1)
         return end.replace(day=1), end
 
-    if re.search(r"\bthis month\b|\bdiesen monat\b|\bim aktuellen monat\b", q):
+    if re.search(
+        r"\bthis month\b|\b(diesen|diesem|dieses|laufenden|aktuellen)\s+monat\b",
+        q,
+    ):
         return today.replace(day=1), today
 
-    if re.search(r"\blast week\b|\bprevious week\b|\bvorige woche\b", q):
+    if re.search(
+        r"\blast week\b|\bprevious week\b"
+        r"|\b(vorige|letzte|letzten|letzter)\s+woche\b",
+        q,
+    ):
         # Mon–Sun of the calendar week before this one
         start = today - timedelta(days=today.weekday() + 7)
         return start, start + timedelta(days=6)
 
-    if re.search(r"\bthis week\b|\bdieser woche\b|\bdiese woche\b", q):
+    if re.search(r"\bthis week\b|\b(dieser|diese|diesem)\s+woche\b", q):
         return today - timedelta(days=today.weekday()), today
 
-    if re.search(r"\blast year\b|\bprevious year\b|\bletztes jahr\b", q):
+    if re.search(
+        r"\blast year\b|\bprevious year\b"
+        r"|\b(letztes|letzten|letztem|vergangenen|vergangenes)\s+jahr\b",
+        q,
+    ):
         y = today.year - 1
         return date(y, 1, 1), date(y, 12, 31)
 
-    if re.search(r"\bthis year\b|\bdieses jahr\b|\bin diesem jahr\b", q):
+    if re.search(r"\bthis year\b|\b(dieses|diesen|diesem)\s+jahr\b|\bin diesem jahr\b", q):
         return date(today.year, 1, 1), today
 
     if re.search(r"\byesterday\b|\bgestern\b", q):
@@ -77,7 +92,11 @@ def _temporal_filter(query: str) -> tuple[date, date] | None:
     if re.search(r"\btoday\b|\bheute\b", q):
         return today, today
 
-    if re.search(r"\brecent(ly)?\b|\blately\b|\bzuletzt\b|\bjüngst\b", q):
+    if re.search(
+        r"\brecent(ly)?\b|\blately\b|\bzuletzt\b|\bjüngst\b|\bkürzlich\b|\bneulich\b"
+        r"|\bin letzter zeit\b",
+        q,
+    ):
         return today - timedelta(days=30), today
 
     return None
@@ -315,6 +334,7 @@ def llm_stream(
         {
             "role": "system",
             "content": (
+                f"Today's date: {date.today().isoformat()}. "
                 "Answer the user's question using only the provided sources. "
                 "Cite sources by their path in square brackets, e.g. [notes/foo.md]."
             ),

@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 
 import httpx
 import pytest
 
 from zkm.index import build_index, save_index
-from zkm.query import _chat_url, llm_query, search, search_with_expansion
+from zkm.query import _chat_url, llm_query, llm_stream, search, search_with_expansion
 from zkm.store import init_store
 
 
@@ -283,6 +284,54 @@ def test_search_with_expansion_finds_german_doc(
     paths = [h.path for h in hits]
     assert "notes/stromrechnung.md" in paths
     assert paths[0] == "notes/stromrechnung.md"  # electricity doc ranked first
+
+
+def test_llm_stream_system_prompt_contains_current_date(
+    store: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """System prompt must include today's ISO date so the model knows temporal context.
+
+    Regression test: without this, a model answering 'last month' has no idea what
+    year or month 'now' is and hallucinates dates from its training data (e.g. 2024).
+    """
+    idx = build_index(store)
+    save_index(store, idx)
+    monkeypatch.setenv("ZKM_LLM_ENDPOINT", "http://localhost:11434")
+    monkeypatch.setenv("ZKM_LLM_MODEL", "test-model")
+    monkeypatch.setenv("ZKM_LLM_KEY", "")
+
+    captured: list[dict] = []
+
+    class MockResponse:
+        status_code = 200
+
+        def raise_for_status(self) -> None:
+            pass
+
+        def iter_lines(self):
+            yield f"data: {json.dumps({'choices': [{'delta': {'content': 'ok'}}]})}"
+            yield "data: [DONE]"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            pass
+
+    def mock_stream(method, url, *, headers, json, timeout):
+        captured.append(json)
+        return MockResponse()
+
+    monkeypatch.setattr(httpx, "stream", mock_stream)
+    list(llm_stream(store, [], "what happened last month?"))
+
+    assert len(captured) == 1
+    messages = captured[0]["messages"]
+    system_msg = next(m for m in messages if m["role"] == "system")
+    today_iso = date.today().isoformat()
+    assert today_iso in system_msg["content"], (
+        f"System prompt missing today's date ({today_iso}): {system_msg['content']!r}"
+    )
 
 
 def test_no_expand_misses_german_doc(store: Path) -> None:

@@ -128,6 +128,87 @@ def test_temporal_filter_last_month() -> None:
     assert _temporal_filter("what are last month's highlights") == (start, end)
 
 
+# Natural German phrases — these should all activate the last-month filter.
+# The earlier implementation only had "vorigen monat"; "letzten Monat" is far
+# more common and was silently falling through, causing temporal search to
+# ignore the date window and return docs from any year.
+def test_temporal_filter_german_letzten_monat() -> None:
+    today = date.today()
+    first_this = today.replace(day=1)
+    end = first_this - timedelta(days=1)
+    start = end.replace(day=1)
+    assert _temporal_filter("Rechnungen von letzten Monat") == (start, end)
+
+
+def test_temporal_filter_german_letztem_monat() -> None:
+    today = date.today()
+    first_this = today.replace(day=1)
+    end = first_this - timedelta(days=1)
+    start = end.replace(day=1)
+    assert _temporal_filter("was ist im letztem Monat passiert?") == (start, end)
+
+
+def test_temporal_filter_german_vergangenen_monat() -> None:
+    today = date.today()
+    first_this = today.replace(day=1)
+    end = first_this - timedelta(days=1)
+    start = end.replace(day=1)
+    assert _temporal_filter("Ausgaben vom vergangenen Monat") == (start, end)
+
+
+def test_temporal_filter_german_letzte_woche() -> None:
+    today = date.today()
+    start = today - timedelta(days=today.weekday() + 7)
+    expected = (start, start + timedelta(days=6))
+    assert _temporal_filter("was ist letzte Woche passiert?") == expected
+
+
+def test_temporal_filter_german_kueerzlich() -> None:
+    today = date.today()
+    result = _temporal_filter("kürzlich empfangene Mails")
+    assert result is not None
+    assert result[1] == today
+
+
+def test_temporal_filter_german_neulich() -> None:
+    result = _temporal_filter("neulich gesendete Nachrichten")
+    assert result is not None
+
+
+def test_temporal_filter_german_letztes_jahr() -> None:
+    today = date.today()
+    y = today.year - 1
+    assert _temporal_filter("Berichte vom letzten Jahr") == (date(y, 1, 1), date(y, 12, 31))
+
+
+def test_temporal_search_respects_date_window_for_german_query(store: Path) -> None:
+    """German 'letzten Monat' must activate the temporal filter so old docs are excluded.
+
+    Regression test: before the fix, unrecognised German phrases fell through to plain
+    BM25 with no date window, surfacing documents from any year.
+    """
+    today = date.today()
+    first_this = today.replace(day=1)
+    last_month_end = first_this - timedelta(days=1)
+    last_month_mid = last_month_end.replace(day=min(15, last_month_end.day))
+
+    _write_note(
+        store, "notes/recent_bill.md", "Rechnung Stadtwerke Mai",
+        f"date: {last_month_mid.isoformat()}\nsource: notes"
+    )
+    _write_note(
+        store, "notes/old_bill.md", "Rechnung Stadtwerke 2012",
+        "date: 2012-03-01\nsource: notes"
+    )
+    idx = build_index(store)
+    save_index(store, idx)
+
+    hits = search(store, "Rechnungen von letzten Monat")
+    paths = [h.path for h in hits]
+    assert "notes/recent_bill.md" in paths
+    assert "notes/old_bill.md" not in paths
+
+
 def test_temporal_filter_this_month() -> None:
     today = date.today()
     result = _temporal_filter("this month's expenses")
