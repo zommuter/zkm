@@ -7,7 +7,9 @@ See `CLAUDE.md` for architecture overview. See `docs/phase1-design.md` for libra
 - [x] **Bilingual stemming** (`index.py`) — Unicode-aware tokenizer + en+de Snowball stemming; "meetings"↔"meeting", "Rechnungen"↔"Rechnung" now match — 80/80 tests passing 2026-05-06
 - [x] **LLM query expansion** (`expand.py`, `query.py`) — `expand_query()` generates 3-5 keyword variants + hypothetical answer paragraph (RAG-Fusion + Query2Doc lite); multi-BM25 runs merged via RRF; cached in `.zkm-index/expansion-cache.json`; graceful fallback — 80/80 tests passing 2026-05-06
 - [x] **`--no-expand` flag** on `zkm query`; fix double-search bug in `cmd_query` — 2026-05-06
-- [ ] Field-test query quality on real store; consider Layer C (bounded one-shot refinement) if expansion proves insufficient
+- [x] **German temporal phrases** (`query.py`) — _temporal_filter now covers accusative/dative/genitive variants: "letzten Monat", "letzte Woche", "vergangenen Monat", "kürzlich", "neulich", etc. — 9 new tests, 89/89 passing 2026-05-06
+- [x] **Current date in LLM system prompt** (`query.py`) — prepend "Today's date: YYYY-MM-DD." so model has temporal anchor; regression test added — 89/89 passing 2026-05-06
+- [ ] Field-test query quality on real store with a better model (>=7B); consider Layer C (bounded one-shot refinement) if expansion proves insufficient
 - [ ] Phase 2: hybrid BM25 + dense embeddings (multilingual `bge-m3` or similar) + RRF — see `docs/temporal-queries.md`
 
 ## Scaffold
