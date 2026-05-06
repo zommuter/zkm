@@ -17,7 +17,7 @@ import httpx
 
 from zkm.index import tokenize
 
-_EXPAND_TIMEOUT = 8.0
+_EXPAND_TIMEOUT_DEFAULT = 30.0  # generous for large local models; override via ZKM_LLM_EXPAND_TIMEOUT
 _MAX_TOKENS = 150
 _CACHE_FILE = ".zkm-index/expansion-cache.json"
 
@@ -127,8 +127,10 @@ def expand_query(
         "max_tokens": _MAX_TOKENS,
     }
 
+    import os
+    timeout = float(os.environ.get("ZKM_LLM_EXPAND_TIMEOUT", _EXPAND_TIMEOUT_DEFAULT))
     try:
-        resp = httpx.post(url, headers=headers, json=payload, timeout=_EXPAND_TIMEOUT)
+        resp = httpx.post(url, headers=headers, json=payload, timeout=timeout)
         resp.raise_for_status()
         raw_output: str = resp.json()["choices"][0]["message"]["content"]
     except Exception as exc:
