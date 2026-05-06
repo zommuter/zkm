@@ -2,19 +2,13 @@
 
 See `CLAUDE.md` for architecture overview. See `docs/phase1-design.md` for library choices and open questions.
 
-## ⚠ HIGHEST PRIORITY: query quality
+## Query quality
 
-BM25 search quality is abysmal for natural-language questions. The fix:
-
-- [ ] **LLM query expansion** (`query.py`) — before BM25, call the LLM with a cheap
-  prompt: "Extract 3–5 keyword search terms from this question: {question}". Parse the
-  returned terms, run BM25 for each, merge and re-rank the union of hits. This decouples
-  the user's natural-language intent from BM25's bag-of-words matching.
-  - Use a fast/cheap call (no streaming, short max_tokens, same endpoint/model)
-  - Fall back to raw query tokens if LLM call fails (graceful degradation)
-  - The expanded terms should also drive the temporal filter (extract any date phrases
-    from the question before sending to the LLM)
-  - Consider caching expansions keyed by query hash for repeated searches
+- [x] **Bilingual stemming** (`index.py`) — Unicode-aware tokenizer + en+de Snowball stemming; "meetings"↔"meeting", "Rechnungen"↔"Rechnung" now match — 80/80 tests passing 2026-05-06
+- [x] **LLM query expansion** (`expand.py`, `query.py`) — `expand_query()` generates 3-5 keyword variants + hypothetical answer paragraph (RAG-Fusion + Query2Doc lite); multi-BM25 runs merged via RRF; cached in `.zkm-index/expansion-cache.json`; graceful fallback — 80/80 tests passing 2026-05-06
+- [x] **`--no-expand` flag** on `zkm query`; fix double-search bug in `cmd_query` — 2026-05-06
+- [ ] Field-test query quality on real store; consider Layer C (bounded one-shot refinement) if expansion proves insufficient
+- [ ] Phase 2: hybrid BM25 + dense embeddings (multilingual `bge-m3` or similar) + RRF — see `docs/temporal-queries.md`
 
 ## Scaffold
 - [x] `pyproject.toml` — uv + hatchling, Click + rank-bm25 + python-frontmatter + httpx, entry point `zkm`
@@ -124,6 +118,6 @@ Design note: these commands read `.zkm-config` to know the backend and dispatch 
 
 ## Ops / polish
 - [x] `ruff check` clean
-- [x] `pytest` passing (22/22)
+- [x] `pytest` passing (80/80) — 2026-05-06
 - [x] `README.md` — quickstart (install, init, first plugin, search) — 2026-05-05
 - [x] CI (GitHub Actions) — ruff + pytest on push — 2026-05-05
