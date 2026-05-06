@@ -17,7 +17,7 @@ import httpx
 
 from zkm.index import tokenize
 
-_EXPAND_TIMEOUT_DEFAULT = 30.0  # generous for large local models; override via ZKM_LLM_EXPAND_TIMEOUT
+_EXPAND_TIMEOUT_DEFAULT = 30.0  # generous for large local models; override ZKM_LLM_EXPAND_TIMEOUT
 _MAX_TOKENS = 150
 _CACHE_FILE = ".zkm-index/expansion-cache.json"
 
@@ -66,6 +66,14 @@ def _parse_hypothetical(text: str) -> list[str]:
     return tokenize(parts[1])
 
 
+def _parse_hypothetical_text(text: str) -> str:
+    """Return the raw hypothetical-answer section (after first blank line)."""
+    parts = re.split(r"\n\s*\n", text, maxsplit=1)
+    if len(parts) < 2:
+        return ""
+    return parts[1].strip()
+
+
 def _cache_path(store: Path) -> Path:
     return store / _CACHE_FILE
 
@@ -89,21 +97,22 @@ def _save_cache(store: Path, cache: dict) -> None:
         pass
 
 
-def expand_query(
+def expand_query_with_hyp(
     question: str,
     store: Path,
     endpoint: str,
     model: str,
     api_key: str,
-) -> list[list[str]]:
-    """Return token lists for multi-BM25 retrieval.
+) -> tuple[list[list[str]], str]:
+    """Return (token_lists, hyp_text) for multi-BM25 + dense retrieval.
 
-    First entry is always tokenize(question) as the baseline.
-    Subsequent entries are LLM-generated keyword variants + hypothetical-answer tokens.
-    Falls back to [tokenize(question)] on any LLM error or empty output.
+    token_lists: first entry is always tokenize(question); subsequent entries are
+    LLM keyword variants + hypothetical-answer tokens (for BM25).
+    hyp_text: raw hypothetical-answer paragraph (for dense embedding).
+    Falls back to ([tokenize(question)], "") on any LLM error.
     """
     raw_tokens = tokenize(question)
-    fallback: list[list[str]] = [raw_tokens]
+    fallback: tuple[list[list[str]], str] = ([raw_tokens], "")
 
     cache_key = hashlib.sha256(question.encode()).hexdigest()[:24]
     cache = _load_cache(store)
@@ -111,10 +120,11 @@ def expand_query(
         entry = cache[cache_key]
         keywords: list[str] = entry.get("keywords", [])
         hyp_tokens: list[str] = entry.get("hyp_tokens", [])
+        hyp_text: str = entry.get("hyp_text", "")
         result = [raw_tokens] + [t for kw in keywords if (t := tokenize(kw))]
         if hyp_tokens:
             result.append(hyp_tokens)
-        return result if len(result) > 1 else fallback
+        return (result if len(result) > 1 else [raw_tokens]), hyp_text
 
     url = _chat_url(endpoint)
     headers: dict[str, str] = {"Content-Type": "application/json"}
@@ -139,8 +149,14 @@ def expand_query(
 
     keywords = _parse_keywords(raw_output)
     hyp_tokens = _parse_hypothetical(raw_output)
+    hyp_text = _parse_hypothetical_text(raw_output)
 
-    cache[cache_key] = {"question": question, "keywords": keywords, "hyp_tokens": hyp_tokens}
+    cache[cache_key] = {
+        "question": question,
+        "keywords": keywords,
+        "hyp_tokens": hyp_tokens,
+        "hyp_text": hyp_text,
+    }
     _save_cache(store, cache)
 
     if not keywords and not hyp_tokens:
@@ -149,4 +165,21 @@ def expand_query(
     result = [raw_tokens] + [t for kw in keywords if (t := tokenize(kw))]
     if hyp_tokens:
         result.append(hyp_tokens)
-    return result
+    return result, hyp_text
+
+
+def expand_query(
+    question: str,
+    store: Path,
+    endpoint: str,
+    model: str,
+    api_key: str,
+) -> list[list[str]]:
+    """Return token lists for multi-BM25 retrieval.
+
+    First entry is always tokenize(question) as the baseline.
+    Subsequent entries are LLM-generated keyword variants + hypothetical-answer tokens.
+    Falls back to [tokenize(question)] on any LLM error or empty output.
+    """
+    variants, _ = expand_query_with_hyp(question, store, endpoint, model, api_key)
+    return variants

@@ -251,8 +251,14 @@ def cmd_convert(
     help="Store path (default: $ZKM_STORE or ~/knowledge)",
 )
 @click.option("--no-progress", is_flag=True, help="Suppress progress bar")
-def cmd_index(store_override: str | None, no_progress: bool) -> None:
-    """Build or refresh the BM25 search index."""
+@click.option(
+    "--no-embed",
+    is_flag=True,
+    default=False,
+    help="Skip dense embedding index (BM25 only).",
+)
+def cmd_index(store_override: str | None, no_progress: bool, no_embed: bool) -> None:
+    """Build or refresh the BM25 search index (and dense embedding index if configured)."""
     import time
 
     from tqdm import tqdm
@@ -274,14 +280,18 @@ def cmd_index(store_override: str | None, no_progress: bool) -> None:
         "{postfix}"
     )
 
+    def _make_bar(desc: str, total: int | None) -> tqdm:
+        return tqdm(
+            total=total, desc=desc, unit="file", leave=False,
+            file=sys.stderr, bar_format=_BAR_FORMAT,
+        )
+
     def progress_cb(current: int, total: int | None, message: str = "") -> None:
         nonlocal bar
         if not show_progress:
             return
         if bar is None:
-            bar = tqdm(
-                total=total, unit="file", leave=False, file=sys.stderr, bar_format=_BAR_FORMAT
-            )
+            bar = _make_bar("BM25", total)
         if total is not None and bar.total != total:
             bar.total = total
             bar.refresh()
@@ -295,7 +305,62 @@ def cmd_index(store_override: str | None, no_progress: bool) -> None:
     idx = build_index(sdir, progress=progress_cb if show_progress else None)
     if bar is not None:
         bar.close()
+        bar = None
     save_index(sdir, idx)
+
+    # Dense embedding pass
+    if not no_embed:
+        from zkm.embed import (
+            EmbedUnavailable,
+            build_embed_store,
+            load_embed_store,
+            resolve_embed_config,
+            save_embed_store,
+        )
+
+        ep, mdl, key = resolve_embed_config(sdir)
+        if not ep:
+            click.echo(
+                "Dense index skipped (set ZKM_EMBED_ENDPOINT to enable).", err=True
+            )
+        else:
+            embed_bar: tqdm | None = None
+
+            def embed_progress(current: int, total: int | None, message: str = "") -> None:
+                nonlocal embed_bar
+                if not show_progress:
+                    return
+                if embed_bar is None:
+                    embed_bar = _make_bar("Embedding", total)
+                if total is not None and embed_bar.total != total:
+                    embed_bar.total = total
+                    embed_bar.refresh()
+                delta = current - embed_bar.n
+                if delta > 0:
+                    embed_bar.update(delta)
+                if message:
+                    embed_bar.set_postfix_str(message[:60])
+
+            try:
+                prev_es = load_embed_store(sdir)
+                es = build_embed_store(
+                    sdir,
+                    idx.docs,
+                    prev_es=prev_es,
+                    endpoint=ep,
+                    model=mdl,
+                    api_key=key,
+                    progress=embed_progress if show_progress else None,
+                )
+                if embed_bar is not None:
+                    embed_bar.close()
+                save_embed_store(sdir, es)
+                click.echo(f"Embedded {len(es.paths)} document(s) with {mdl}.")
+            except EmbedUnavailable as exc:
+                if embed_bar is not None:
+                    embed_bar.close()
+                click.echo(f"Dense index failed: {exc}", err=True)
+
     elapsed = time.monotonic() - t0
     click.echo(f"Indexed {len(idx.docs)} document(s) in {elapsed:.1f}s")
 
@@ -310,21 +375,29 @@ def cmd_index(store_override: str | None, no_progress: bool) -> None:
 @click.option("-k", "--top-k", default=10, show_default=True, help="Number of results")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 @click.option(
+    "--no-dense",
+    is_flag=True,
+    default=False,
+    help="Disable dense retrieval; use BM25 only.",
+)
+@click.option(
     "--store",
     "store_override",
     default=None,
     metavar="PATH",
     help="Store path (default: $ZKM_STORE or ~/knowledge)",
 )
-def cmd_search(query: str, top_k: int, as_json: bool, store_override: str | None) -> None:
-    """Search the knowledge store with BM25."""
+def cmd_search(
+    query: str, top_k: int, as_json: bool, no_dense: bool, store_override: str | None
+) -> None:
+    """Search the knowledge store (BM25 + dense hybrid when embedding index is available)."""
     import json as _json
 
-    from zkm.query import search
+    from zkm.query import search_hybrid
 
     sdir = Path(store_override) if store_override else store_path()
     try:
-        hits = search(sdir, query, top_k=top_k)
+        hits = search_hybrid(sdir, query, top_k=top_k, dense=not no_dense)
     except FileNotFoundError as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
@@ -360,7 +433,13 @@ def cmd_search(query: str, top_k: int, as_json: bool, store_override: str | None
     "--no-expand",
     is_flag=True,
     default=False,
-    help="Skip LLM query expansion; use raw BM25 on the question tokens.",
+    help="Skip LLM query expansion; use BM25 on raw question tokens.",
+)
+@click.option(
+    "--no-dense",
+    is_flag=True,
+    default=False,
+    help="Disable dense retrieval; use BM25 only (or BM25 + expansion).",
 )
 @click.option(
     "--store",
@@ -369,18 +448,20 @@ def cmd_search(query: str, top_k: int, as_json: bool, store_override: str | None
     metavar="PATH",
     help="Store path (default: $ZKM_STORE or ~/knowledge)",
 )
-def cmd_query(question: str, top_k: int, no_expand: bool, store_override: str | None) -> None:
-    """Answer a question using BM25 context + LLM (with query expansion by default)."""
+def cmd_query(
+    question: str, top_k: int, no_expand: bool, no_dense: bool, store_override: str | None
+) -> None:
+    """Answer a question using hybrid retrieval (BM25 + dense) + LLM."""
     import httpx
 
-    from zkm.query import llm_stream, search, search_with_expansion
+    from zkm.query import llm_stream, search_hybrid, search_with_expansion
 
     sdir = Path(store_override) if store_override else store_path()
     try:
         if no_expand:
-            hits = search(sdir, question, top_k=top_k)
+            hits = search_hybrid(sdir, question, top_k=top_k, dense=not no_dense)
         else:
-            hits = search_with_expansion(sdir, question, top_k=top_k)
+            hits = search_with_expansion(sdir, question, top_k=top_k, dense=not no_dense)
         for chunk in llm_stream(sdir, hits, question):
             click.echo(chunk, nl=False)
             sys.stdout.flush()

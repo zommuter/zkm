@@ -14,6 +14,13 @@ import frontmatter
 import httpx
 
 from zkm.convert import load_env
+from zkm.embed import (
+    EmbedStore,
+    EmbedUnavailable,
+    embed_texts,
+    load_embed_store,
+    resolve_embed_config,
+)
 from zkm.index import Doc, Index, load_index, tokenize
 
 _DEFAULT_MAX_DOC_CHARS = 500  # ~125 tokens; fits 20 docs inside an 8k-token context
@@ -239,6 +246,113 @@ def rrf_merge(hit_lists: list[list[Hit]], k: int = 60) -> list[Hit]:
     return [best[p] for p in ranked]
 
 
+def _dense_search(
+    store: Path,
+    es: EmbedStore,
+    texts: list[str],
+    date_range: tuple[date, date] | None,
+    top_k: int,
+    endpoint: str,
+    model: str,
+    api_key: str,
+) -> list[Hit]:
+    """Embed texts, query the EmbedStore, apply temporal filter, return top_k Hits."""
+    try:
+        vecs = embed_texts(texts, endpoint, model, api_key)
+    except EmbedUnavailable:
+        return []
+    # Average the query vectors (handles both single query and question+hypothetical)
+    q_vec = vecs.mean(axis=0).astype("float32")
+    norm = float(q_vec @ q_vec) ** 0.5
+    if norm > 0:
+        q_vec = q_vec / norm
+
+    results = es.topk(q_vec, min(top_k * 3, len(es.paths)))
+
+    hits: list[Hit] = []
+    for row_idx, score in results:
+        rel_path = es.paths[row_idx]
+        doc_meta: dict = {}
+        try:
+            post = frontmatter.load(store / rel_path)
+            doc_meta = dict(post.metadata)
+        except Exception:
+            pass
+
+        if date_range is not None:
+            doc_date = _parse_doc_date_from_meta(doc_meta)
+            start, end = date_range
+            if doc_date is None or not (start <= doc_date <= end):
+                continue
+
+        doc_date_str = str(doc_meta.get("date", ""))
+        snippet = _make_snippet(store / rel_path, [])
+        hits.append(Hit(path=rel_path, score=score, date=doc_date_str, snippet=snippet))
+        if len(hits) >= top_k:
+            break
+
+    return hits
+
+
+def _parse_doc_date_from_meta(meta: dict) -> date | None:
+    """Like _parse_doc_date but from a dict instead of a Doc."""
+    val = meta.get("date")
+    if val is None:
+        return None
+    if isinstance(val, datetime):
+        return val.date()
+    if isinstance(val, date):
+        return val
+    if isinstance(val, str):
+        try:
+            return datetime.fromisoformat(val.replace("Z", "+00:00")).date()
+        except ValueError:
+            pass
+        try:
+            return date.fromisoformat(val[:10])
+        except ValueError:
+            pass
+    return None
+
+
+def search_hybrid(
+    store: Path,
+    query: str,
+    top_k: int = 10,
+    *,
+    dense: bool = True,
+) -> list[Hit]:
+    """BM25 search with optional dense leg (no LLM expansion).
+
+    Falls back to pure BM25 when dense=False, EmbedStore is missing, or
+    the embed endpoint is unconfigured.
+    """
+    idx = load_index(store)
+    if idx is None:
+        raise FileNotFoundError(
+            f"No index found at {store / '.zkm-index'}. Run: zkm index"
+        )
+    date_range = _temporal_filter(query)
+    bm25_hits = _search(store, idx, tokenize(query), date_range, top_k)
+
+    if not dense:
+        return bm25_hits
+
+    es = load_embed_store(store)
+    if es is None:
+        return bm25_hits
+
+    ep, mdl, key = resolve_embed_config(store)
+    if not ep:
+        return bm25_hits
+
+    dense_hits = _dense_search(store, es, [query], date_range, top_k, ep, mdl, key)
+    if not dense_hits:
+        return bm25_hits
+
+    return rrf_merge([bm25_hits, dense_hits])[:top_k]
+
+
 def search_with_expansion(
     store: Path,
     question: str,
@@ -246,8 +360,10 @@ def search_with_expansion(
     endpoint: str | None = None,
     model: str | None = None,
     api_key: str | None = None,
+    *,
+    dense: bool = True,
 ) -> list[Hit]:
-    """Multi-query BM25 with LLM query expansion merged via reciprocal rank fusion."""
+    """Multi-query BM25 with LLM query expansion merged via RRF, plus optional dense leg."""
     idx = load_index(store)
     if idx is None:
         raise FileNotFoundError(
@@ -256,11 +372,31 @@ def search_with_expansion(
     ep, mdl, key = _resolve_llm_config(store, endpoint, model, api_key)
     date_range = _temporal_filter(question)
 
-    from zkm.expand import expand_query  # lazy import avoids circular dependency
+    from zkm.expand import expand_query_with_hyp  # lazy import avoids circular dependency
 
-    variant_lists = expand_query(question, store, ep, mdl, key)
+    variant_lists, hyp_text = expand_query_with_hyp(question, store, ep, mdl, key)
     hit_lists = [_search(store, idx, tokens, date_range, top_k) for tokens in variant_lists]
-    return rrf_merge(hit_lists)[:top_k]
+    bm25_rrf_hits = rrf_merge(hit_lists)
+
+    if not dense:
+        return bm25_rrf_hits[:top_k]
+
+    es = load_embed_store(store)
+    if es is None:
+        return bm25_rrf_hits[:top_k]
+
+    e_ep, e_mdl, e_key = resolve_embed_config(store)
+    if not e_ep:
+        return bm25_rrf_hits[:top_k]
+
+    embed_texts_input = [question]
+    if hyp_text:
+        embed_texts_input.append(hyp_text)
+    dense_hits = _dense_search(store, es, embed_texts_input, date_range, top_k, e_ep, e_mdl, e_key)
+    if not dense_hits:
+        return bm25_rrf_hits[:top_k]
+
+    return rrf_merge([bm25_rrf_hits, dense_hits])[:top_k]
 
 
 # ---------------------------------------------------------------------------
@@ -381,14 +517,18 @@ def llm_query(
     model: str | None = None,
     api_key: str | None = None,
     expand: bool = True,
+    dense: bool = True,
 ) -> Iterator[str]:
     """Search top_k docs and stream an LLM answer with citations.
 
-    expand=True (default) uses LLM query expansion + RRF for better retrieval.
-    expand=False falls back to plain BM25 on the raw question tokens.
+    expand=True (default): LLM query expansion + RRF.
+    dense=True (default): also runs dense retrieval and fuses with RRF.
+    expand=False + dense=False: falls back to plain BM25.
     """
     if expand:
-        hits = search_with_expansion(store, question, top_k, endpoint, model, api_key)
+        hits = search_with_expansion(store, question, top_k, endpoint, model, api_key, dense=dense)
+    elif dense:
+        hits = search_hybrid(store, question, top_k, dense=True)
     else:
         hits = search(store, question, top_k=top_k)
     return llm_stream(store, hits, question, endpoint=endpoint, model=model, api_key=api_key)

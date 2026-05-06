@@ -120,7 +120,7 @@ See `TODO.md` for the detailed, checked-off task list.
 ### Phase 2: Richer search + sources + store management
 See `docs/phase2-plan.md` (to be written when Phase 1 is done).
 - **Store management** (`zkm remote`, `zkm clone`, `zkm push`, `zkm pull`) — git-like commands that dispatch correctly for annex/lfs/none backends. Reads `.zkm-config` to know which backend to use. See TODO.md for full spec.
-- Embedding index alongside BM25 (hybrid search)
+- [x] **Hybrid BM25 + dense embeddings** — `embed.py`, `docs/hybrid-search.md`; OpenAI-compatible `/v1/embeddings`, numpy EmbedStore, RRF fusion, `--no-dense` flag, graceful fallback — 2026-05-06
 - Entity extraction (NER → frontmatter `entities`, written back to md)
 - Provenance tracking (SHA256 dedup, original→derived chains)
 - More plugins: whatsapp, threema, signal, telegram, scan/OCR, photo-sidecar

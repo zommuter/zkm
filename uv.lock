@@ -363,6 +363,7 @@ source = { editable = "." }
 dependencies = [
     { name = "click" },
     { name = "httpx" },
+    { name = "numpy" },
     { name = "python-frontmatter" },
     { name = "rank-bm25" },
     { name = "snowballstemmer" },
@@ -379,6 +380,7 @@ dev = [
 requires-dist = [
     { name = "click", specifier = ">=8.1" },
     { name = "httpx", specifier = ">=0.27" },
+    { name = "numpy", specifier = ">=1.26" },
     { name = "python-frontmatter", specifier = ">=1.1" },
     { name = "rank-bm25", specifier = ">=0.2" },
     { name = "snowballstemmer", specifier = ">=2.2" },

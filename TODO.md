@@ -9,10 +9,11 @@ See `CLAUDE.md` for architecture overview. See `docs/phase1-design.md` for libra
 - [x] **`--no-expand` flag** on `zkm query`; fix double-search bug in `cmd_query` — 2026-05-06
 - [x] **German temporal phrases** (`query.py`) — _temporal_filter now covers accusative/dative/genitive variants: "letzten Monat", "letzte Woche", "vergangenen Monat", "kürzlich", "neulich", etc. — 9 new tests, 89/89 passing 2026-05-06
 - [x] **Current date in LLM system prompt** (`query.py`) — prepend "Today's date: YYYY-MM-DD." so model has temporal anchor; regression test added — 89/89 passing 2026-05-06
-- [ ] Field-test query quality on real store with a better model (>=7B); consider Layer C (bounded one-shot refinement) if expansion proves insufficient
-- [ ] Separate expansion model from answer model — `ZKM_LLM_EXPAND_MODEL` / `ZKM_LLM_EXPAND_ENDPOINT` so a fast small model (0.8B) handles keyword extraction while a large model (35B) handles the answer; avoids the slow-expansion problem entirely
-- [ ] Surface expansion terms to the user (e.g. `zkm query --show-expansion`) for transparency and debugging
-- [ ] Phase 2: hybrid BM25 + dense embeddings (multilingual `bge-m3` or similar) + RRF — see `docs/temporal-queries.md`
+- [x] **Hybrid BM25 + dense retrieval** (`embed.py`, `query.py`, `index.py`) — OpenAI-compatible `/v1/embeddings` (no torch), `EmbedStore` (numpy, incremental), `search_hybrid`, `search_with_expansion` fuses BM25-RRF + dense via RRF; `--no-dense` flag; graceful fallback — 116/116 tests passing 2026-05-06
+- [ ] **Field-test on real store** with bge-m3 via llama-swap; collect concrete retrieval failures before deciding next step
+- [ ] Separate expansion model from answer model — `ZKM_LLM_EXPAND_MODEL` / `ZKM_LLM_EXPAND_ENDPOINT` so a fast small model (0.8B) handles keyword extraction while a large model (35B) handles the answer
+- [ ] Surface expansion terms to the user (`zkm query --show-expansion`) for transparency and debugging
+- [ ] Doc chunking for long emails/threads (current: first 2000 chars per doc, single embedding)
 
 ## Scaffold
 - [x] `pyproject.toml` — uv + hatchling, Click + rank-bm25 + python-frontmatter + httpx, entry point `zkm`
