@@ -64,6 +64,13 @@ def test_search_no_match_returns_empty(indexed_store: Path) -> None:
     assert hits == []
 
 
+def test_search_stem_match_across_inflections(indexed_store: Path) -> None:
+    """Querying the stem form 'orange' should match docs containing 'oranges'."""
+    hits = search(indexed_store, "orange")
+    paths = [h.path for h in hits]
+    assert "notes/oranges.md" in paths or "notes/apples.md" in paths
+
+
 def test_search_top_k_limits_results(indexed_store: Path) -> None:
     hits = search(indexed_store, "oranges apples bananas", top_k=1)
     assert len(hits) == 1

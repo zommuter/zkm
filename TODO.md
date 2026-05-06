@@ -114,6 +114,14 @@ Design note: these commands read `.zkm-config` to know the backend and dispatch 
 - [x] `zkm-eml` `originals.py` — implement sidecar write/merge in `symlink_inbox`; one-canonical-symlink-per-CAS + sidecar listing all producers — covered by tests (57/57 passing) on 2026-05-05
 - [x] `zkm-eml` `tests/test_attachments.py` — multi-message-same-attachment round-trip: single canonical symlink, sidecar schema, producer list — covered by test_inbox_sidecar_multi_producer on 2026-05-05
 
+## Encoding / text quality (backlog)
+
+- [ ] **Text file encoding issues** — emails and other plugin outputs can carry mis-decoded
+  bodies (Latin-1 read as UTF-8, mojibake umlauts, BOM headers, mixed encodings within a single
+  message). Audit `zkm-eml` decode paths and add a normalization pass (detect-and-transcode or
+  at minimum chardet fallback). Add test fixtures with known-bad encodings. Surfaces downstream
+  as broken stemming and tokenization for accented characters.
+
 ## Ops / polish
 - [x] `ruff check` clean
 - [x] `pytest` passing (22/22)

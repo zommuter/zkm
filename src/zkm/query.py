@@ -34,7 +34,7 @@ def search(store: Path, query: str, top_k: int = 10) -> list[Hit]:
         raise FileNotFoundError(
             f"No index found at {store / '.zkm-index'}. Run: zkm index"
         )
-    return _search(store, idx, query, top_k)
+    return _search(store, idx, tokenize(query), _temporal_filter(query), top_k)
 
 
 # ---------------------------------------------------------------------------
@@ -109,18 +109,21 @@ def _doc_in_range(doc: Doc, start: date, end: date) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Core search
+# Core search — takes pre-tokenized query tokens and pre-computed date_range
 # ---------------------------------------------------------------------------
 
 
-def _search(store: Path, idx: Index, query: str, top_k: int) -> list[Hit]:
+def _search(
+    store: Path,
+    idx: Index,
+    q_tokens: list[str],
+    date_range: tuple[date, date] | None,
+    top_k: int,
+) -> list[Hit]:
     import numpy as np
 
-    q_tokens = tokenize(query)
     q_set = set(q_tokens)
     scores = idx.bm25.get_scores(q_tokens) if (q_tokens and idx.bm25 is not None) else None
-
-    date_range = _temporal_filter(query)
 
     if date_range:
         start, end = date_range
@@ -144,6 +147,11 @@ def _search(store: Path, idx: Index, query: str, top_k: int) -> list[Hit]:
             return []
         assert scores is not None
         order = np.argsort(scores)[::-1]
+        # Keep docs that share at least one token (or stem) with the query.
+        # BM25Okapi IDF can be 0 for terms in half the corpus, so score > 0 is
+        # not a reliable non-match signal in small corpora. Token intersection is.
+        # With bilingual stemming, inflection mismatches are resolved here;
+        # cross-language gaps are handled by search_with_expansion() instead.
         selected = [
             int(i) for i in order
             if q_set.intersection(idx.docs[int(i)].tokens)
@@ -192,6 +200,51 @@ def _make_snippet(path: Path, q_tokens: list[str]) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Multi-query search: RRF merge + LLM expansion wiring
+# ---------------------------------------------------------------------------
+
+
+def rrf_merge(hit_lists: list[list[Hit]], k: int = 60) -> list[Hit]:
+    """Reciprocal rank fusion of multiple BM25 result lists.
+
+    score(d) = Σ 1 / (k + rank_i(d)) across all lists that contain d.
+    """
+    rrf_scores: dict[str, float] = {}
+    best: dict[str, Hit] = {}
+    for hits in hit_lists:
+        for rank, hit in enumerate(hits):
+            rrf_scores[hit.path] = rrf_scores.get(hit.path, 0.0) + 1.0 / (k + rank + 1)
+            if hit.path not in best or hit.score > best[hit.path].score:
+                best[hit.path] = hit
+    ranked = sorted(rrf_scores, key=lambda p: rrf_scores[p], reverse=True)
+    return [best[p] for p in ranked]
+
+
+def search_with_expansion(
+    store: Path,
+    question: str,
+    top_k: int = 20,
+    endpoint: str | None = None,
+    model: str | None = None,
+    api_key: str | None = None,
+) -> list[Hit]:
+    """Multi-query BM25 with LLM query expansion merged via reciprocal rank fusion."""
+    idx = load_index(store)
+    if idx is None:
+        raise FileNotFoundError(
+            f"No index found at {store / '.zkm-index'}. Run: zkm index"
+        )
+    ep, mdl, key = _resolve_llm_config(store, endpoint, model, api_key)
+    date_range = _temporal_filter(question)
+
+    from zkm.expand import expand_query  # lazy import avoids circular dependency
+
+    variant_lists = expand_query(question, store, ep, mdl, key)
+    hit_lists = [_search(store, idx, tokens, date_range, top_k) for tokens in variant_lists]
+    return rrf_merge(hit_lists)[:top_k]
+
+
+# ---------------------------------------------------------------------------
 # LLM query
 # ---------------------------------------------------------------------------
 
@@ -231,19 +284,17 @@ def _chat_url(endpoint: str) -> str:
     return endpoint + "/v1/chat/completions"
 
 
-def llm_query(
+def llm_stream(
     store: Path,
+    hits: list[Hit],
     question: str,
-    top_k: int = 20,
     endpoint: str | None = None,
     model: str | None = None,
     api_key: str | None = None,
 ) -> Iterator[str]:
-    """Search top_k docs and stream an LLM answer with citations."""
+    """Stream an LLM answer for pre-retrieved hits."""
     ep, mdl, key = _resolve_llm_config(store, endpoint, model, api_key)
     max_chars = int(os.environ.get("ZKM_LLM_MAX_DOC_CHARS", _DEFAULT_MAX_DOC_CHARS))
-
-    hits = search(store, question, top_k=top_k)
 
     context_blocks: list[str] = []
     for i, hit in enumerate(hits, 1):
@@ -281,9 +332,9 @@ def llm_query(
         "POST", url, headers=headers, json=payload, timeout=120.0
     ) as resp:
         if resp.status_code >= 400:
-            body = resp.read().decode(errors="replace")
+            body_text = resp.read().decode(errors="replace")
             raise httpx.HTTPStatusError(
-                f"HTTP {resp.status_code} from {url}: {body[:400]}",
+                f"HTTP {resp.status_code} from {url}: {body_text[:400]}",
                 request=resp.request,
                 response=resp,
             )
@@ -300,3 +351,24 @@ def llm_query(
                     yield content
             except (KeyError, json.JSONDecodeError):
                 continue
+
+
+def llm_query(
+    store: Path,
+    question: str,
+    top_k: int = 20,
+    endpoint: str | None = None,
+    model: str | None = None,
+    api_key: str | None = None,
+    expand: bool = True,
+) -> Iterator[str]:
+    """Search top_k docs and stream an LLM answer with citations.
+
+    expand=True (default) uses LLM query expansion + RRF for better retrieval.
+    expand=False falls back to plain BM25 on the raw question tokens.
+    """
+    if expand:
+        hits = search_with_expansion(store, question, top_k, endpoint, model, api_key)
+    else:
+        hits = search(store, question, top_k=top_k)
+    return llm_stream(store, hits, question, endpoint=endpoint, model=model, api_key=api_key)

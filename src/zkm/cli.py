@@ -357,22 +357,31 @@ def cmd_search(query: str, top_k: int, as_json: bool, store_override: str | None
 @click.argument("question")
 @click.option("-k", "--top-k", default=20, show_default=True, help="Context documents")
 @click.option(
+    "--no-expand",
+    is_flag=True,
+    default=False,
+    help="Skip LLM query expansion; use raw BM25 on the question tokens.",
+)
+@click.option(
     "--store",
     "store_override",
     default=None,
     metavar="PATH",
     help="Store path (default: $ZKM_STORE or ~/knowledge)",
 )
-def cmd_query(question: str, top_k: int, store_override: str | None) -> None:
-    """Answer a question using BM25 context + LLM."""
+def cmd_query(question: str, top_k: int, no_expand: bool, store_override: str | None) -> None:
+    """Answer a question using BM25 context + LLM (with query expansion by default)."""
     import httpx
 
-    from zkm.query import llm_query, search
+    from zkm.query import llm_stream, search, search_with_expansion
 
     sdir = Path(store_override) if store_override else store_path()
     try:
-        hits = search(sdir, question, top_k=top_k)
-        for chunk in llm_query(sdir, question, top_k=top_k):
+        if no_expand:
+            hits = search(sdir, question, top_k=top_k)
+        else:
+            hits = search_with_expansion(sdir, question, top_k=top_k)
+        for chunk in llm_stream(sdir, hits, question):
             click.echo(chunk, nl=False)
             sys.stdout.flush()
         click.echo()

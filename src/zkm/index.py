@@ -10,10 +10,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import frontmatter
+import snowballstemmer
 from rank_bm25 import BM25Okapi
 
-_PICKLE_VERSION = 1
+# Bumped when tokenization schema changes — forces index rebuild on load mismatch.
+_PICKLE_VERSION = 2
 _INDEX_FILE = ".zkm-index/bm25.pkl"
+
+_stemmer_en = snowballstemmer.stemmer("english")
+_stemmer_de = snowballstemmer.stemmer("german")
 
 _SKIP_DIRS = {"plugins", ".zkm-index", "originals", ".git"}
 
@@ -35,7 +40,20 @@ class Index:
 
 
 def tokenize(text: str) -> list[str]:
-    return re.findall(r"[A-Za-z0-9_][A-Za-z0-9_'-]+", text.lower())
+    """Tokenize text with Unicode support and bilingual (en+de) Snowball stemming.
+
+    Each raw token expands to itself plus its English and German stems, deduplicated.
+    This lets "meetings" match "meeting", "Rechnungen" match "Rechnung", etc.
+    """
+    raw_tokens = re.findall(r"\w[\w'-]+", text.lower(), re.UNICODE)
+    seen: set[str] = set()
+    result: list[str] = []
+    for tok in raw_tokens:
+        for variant in (tok, _stemmer_en.stemWord(tok), _stemmer_de.stemWord(tok)):
+            if variant and variant not in seen:
+                seen.add(variant)
+                result.append(variant)
+    return result
 
 
 def _tokenize_doc(post: frontmatter.Post) -> list[str]:

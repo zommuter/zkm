@@ -47,11 +47,38 @@ def test_tokenize_empty() -> None:
 
 
 def test_tokenize_short_words_excluded() -> None:
-    # The regex requires at least 2 chars: [A-Za-z0-9_][A-Za-z0-9_'-]+
+    # The regex requires at least 2 chars: \w[\w'-]+
     result = tokenize("a bb ccc")
     assert "a" not in result
     assert "bb" in result
     assert "ccc" in result
+
+
+def test_tokenize_preserves_umlauts() -> None:
+    result = tokenize("über Müller café")
+    # Raw umlaut tokens must survive (not stripped to ASCII-only garbage)
+    raw_tokens_set = set(result)
+    assert any("ber" in t or "über" in t for t in raw_tokens_set), (
+        "Expected 'über' or its stem in tokens"
+    )
+    assert any("ll" in t for t in raw_tokens_set), "Expected 'müller' or stem in tokens"
+
+
+def test_tokenize_english_stemming() -> None:
+    result_plural = set(tokenize("meetings"))
+    result_singular = set(tokenize("meeting"))
+    # Both should share at least one stem token
+    assert result_plural & result_singular, (
+        f"'meetings' tokens {result_plural} and 'meeting' tokens {result_singular} share no stems"
+    )
+
+
+def test_tokenize_german_stemming() -> None:
+    result_plural = set(tokenize("Rechnungen"))
+    result_singular = set(tokenize("Rechnung"))
+    assert result_plural & result_singular, (
+        f"'Rechnungen' {result_plural} and 'Rechnung' {result_singular} share no stems"
+    )
 
 
 # ---------------------------------------------------------------------------

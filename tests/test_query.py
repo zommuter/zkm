@@ -1,4 +1,4 @@
-"""Tests for llm_query config resolution and streaming."""
+"""Tests for llm_query / llm_stream config resolution and streaming."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import httpx
 import pytest
 
 from zkm.index import build_index, save_index
-from zkm.query import _chat_url, llm_query
+from zkm.query import _chat_url, llm_query, search, search_with_expansion
 from zkm.store import init_store
 
 
@@ -95,7 +95,7 @@ def test_defaults_used_when_no_config(indexed_store: Path, monkeypatch: pytest.M
         return MockResponse()
 
     monkeypatch.setattr(httpx, "stream", mock_stream)
-    list(llm_query(indexed_store, "electricity"))
+    list(llm_query(indexed_store, "electricity", expand=False))
 
     assert requests_made[0]["url"] == "http://localhost:8080/v1/chat/completions"
     assert requests_made[0]["model"] == "qwen3.5-0.8b"
@@ -139,7 +139,7 @@ def test_config_from_dot_env(indexed_store: Path, monkeypatch: pytest.MonkeyPatc
 
     monkeypatch.setattr(httpx, "stream", lambda *a, **kw: MockResponse())
 
-    result = list(llm_query(indexed_store, "what is the bill?"))
+    result = list(llm_query(indexed_store, "what is the bill?", expand=False))
     assert result == chunks
 
 
@@ -185,7 +185,7 @@ def test_llm_query_streams_content(indexed_store: Path, monkeypatch: pytest.Monk
 
     monkeypatch.setattr(httpx, "stream", mock_stream)
 
-    result = list(llm_query(indexed_store, "electricity bill"))
+    result = list(llm_query(indexed_store, "electricity bill", expand=False))
     assert result == chunks
 
     # Verify prompt contains doc relative paths as citation handles
@@ -221,5 +221,82 @@ def test_llm_query_empty_store_no_crash(store: Path, monkeypatch: pytest.MonkeyP
             pass
 
     monkeypatch.setattr(httpx, "stream", lambda *a, **kw: MockResponse())
-    result = list(llm_query(store, "any question"))
+    result = list(llm_query(store, "any question", expand=False))
     assert result == ["no context"]
+
+
+# ---------------------------------------------------------------------------
+# Bilingual expansion end-to-end
+# ---------------------------------------------------------------------------
+
+
+def test_search_with_expansion_finds_german_doc(
+    store: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """search_with_expansion surfaces a German doc for an English question.
+
+    With raw BM25 there would be zero token overlap (English question vs German doc).
+    The mocked expansion call returns German keyword variants that match the doc.
+    """
+    _write_note(
+        store,
+        "notes/stromrechnung.md",
+        "Stromrechnung von Stadtwerke: 142 CHF",
+        "source: notes\ndate: 2026-03-01",
+    )
+    _write_note(
+        store,
+        "notes/groceries.md",
+        "Migros Einkauf: 87 CHF",
+        "source: notes\ndate: 2026-03-15",
+    )
+    idx = build_index(store)
+    save_index(store, idx)
+
+    # Mock the expansion LLM call (httpx.post) to return known keyword variants.
+    expansion_response = {
+        "choices": [{
+            "message": {
+                "content": (
+                    "Stromrechnung\nStadtwerke\nelectricity bill\nutility invoice\n\n"
+                    "The electricity bill from Stadtwerke was 142 CHF."
+                )
+            }
+        }]
+    }
+
+    class MockPostResponse:
+        status_code = 200
+
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> dict:
+            return expansion_response
+
+    monkeypatch.setattr(httpx, "post", lambda *a, **kw: MockPostResponse())
+    monkeypatch.setenv("ZKM_LLM_ENDPOINT", "http://localhost:11434")
+    monkeypatch.setenv("ZKM_LLM_MODEL", "test-model")
+    monkeypatch.setenv("ZKM_LLM_KEY", "")
+
+    hits = search_with_expansion(store, "what was my last electricity bill?", top_k=5)
+    paths = [h.path for h in hits]
+    assert "notes/stromrechnung.md" in paths
+    assert paths[0] == "notes/stromrechnung.md"  # electricity doc ranked first
+
+
+def test_no_expand_misses_german_doc(store: Path) -> None:
+    """With --no-expand, raw BM25 on an English question returns nothing for a German-only doc."""
+    _write_note(
+        store,
+        "notes/stromrechnung.md",
+        "Stromrechnung von Stadtwerke: 142 CHF",
+        "source: notes\ndate: 2026-03-01",
+    )
+    idx = build_index(store)
+    save_index(store, idx)
+
+    # English question vs German doc: with only raw BM25, zero token overlap → no results
+    hits = search(store, "what was my last electricity bill?")
+    paths = [h.path for h in hits]
+    assert "notes/stromrechnung.md" not in paths
