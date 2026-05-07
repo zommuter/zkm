@@ -22,16 +22,22 @@ _MAX_TOKENS = 150
 _CACHE_FILE = ".zkm-index/expansion-cache.json"
 
 _EXPANSION_PROMPT = (
-    "Given this question, output two sections separated by a blank line.\n\n"
-    "Section 1 — Search terms: list 3-5 short keyword phrases, one per line, "
-    "in BOTH English and German (the source documents contain both languages; "
-    "always include the direct translation of the key term).\n"
-    "Section 2 — Hypothetical answer: one sentence that would be a plausible direct answer, "
-    "using vocabulary likely to appear in the documents.\n\n"
+    "The user question may be in English or German. The document corpus contains BOTH languages.\n"
+    "Output Section 1, then a blank line, then Section 2.\n\n"
+    "Section 1 — Search terms: produce keyword phrases in BOTH languages, one per line, "
+    "no blank lines, no bullets, no markdown. Each phrase must be ≤4 words. "
+    "Output 3 English phrases, then 3 German phrases. "
+    "Translate the question's main concepts into the OTHER language. Do not repeat phrases.\n\n"
+    "Section 2 — Hypothetical answer: one sentence that would be a plausible answer, in either language.\n\n"
     "Question: {question}"
 )
 # WHY: cache keys include a prompt hash so stale entries are ignored when the prompt changes
 _PROMPT_HASH = hashlib.sha256(_EXPANSION_PROMPT.encode()).hexdigest()[:8]
+
+# Matches "Section 2" with optional leading markdown heading markers (## Section 2, etc.)
+_SEC2_RE = re.compile(r"\n#*\s*Section\s*2\b", re.IGNORECASE)
+# Leaked end-of-turn tokens from some models (e.g. aya-expanse via llama-server)
+_EOS_TOKEN_RE = re.compile(r"<\|[A-Z_]+_TOKEN\|>")
 
 
 def _chat_url(endpoint: str) -> str:
@@ -51,11 +57,17 @@ def _parse_keywords(text: str) -> list[str]:
     space-quote-separated). Section 1 ends at the first blank line or Section 2 marker.
     """
     keywords: list[str] = []
-    # Isolate section 1 — stop at blank line or "Section 2" marker
-    section1 = re.split(r"\n\s*\n|\nSection\s*2\b", text, maxsplit=1, flags=re.IGNORECASE)[0]
+    # Isolate section 1.
+    # Prefer the explicit "Section 2" marker (with optional leading ## for markdown models);
+    # fall back to the first blank line for models that omit the Section 2 label.
+    m = _SEC2_RE.search(text)
+    section1 = text[: m.start()] if m else re.split(r"\n\s*\n", text, maxsplit=1)[0]
     for line in section1.splitlines():
         line = line.strip()
         if not line:
+            continue
+        # Skip markdown sub-headers: **English:**, **German:**, ## Section 1, ## alone, etc.
+        if re.match(r"^#|^\*{2}[A-Za-z]", line):
             continue
         # Strip "Section N — Label:" prefix (e.g. "Section 1 — Search terms:")
         line = re.sub(r"^Section\s*\d+\s*[—–\-]+\s*[^:]+:\s*", "", line, flags=re.IGNORECASE).strip()
@@ -173,7 +185,8 @@ def expand_query_with_hyp(
     try:
         resp = httpx.post(url, headers=headers, json=payload, timeout=timeout)
         resp.raise_for_status()
-        raw_output: str = resp.json()["choices"][0]["message"]["content"]
+        raw_output: str = resp.json()["choices"][0]["message"]["content"] or ""
+        raw_output = _EOS_TOKEN_RE.sub("", raw_output).strip()
     except Exception as exc:
         print(f"zkm: query expansion failed ({str(exc)[:80]}), using raw query", file=sys.stderr)
         return fallback

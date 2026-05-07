@@ -41,7 +41,10 @@ def test_parse_keywords_bullet_list() -> None:
     assert "Stadtwerke" in kws
 
 
-def test_parse_keywords_stops_at_blank_line() -> None:
+def test_parse_keywords_fallback_blank_line_when_no_section2_marker() -> None:
+    # Without a "Section 2" marker the parser falls back to blank-line split.
+    # The prose sentence is 7 words and would be filtered anyway, but the
+    # blank-line split is the primary guard here.
     text = "term one\nterm two\n\nThis is the hypothetical answer sentence."
     kws = _parse_keywords(text)
     assert "term one" in kws
@@ -93,6 +96,28 @@ def test_parse_keywords_inline_quoted_space_separated() -> None:
     assert "payment" in kws
     assert "Rechnung" in kws
     assert not any("Section" in k for k in kws)
+
+
+def test_parse_keywords_aya_markdown_blocked_format() -> None:
+    """aya-expanse-8b emits **English:**/**German:** blocks with blank lines between them.
+    Parser must cross blank lines (using Section 2 marker as boundary) and skip the
+    markdown sub-headers, yielding at least one EN and one DE keyword.
+    """
+    text = (
+        "## Section 1 — Search terms\n\n"
+        "**English:**\n"
+        "- Last electricity bill\n"
+        "- electricity invoice\n\n"
+        "**German:**\n"
+        "- Letzte Stromrechnung\n"
+        "- Stromkosten\n\n"
+        "## Section 2 — Hypothetical Answer\n\n"
+        "Die letzte Stromrechnung betrug 120 Euro."
+    )
+    kws = _parse_keywords(text)
+    assert "Last electricity bill" in kws or "electricity invoice" in kws
+    assert "Letzte Stromrechnung" in kws or "Stromkosten" in kws
+    assert not any(k.startswith("**") or k.startswith("#") or "Section" in k for k in kws)
 
 
 def test_parse_keywords_section_header_not_a_keyword() -> None:

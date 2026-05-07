@@ -58,14 +58,26 @@ to include "invoice", "bill", "Faktura") and running a separate BM25 leg for eac
 English keyword "invoice" finds English-only invoice docs that the German-query BM25 and
 the saturated dense leg both miss.
 
-**Cross-lingual expansion requires a bilingual-capable model (≥7B parameters).**
-qwen3.5-0.8b ignores the "in both English and German" instruction and generates
-monolingual keywords only. Configure a larger model for expansion:
+**Bilingual capability is about instruction-following, not parameter count.**
+Tested against every configured model on this machine; only `aya-expanse-8b` and
+`qwen3.5-35b` produce keywords in both languages regardless of the query language.
+
+| Model | DE→EN | EN→DE | Notes |
+|---|---|---|---|
+| `qwen3.5-0.8b` (default RAG) | ❌ | ❌ | Produces only the input language |
+| `llama-3.2-3b` | ✓ semantic | ✓ semantic | Format incompatible — parser yields 0 keywords |
+| `deepseek-r1-7b` | ❌ | — | Reasoning mode burns the 150-token budget; empty output |
+| `qwen3-coder-30b` | ❌ | ✓ | Fails German→English; leaks "Section 1" as keyword |
+| `qwen3.5-35b` | ✓ | ✓ | Works reliably with the current prompt |
+| **`aya-expanse-8b`** | ✓✓ | ✓✓ | Best bilingual; parser handles its markdown format |
+
+Configure a model explicitly for expansion (it defaults to `ZKM_LLM_MODEL`):
 
 ```bash
 # In $ZKM_STORE/.env or shell profile:
 ZKM_LLM_EXPAND_ENDPOINT=http://localhost:8080
-ZKM_LLM_EXPAND_MODEL=qwen3:7b   # or any model with reliable bilingual output
+ZKM_LLM_EXPAND_MODEL=aya-expanse-8b   # best bilingual; ~11 t/s, 5 GiB
+# ZKM_LLM_EXPAND_MODEL=qwen3.5-35b   # alternative; clean format, ~6 t/s, 21 GiB
 # ZKM_LLM_MODEL stays as qwen3.5-0.8b for fast RAG answers
 
 zkm doctor   # shows both "llm endpoint" and "expand endpoint" when they differ
@@ -96,6 +108,20 @@ v=[np.array(x['embedding']) for x in d]
 print(f'cos(invoice, Rechnung) = {v[0]@v[1]/(np.linalg.norm(v[0])*np.linalg.norm(v[1])):.3f}')
 "
 # Expected: ~0.72. If < 0.5, the wrong model is loaded.
+
+# 4. Probe the expand model directly — confirm both languages appear in Section 1
+curl -s http://localhost:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"aya-expanse-8b","messages":[{"role":"user","content":"The user question may be in English or German. The document corpus contains BOTH languages.\nOutput Section 1, then a blank line, then Section 2.\n\nSection 1 — Search terms: produce keyword phrases in BOTH languages, one per line, no blank lines, no bullets, no markdown. Each phrase must be ≤4 words. Output 3 English phrases, then 3 German phrases. Translate the question main concepts into the OTHER language. Do not repeat phrases.\n\nSection 2 — Hypothetical answer: one sentence that would be a plausible answer, in either language.\n\nQuestion: Rechnung"}],"max_tokens":250}' \
+  | python3 -c "
+import json,sys,re
+c=json.load(sys.stdin)['choices'][0]['message']['content']
+en=bool(re.search(r'\b(invoice|bill|receipt|payment)\b',c,re.I))
+de=bool(re.search(r'\b(rechnung|abrechnung|faktura|zahlung)\b',c,re.I))
+print('EN terms:', en, '  DE terms:', de, '  → bilingual:', en and de)
+print(c[:300])
+"
+# Expect: bilingual: True
 ```
 
 These are the concrete failures that drive decisions on doc chunking,
