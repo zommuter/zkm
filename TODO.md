@@ -24,11 +24,11 @@ Completed Phase 1 tasks archived in `docs/phase1-done.md`.
 
 See `docs/object-storage.md` for the spec contract.
 
-- [ ] `src/zkm/atomic.py` — `write_atomic(path, content)` (tmp + rename)
-- [ ] `src/zkm/hashing.py` — `sha256_file(path)`, `git_blob_sha1(path)`
-- [ ] `src/zkm/cas.py` — `write_object(store, subdir, path_or_bytes) -> Path`, idempotent, returns `<subdir>/_objects/<aa>/<rest>`
-- [ ] `src/zkm/sidecar.py` — read / `merge_producer` / rebuild `.origin.json` per spec v1; atomic write; producer dedup on `sha256`; sort by `message`
-- [ ] `src/zkm/inbox.py` — `symlink_with_sidecar(store, target, link_dir, producer)` implementing one-canonical-symlink-per-CAS-object
+- [x] `src/zkm/atomic.py` — `write_atomic(path, content)` (tmp + rename) — covered by tests/test_atomic.py on 2026-05-07
+- [x] `src/zkm/hashing.py` — `sha256_file(path)`, `git_blob_sha1(path)` — covered by tests/test_hashing.py on 2026-05-07
+- [x] `src/zkm/cas.py` — `write_object(store, subdir, path_or_bytes) -> Path`, idempotent, returns `<subdir>/_objects/<aa>/<rest>` — covered by tests/test_cas.py on 2026-05-07
+- [x] `src/zkm/sidecar.py` — read / `merge_producer` / rebuild `.origin.json` per spec v1; atomic write; producer dedup on `sha256`; sort by `message` — covered by tests/test_sidecar.py on 2026-05-07
+- [x] `src/zkm/inbox.py` — `symlink_with_sidecar(cas_object, link_dir, producer)` implementing one-canonical-symlink-per-CAS-object — covered by tests/test_inbox.py on 2026-05-07
 
 ## Phase 2 session 4 — plugin migration
 
