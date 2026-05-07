@@ -885,8 +885,8 @@ def cmd_query(
         click.echo()
         if hits:
             click.echo("\nSources:")
-            for h in hits:
-                click.echo(f"  - {h.path}")
+            for i, h in enumerate(hits, 1):
+                click.echo(f"  [{i}] {h.path}")
     except FileNotFoundError as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)

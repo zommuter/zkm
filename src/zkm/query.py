@@ -564,7 +564,7 @@ def llm_stream(
             "content": (
                 f"Today's date: {date.today().isoformat()}. "
                 "Answer the user's question using only the provided sources. "
-                "Cite sources by their path in square brackets, e.g. [notes/foo.md]."
+                "Cite sources by their bracketed number, e.g. [1], [2]."
             ),
         },
         {"role": "user", "content": user_content},

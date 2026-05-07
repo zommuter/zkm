@@ -312,6 +312,49 @@ def test_query_show_expansion_prints_keywords(tmp_path: Path, monkeypatch) -> No
     assert result.exit_code == 0
 
 
+def test_zkm_query_sources_block_is_numbered(tmp_path: Path, monkeypatch) -> None:
+    """Sources block uses [N] indices that match the LLM's inline citations."""
+    from click.testing import CliRunner
+
+    from zkm.cli import main
+    from zkm.query import Hit
+
+    sdir = tmp_path / "store"
+    init_store(sdir, backend="none")
+    (sdir / "notes").mkdir(exist_ok=True)
+    (sdir / "notes" / "a.md").write_text("first")
+    (sdir / "notes" / "b.md").write_text("second")
+    (sdir / "notes" / "c.md").write_text("third")
+    idx = build_index(sdir)
+    save_index(sdir, idx)
+
+    hits = [
+        Hit(path="notes/a.md", score=1.0, date="", snippet="first"),
+        Hit(path="notes/b.md", score=0.9, date="", snippet="second"),
+        Hit(path="notes/c.md", score=0.8, date="", snippet="third"),
+    ]
+    stub_trace = SearchTrace(3, 0, None, False, [], "")
+
+    def fake_expansion(*a, **kw):
+        return hits, stub_trace
+
+    def fake_llm_stream(*a, **kw):
+        yield "answer body referencing [1] and [3]"
+
+    runner = CliRunner()
+    with monkeypatch.context() as m:
+        m.setattr("zkm.query.search_with_expansion_traced", fake_expansion)
+        m.setattr("zkm.query.llm_stream", fake_llm_stream)
+        result = runner.invoke(main, ["query", "--store", str(sdir), "test question"])
+
+    assert result.exit_code == 0
+    assert "Sources:" in result.output
+    assert "[1] notes/a.md" in result.output
+    assert "[2] notes/b.md" in result.output
+    assert "[3] notes/c.md" in result.output
+    assert "  - notes/" not in result.output
+
+
 # ---------------------------------------------------------------------------
 # CLI: expand_skipped_reason → fail-loud / --allow-fallback
 # ---------------------------------------------------------------------------
