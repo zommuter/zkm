@@ -18,7 +18,7 @@ Completed Phase 1 tasks archived in `docs/phase1-done.md`.
 
 ## Phase 2 session 2 — embed index fixes
 
-- [ ] `embed.py:save_embed_store` — make checkpoint write atomic (write to tmp path + `os.replace`) so an interrupted embedding run cannot corrupt the NPZ file
+- [x] `embed.py:save_embed_store` — make checkpoint write atomic (write to tmp path + `os.replace`) so an interrupted embedding run cannot corrupt the NPZ file — covered by `test_save_embed_store_atomic_under_interrupt` (test_embed.py) on 2026-05-07
 
 ## Phase 2 session 3 — core library
 
