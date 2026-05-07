@@ -8,6 +8,7 @@ from pathlib import Path
 _GITIGNORE = """\
 .env
 .zkm-index/
+.zkm-state/
 .embeddings/
 *.swp
 .DS_Store

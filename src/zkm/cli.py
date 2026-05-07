@@ -425,18 +425,32 @@ def cmd_convert(
     default=False,
     help="Skip dense embedding index (BM25 only).",
 )
-def cmd_index(store_override: str | None, no_progress: bool, no_embed: bool) -> None:
+@click.option(
+    "--full",
+    is_flag=True,
+    default=False,
+    help="Force full re-scan, ignoring git-commit watermark.",
+)
+def cmd_index(store_override: str | None, no_progress: bool, no_embed: bool, full: bool) -> None:
     """Build or refresh the BM25 search index (and dense embedding index if configured)."""
     import time
 
     from tqdm import tqdm
 
-    from zkm.index import build_index, save_index
+    from zkm.index import build_index, save_index, write_watermark
 
     sdir = Path(store_override) if store_override else store_path()
     if not (sdir / ".git").exists():
         click.echo(f"Error: {sdir} is not an initialized store. Run: zkm init", err=True)
         sys.exit(1)
+
+    # Snapshot the current HEAD before indexing; written as watermark after success.
+    try:
+        _head_sha = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=sdir, check=True, capture_output=True, text=True,
+        ).stdout.strip()
+    except subprocess.CalledProcessError:
+        _head_sha = None
 
     show_progress = not no_progress and sys.stdout.isatty()
     bar: tqdm | None = None
@@ -470,11 +484,13 @@ def cmd_index(store_override: str | None, no_progress: bool, no_embed: bool) -> 
             bar.set_postfix_str(message[:60])
 
     t0 = time.monotonic()
-    idx = build_index(sdir, progress=progress_cb if show_progress else None)
+    idx = build_index(sdir, progress=progress_cb if show_progress else None, full=full)
     if bar is not None:
         bar.close()
         bar = None
     save_index(sdir, idx)
+    if _head_sha:
+        write_watermark(sdir, _head_sha)
 
     # Dense embedding pass
     if not no_embed:

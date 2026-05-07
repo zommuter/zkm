@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
 
-from zkm.index import build_index, load_index, save_index, tokenize
+from zkm.index import _read_watermark, build_index, load_index, save_index, tokenize, write_watermark
 from zkm.store import init_store
 
 # ---------------------------------------------------------------------------
@@ -230,3 +231,127 @@ def test_progress_callback_invoked(store: Path) -> None:
     assert len(calls) >= 2
     currents = [c for c, _, _ in calls]
     assert currents == sorted(currents)
+
+
+# ---------------------------------------------------------------------------
+# Git-commit watermark
+# ---------------------------------------------------------------------------
+
+
+def _git(args: list[str], cwd: Path) -> str:
+    return subprocess.run(
+        ["git", *args], cwd=cwd, check=True, capture_output=True, text=True,
+    ).stdout.strip()
+
+
+def _commit_all(store: Path, msg: str = "test commit") -> str:
+    """Stage everything and commit; return the new HEAD SHA."""
+    _git(["add", "-A"], store)
+    _git(["commit", "--allow-empty", "-m", msg], store)
+    return _git(["rev-parse", "HEAD"], store)
+
+
+def test_watermark_absent_does_full_scan(store: Path) -> None:
+    """No watermark → full rglob scan (same behaviour as before)."""
+    _write_note(store, "notes/a.md", "apple")
+    _commit_all(store)
+    idx = build_index(store)
+    assert len(idx.docs) == 1
+    assert _read_watermark(store) is None  # build_index never writes the watermark
+
+
+def test_write_read_watermark(store: Path) -> None:
+    sha = _commit_all(store)
+    write_watermark(store, sha)
+    assert _read_watermark(store) == sha
+
+
+def test_watermark_fast_path_picks_up_new_file(store: Path) -> None:
+    """After a watermark is recorded, a newly committed file is indexed."""
+    _write_note(store, "notes/a.md", "apple")
+    sha1 = _commit_all(store, "add a")
+    idx1 = build_index(store)
+    save_index(store, idx1)
+    write_watermark(store, sha1)  # mark sha1 as last indexed
+
+    _write_note(store, "notes/b.md", "banana content")
+    _commit_all(store, "add b")  # new commit, watermark still at sha1
+
+    idx2 = build_index(store)  # fast path diffs sha1..HEAD → finds b.md
+    rels = {d.rel_path for d in idx2.docs}
+    assert "notes/a.md" in rels
+    assert "notes/b.md" in rels
+
+
+def test_watermark_fast_path_drops_deleted_file(store: Path) -> None:
+    """A file deleted after the watermark must not appear in the next index."""
+    _write_note(store, "notes/keep.md", "keeper")
+    _write_note(store, "notes/gone.md", "going away")
+    sha1 = _commit_all(store, "add both")
+    idx1 = build_index(store)
+    save_index(store, idx1)
+    write_watermark(store, sha1)  # mark sha1 as last indexed
+
+    (store / "notes/gone.md").unlink()
+    _commit_all(store, "delete gone")  # new commit, watermark still at sha1
+
+    idx2 = build_index(store)  # fast path diffs sha1..HEAD → sees deletion
+    rels = {d.rel_path for d in idx2.docs}
+    assert "notes/keep.md" in rels
+    assert "notes/gone.md" not in rels
+
+
+def test_watermark_fast_path_uncommitted_md_included(store: Path) -> None:
+    """An uncommitted (dirty) .md file must be picked up via git status."""
+    _write_note(store, "notes/committed.md", "base")
+    sha1 = _commit_all(store, "base")
+    idx1 = build_index(store)
+    save_index(store, idx1)
+    write_watermark(store, sha1)
+
+    # Add a file but do NOT commit it
+    _write_note(store, "notes/dirty.md", "dirty content")
+
+    idx2 = build_index(store)
+    rels = {d.rel_path for d in idx2.docs}
+    assert "notes/dirty.md" in rels
+
+
+def test_watermark_unreachable_falls_back_to_full_scan(store: Path) -> None:
+    """A bogus watermark SHA triggers full scan; index is still correct."""
+    _write_note(store, "notes/a.md", "apple")
+    _commit_all(store)
+    idx1 = build_index(store)
+    save_index(store, idx1)
+
+    write_watermark(store, "deadbeef" * 5)  # bogus SHA
+
+    _write_note(store, "notes/b.md", "banana")
+    _commit_all(store)
+
+    idx2 = build_index(store)
+    rels = {d.rel_path for d in idx2.docs}
+    assert "notes/a.md" in rels
+    assert "notes/b.md" in rels
+
+
+def test_full_flag_bypasses_watermark(store: Path) -> None:
+    """--full ignores the watermark and returns all docs."""
+    _write_note(store, "notes/a.md", "apple")
+    sha1 = _commit_all(store, "add a")
+    idx1 = build_index(store)
+    save_index(store, idx1)
+    write_watermark(store, sha1)
+
+    # Add and commit another file, but set watermark to HEAD (nothing "changed")
+    _write_note(store, "notes/b.md", "banana")
+    sha2 = _commit_all(store, "add b")
+    # Intentionally record sha2 as watermark so fast path sees no changes
+    write_watermark(store, sha2)
+
+    # Normal build via fast path: b.md is already indexed (it's in the committed diff)
+    # Full build: must include both
+    idx_full = build_index(store, full=True)
+    rels = {d.rel_path for d in idx_full.docs}
+    assert "notes/a.md" in rels
+    assert "notes/b.md" in rels
