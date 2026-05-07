@@ -220,6 +220,32 @@ def test_meta_file_written(tmp_path: Path) -> None:
     assert meta["dim"] == 4
 
 
+def test_save_embed_store_atomic_under_interrupt(tmp_path: Path, monkeypatch) -> None:
+    store = tmp_path / "store"
+    init_store(store, backend="none")
+    es = _make_store(3, 8)
+    save_embed_store(store, es)
+
+    npz_path = store / ".zkm-index/embeddings.npz"
+    meta_path = store / ".zkm-index/embeddings-meta.json"
+    good_npz = npz_path.read_bytes()
+    good_meta = meta_path.read_bytes()
+
+    def boom(f, **_kwargs):
+        f.write(b"corrupt")
+        raise RuntimeError("simulated mid-write crash")
+
+    monkeypatch.setattr(np, "savez_compressed", boom)
+
+    es2 = _make_store(5, 8)
+    with pytest.raises(RuntimeError):
+        save_embed_store(store, es2)
+
+    assert npz_path.read_bytes() == good_npz, "NPZ was overwritten despite crash"
+    assert meta_path.read_bytes() == good_meta, "meta was overwritten despite crash"
+    assert load_embed_store(store) is not None, "store corrupted — load returns None"
+
+
 # ---------------------------------------------------------------------------
 # build_embed_store
 # ---------------------------------------------------------------------------

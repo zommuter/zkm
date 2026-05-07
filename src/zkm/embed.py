@@ -7,6 +7,7 @@ llama.cpp server, Ollama, llama-swap serving bge-m3). No local inference deps.
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -138,21 +139,29 @@ class EmbedStore:
 def save_embed_store(store: Path, es: EmbedStore) -> None:
     index_dir = store / ".zkm-index"
     index_dir.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(
-        store / _NPZ_FILE,
-        paths=np.array(es.paths, dtype=object),
-        mtimes_ns=np.array(es.mtimes_ns, dtype=np.int64),
-        vectors=es.vectors,
-    )
+
+    npz_path = store / _NPZ_FILE
+    npz_tmp = npz_path.with_name(npz_path.name + ".tmp")
+    # Pass a file handle so numpy doesn't append an extra `.npz` suffix.
+    with open(npz_tmp, "wb") as f:
+        np.savez_compressed(
+            f,
+            paths=np.array(es.paths, dtype=object),
+            mtimes_ns=np.array(es.mtimes_ns, dtype=np.int64),
+            vectors=es.vectors,
+        )
+    os.replace(npz_tmp, npz_path)
+
     meta = {
         "model": es.model,
         "dim": int(es.vectors.shape[1]) if es.paths else 0,
         "built_at": datetime.now(tz=UTC).isoformat(),
         "n_docs": len(es.paths),
     }
-    (store / _META_FILE).write_text(
-        json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    meta_path = store / _META_FILE
+    meta_tmp = meta_path.with_name(meta_path.name + ".tmp")
+    meta_tmp.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(meta_tmp, meta_path)
 
 
 def load_embed_store(store: Path) -> EmbedStore | None:
