@@ -9,7 +9,15 @@ from pathlib import Path
 import click
 
 from zkm import __version__
-from zkm.store import init_store, store_path
+from zkm.store import (
+    clone_store,
+    init_store,
+    pull_store,
+    push_store,
+    remote_add,
+    remote_list,
+    store_path,
+)
 
 
 @click.group()
@@ -42,6 +50,135 @@ def cmd_init(store: str | None, backend: str) -> None:
     """Initialize the knowledge store."""
     path = Path(store) if store else store_path()
     init_store(path, backend)
+
+
+def _require_store(path: Path) -> None:
+    if not (path / ".git").exists():
+        click.echo(f"Error: {path} is not an initialized store. Run: zkm init", err=True)
+        sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
+# zkm remote
+# ---------------------------------------------------------------------------
+
+
+@main.group("remote")
+def cmd_remote() -> None:
+    """Manage store remotes."""
+
+
+@cmd_remote.command("add")
+@click.argument("name")
+@click.argument("url")
+@click.option(
+    "--store",
+    "store_override",
+    default=None,
+    metavar="PATH",
+    help="Store path (default: $ZKM_STORE or ~/knowledge)",
+)
+def cmd_remote_add(name: str, url: str, store_override: str | None) -> None:
+    """Add a remote named NAME pointing to URL."""
+    sdir = Path(store_override) if store_override else store_path()
+    _require_store(sdir)
+    try:
+        remote_add(sdir, name, url)
+        click.echo(f"Added remote '{name}' → {url}")
+    except subprocess.CalledProcessError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@cmd_remote.command("list")
+@click.option(
+    "--store",
+    "store_override",
+    default=None,
+    metavar="PATH",
+    help="Store path (default: $ZKM_STORE or ~/knowledge)",
+)
+def cmd_remote_list(store_override: str | None) -> None:
+    """List store remotes."""
+    sdir = Path(store_override) if store_override else store_path()
+    _require_store(sdir)
+    output = remote_list(sdir)
+    if output.strip():
+        click.echo(output, nl=False)
+    else:
+        click.echo("No remotes configured.")
+
+
+# ---------------------------------------------------------------------------
+# zkm clone
+# ---------------------------------------------------------------------------
+
+
+@main.command("clone")
+@click.argument("url")
+@click.argument("path", required=False, default=None, metavar="[PATH]")
+def cmd_clone(url: str, path: str | None) -> None:
+    """Clone a store from URL, re-initialising its binary backend automatically."""
+    if path:
+        dest = Path(path)
+    else:
+        name = url.rstrip("/").split("/")[-1]
+        if name.endswith(".git"):
+            name = name[:-4]
+        dest = Path.cwd() / name
+    try:
+        backend = clone_store(url, dest)
+        click.echo(f"Cloned store to {dest} (backend: {backend})")
+    except subprocess.CalledProcessError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
+# zkm push / pull
+# ---------------------------------------------------------------------------
+
+
+@main.command("push")
+@click.argument("remote", required=False, default=None, metavar="[REMOTE]")
+@click.option("--content", is_flag=True, help="Sync file content to remote (annex only)")
+@click.option(
+    "--store",
+    "store_override",
+    default=None,
+    metavar="PATH",
+    help="Store path (default: $ZKM_STORE or ~/knowledge)",
+)
+def cmd_push(remote: str | None, content: bool, store_override: str | None) -> None:
+    """Push store commits to REMOTE."""
+    sdir = Path(store_override) if store_override else store_path()
+    _require_store(sdir)
+    try:
+        push_store(sdir, remote, content=content)
+    except subprocess.CalledProcessError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@main.command("pull")
+@click.argument("remote", required=False, default=None, metavar="[REMOTE]")
+@click.option("--content", is_flag=True, help="Sync file content from remote (annex only)")
+@click.option(
+    "--store",
+    "store_override",
+    default=None,
+    metavar="PATH",
+    help="Store path (default: $ZKM_STORE or ~/knowledge)",
+)
+def cmd_pull(remote: str | None, content: bool, store_override: str | None) -> None:
+    """Pull store commits from REMOTE."""
+    sdir = Path(store_override) if store_override else store_path()
+    _require_store(sdir)
+    try:
+        pull_store(sdir, remote, content=content)
+    except subprocess.CalledProcessError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
 
 
 # ---------------------------------------------------------------------------
