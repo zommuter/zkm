@@ -16,8 +16,13 @@ import numpy as np
 
 from zkm.convert import load_env
 
+_DEFAULT_ENDPOINT = "http://localhost:8080"
 _DEFAULT_MODEL = "bge-m3"
 _EMBED_BATCH = 32
+# ~335 tokens worst-case (dense German subwords ~6 chars/tok → ~2000/6=333 tok).
+# Requires --ubatch-size >= 512 on the llama-server side (default is 512, raise to 2048+
+# for headroom). Override with ZKM_EMBED_MAX_CHARS env var.
+_DEFAULT_EMBED_MAX_CHARS = 2000
 _NPZ_FILE = ".zkm-index/embeddings.npz"
 _META_FILE = ".zkm-index/embeddings-meta.json"
 
@@ -58,7 +63,7 @@ def resolve_embed_config(
             return env[key]
         return default
 
-    ep = _get("ZKM_EMBED_ENDPOINT", endpoint, "")
+    ep = _get("ZKM_EMBED_ENDPOINT", endpoint, _DEFAULT_ENDPOINT)
     mdl = _get("ZKM_EMBED_MODEL", model, _DEFAULT_MODEL)
     key = _get("ZKM_EMBED_KEY", api_key, "")
     return ep, mdl, key
@@ -177,12 +182,14 @@ def build_embed_store(
     model: str,
     api_key: str,
     timeout: float = 60.0,
+    checkpoint_every: int = 500,
     progress=None,  # ProgressCallback | None
 ) -> EmbedStore:
     """Build or incrementally update an EmbedStore for the given docs.
 
     Reuses cached vectors for docs whose mtime_ns is unchanged and whose
-    model matches. Batches new/changed docs through the embed endpoint.
+    model matches. Saves a checkpoint to disk every checkpoint_every newly
+    embedded docs so that interrupted runs can resume without re-embedding.
     """
     # Build lookup from previous store (None → empty)
     prev_paths: dict[str, tuple[int, int]] = {}  # rel_path → (row, mtime_ns)
@@ -193,45 +200,64 @@ def build_embed_store(
             prev_vecs[p] = prev_es.vectors[idx]
 
     # Partition docs into cached vs. needing embedding
-    cached_paths: list[str] = []
-    cached_mtimes: list[int] = []
-    cached_vecs: list[np.ndarray] = []
-    new_docs: list = []  # Doc objects needing embedding
+    # acc_* grows through the loop — starts with already-cached vectors so
+    # checkpoints always include everything done so far.
+    acc_paths: list[str] = []
+    acc_mtimes: list[int] = []
+    acc_vecs: list[np.ndarray] = []
+    new_docs: list = []
 
     for doc in docs:
         prev = prev_paths.get(doc.rel_path)
         if prev is not None and prev[1] == doc.mtime_ns:
-            cached_paths.append(doc.rel_path)
-            cached_mtimes.append(doc.mtime_ns)
-            cached_vecs.append(prev_vecs[doc.rel_path])
+            acc_paths.append(doc.rel_path)
+            acc_mtimes.append(doc.mtime_ns)
+            acc_vecs.append(prev_vecs[doc.rel_path])
         else:
             new_docs.append(doc)
 
-    # Embed new/changed docs
-    new_paths: list[str] = []
-    new_mtimes: list[int] = []
-    new_vecs: list[np.ndarray] = []
-
+    # Embed new/changed docs, checkpointing every checkpoint_every docs
     if new_docs:
-        texts = [_embed_text(store, doc) for doc in new_docs]
-        n = len(texts)
+        n = len(new_docs)
         if progress is not None:
             progress(0, n, "embedding…")
-        # Batch in _EMBED_BATCH chunks with progress updates
-        all_vecs = embed_texts(texts, endpoint, model, api_key, timeout=timeout)
-        if progress is not None:
-            progress(n, n, "done")
-        for i, doc in enumerate(new_docs):
-            new_paths.append(doc.rel_path)
-            new_mtimes.append(doc.mtime_ns)
-            new_vecs.append(all_vecs[i])
+        url = _embeddings_url(endpoint)
+        headers: dict[str, str] = {"Content-Type": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        done = 0
+        for batch_start in range(0, n, _EMBED_BATCH):
+            batch_docs = new_docs[batch_start : batch_start + _EMBED_BATCH]
+            texts = [_embed_text(store, doc) for doc in batch_docs]
+            try:
+                resp = httpx.post(
+                    url, headers=headers, json={"model": model, "input": texts}, timeout=timeout
+                )
+                resp.raise_for_status()
+                data = resp.json()["data"]
+                data.sort(key=lambda x: x["index"])
+                batch_vecs = np.array([item["embedding"] for item in data], dtype=np.float32)
+                norms = np.linalg.norm(batch_vecs, axis=1, keepdims=True)
+                norms = np.where(norms == 0.0, 1.0, norms)
+                batch_vecs = (batch_vecs / norms).astype(np.float32)
+            except EmbedUnavailable:
+                raise
+            except Exception as exc:
+                raise EmbedUnavailable(f"embed_texts failed: {exc}") from exc
+            for doc, vec in zip(batch_docs, batch_vecs):
+                acc_paths.append(doc.rel_path)
+                acc_mtimes.append(doc.mtime_ns)
+                acc_vecs.append(vec)
+            done += len(batch_docs)
+            if progress is not None:
+                progress(done, n, batch_docs[-1].rel_path.split("/")[-1])
+            if checkpoint_every and done % checkpoint_every < _EMBED_BATCH:
+                _save_partial(store, acc_paths, acc_mtimes, acc_vecs, model)
 
-    # Reconstruct in original doc order
-    path_to_vec: dict[str, tuple[int, np.ndarray]] = {}
-    for p, m, v in zip(cached_paths, cached_mtimes, cached_vecs):
-        path_to_vec[p] = (m, v)
-    for p, m, v in zip(new_paths, new_mtimes, new_vecs):
-        path_to_vec[p] = (m, v)
+    # acc_* now contains everything (cached + newly embedded); reconstruct in doc order
+    path_to_vec: dict[str, tuple[int, np.ndarray]] = {
+        p: (m, v) for p, m, v in zip(acc_paths, acc_mtimes, acc_vecs)
+    }
 
     final_paths: list[str] = []
     final_mtimes: list[int] = []
@@ -256,16 +282,37 @@ def build_embed_store(
     )
 
 
+def _save_partial(
+    store: Path,
+    paths: list[str],
+    mtimes_ns: list[int],
+    vecs: list[np.ndarray],
+    model: str,
+) -> None:
+    """Write a partial EmbedStore to disk for interrupt/resume support."""
+    if not vecs:
+        return
+    mat = np.stack(vecs, axis=0).astype(np.float32)
+    es = EmbedStore(paths=list(paths), mtimes_ns=list(mtimes_ns), vectors=mat, model=model)
+    save_embed_store(store, es)
+
+
 def _embed_text(store: Path, doc) -> str:  # doc: Doc
-    """Build embed text: title + tags + first 2000 chars of body."""
+    """Build embed text: title + tags + first N chars of body.
+
+    N defaults to _DEFAULT_EMBED_MAX_CHARS (~375 tokens); override with ZKM_EMBED_MAX_CHARS.
+    """
+    import os
+
     import frontmatter
 
+    max_chars = int(os.environ.get("ZKM_EMBED_MAX_CHARS", _DEFAULT_EMBED_MAX_CHARS))
     try:
         post = frontmatter.load(store / doc.rel_path)
         title = str(post.metadata.get("title", ""))
         tags = post.metadata.get("tags", [])
         tag_str = " ".join(str(t) for t in tags) if tags else ""
-        body = post.content[:2000]
+        body = post.content[:max_chars]
         return "\n".join(p for p in [title, tag_str, body] if p)
     except Exception:
         return " ".join(doc.tokens[:200])

@@ -398,19 +398,19 @@ def test_search_hybrid_falls_back_when_no_embed_store(store: Path) -> None:
     assert any("doc1" in h.path for h in hits)
 
 
-def test_search_hybrid_falls_back_when_no_endpoint(
+def test_search_hybrid_no_dense_flag_skips_embed(
     store: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """search_hybrid skips dense when ZKM_EMBED_ENDPOINT is unset."""
-    monkeypatch.delenv("ZKM_EMBED_ENDPOINT", raising=False)
+    """search_hybrid with dense=False must not call embed_texts even when store exists."""
     _write_and_index(store, [
         ("notes/doc1.md", "electricity bill", "source: notes"),
     ])
-    # Write a store so the file-existence check passes
     dim = 4
     _make_embed_store(store, ["notes/doc1.md"], np.eye(1, dim))
-    # Still falls back because endpoint unset
-    hits = search_hybrid(store, "electricity", top_k=5, dense=True)
+    embed_called = []
+    monkeypatch.setattr("zkm.query.embed_texts", lambda *a, **kw: embed_called.append(1))
+    hits = search_hybrid(store, "electricity", top_k=5, dense=False)
+    assert embed_called == []
     assert any("doc1" in h.path for h in hits)
 
 

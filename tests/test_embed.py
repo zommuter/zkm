@@ -68,11 +68,12 @@ def test_resolve_embed_config_override(tmp_path: Path) -> None:
     assert mdl == "m"
 
 
-def test_resolve_embed_config_unset_gives_empty_endpoint(tmp_path: Path) -> None:
+def test_resolve_embed_config_unset_gives_default_endpoint(tmp_path: Path) -> None:
     store = tmp_path / "store"
     init_store(store, backend="none")
-    ep, _, _ = resolve_embed_config(store)
-    assert ep == ""
+    ep, mdl, _ = resolve_embed_config(store)
+    assert ep == "http://localhost:8080"
+    assert mdl == "bge-m3"
 
 
 # ---------------------------------------------------------------------------
