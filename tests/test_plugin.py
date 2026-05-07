@@ -8,9 +8,11 @@ import pytest
 
 from zkm.convert import (
     add_plugin,
+    append_env,
     find_plugin,
     list_plugins,
     load_env,
+    prompt_required_config,
     remove_plugin,
     run_convert,
     run_reprocess,
@@ -330,3 +332,106 @@ def test_reprocess_outdated_skips_current_version(
     assert plugin is not None
     candidates = _find_managed_files(store, plugin, mode="outdated")
     assert candidates == []
+
+
+# ---------------------------------------------------------------------------
+# .env prompting helpers
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def two_key_plugin(tmp_path: Path) -> Path:
+    """A minimal plugin with two required keys (one secret-looking, one plain)."""
+    plugin_dir = tmp_path / "zkm-twokey"
+    plugin_dir.mkdir()
+    (plugin_dir / "plugin.yaml").write_text(
+        "name: twokey\nversion: 0.1.0\ncreates_dirs: []\nconfig:\n"
+        "  SOURCE_DIR:\n    required: true\n    description: A plain config value\n"
+        "  API_TOKEN:\n    required: true\n    description: API secret token\n"
+    )
+    (plugin_dir / "convert.py").write_text(
+        "from pathlib import Path\n"
+        "def convert(store_path: Path, config: dict) -> list[Path]:\n"
+        "    return []\n"
+    )
+    return plugin_dir
+
+
+def test_prompt_required_config_writes_env(
+    isolated_plugins: Path, store: Path, two_key_plugin: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """prompt_required_config prompts for required keys, writes them, sets mode 0600."""
+    import getpass
+
+    plugin = add_plugin(str(two_key_plugin))
+
+    prompt_calls: list[str] = []
+    getpass_calls: list[str] = []
+    monkeypatch.setattr("click.prompt", lambda text, **_kw: prompt_calls.append(text) or "myvalue")
+    monkeypatch.setattr(getpass, "getpass", lambda text: getpass_calls.append(text) or "mysecret")
+
+    missing = prompt_required_config(plugin, store, interactive=True)
+
+    assert missing == []
+    assert len(prompt_calls) == 1      # SOURCE_DIR prompted via click.prompt
+    assert len(getpass_calls) == 1     # API_TOKEN prompted via getpass
+
+    env = load_env(store)
+    assert env["SOURCE_DIR"] == "myvalue"
+    assert env["API_TOKEN"] == "mysecret"
+
+    env_file = store / ".env"
+    mode = env_file.stat().st_mode & 0o777
+    assert mode == 0o600, f"Expected 0600, got {oct(mode)}"
+
+
+def test_prompt_skips_existing_env_keys(
+    isolated_plugins: Path, store: Path, two_key_plugin: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Keys already in .env are not re-prompted."""
+    import getpass
+
+    plugin = add_plugin(str(two_key_plugin))
+    append_env(store, "SOURCE_DIR", "existing_val")
+
+    prompt_calls: list[str] = []
+    monkeypatch.setattr("click.prompt", lambda text, **_kw: (prompt_calls.append(text) or "new"))
+    monkeypatch.setattr(getpass, "getpass", lambda text: "newsecret")
+
+    missing = prompt_required_config(plugin, store, interactive=True)
+
+    assert missing == []
+    assert len(prompt_calls) == 0   # SOURCE_DIR already set — not prompted
+    # API_TOKEN was prompted via getpass; SOURCE_DIR was skipped
+    env = load_env(store)
+    assert env["SOURCE_DIR"] == "existing_val"   # unchanged
+    assert env["API_TOKEN"] == "newsecret"
+
+
+def test_prompt_no_interactive_returns_missing(
+    isolated_plugins: Path, store: Path, two_key_plugin: Path
+) -> None:
+    """When interactive=False, all missing required keys are returned without prompting."""
+    plugin = add_plugin(str(two_key_plugin))
+
+    missing = prompt_required_config(plugin, store, interactive=False)
+
+    assert sorted(missing) == ["API_TOKEN", "SOURCE_DIR"]
+    assert not (store / ".env").exists() or load_env(store) == {}
+
+
+def test_prompt_non_tty_silent(
+    isolated_plugins: Path, store: Path, two_key_plugin: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """sys.stdin.isatty() returning False must result in interactive=False behaviour."""
+    import sys
+
+    plugin = add_plugin(str(two_key_plugin))
+
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
+
+    # Call prompt_required_config with interactive=(not no_prompt and sys.stdin.isatty())
+    interactive = sys.stdin.isatty()
+    missing = prompt_required_config(plugin, store, interactive=interactive)
+
+    assert sorted(missing) == ["API_TOKEN", "SOURCE_DIR"]

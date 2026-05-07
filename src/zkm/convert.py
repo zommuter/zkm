@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import getpass
 import importlib.util
 import inspect
 import os
+import re
 import shutil
 import subprocess
+import tempfile
 import types
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -157,6 +160,76 @@ def load_env(store_path: Path) -> dict[str, str]:
         k, _, v = line.partition("=")
         env[k.strip()] = v.strip().strip("\"'")
     return env
+
+
+def append_env(store_path: Path, key: str, value: str) -> None:
+    """Atomically append KEY=VALUE (quoted when needed) to $ZKM_STORE/.env."""
+    env_file = store_path / ".env"
+    existing = env_file.read_text(encoding="utf-8") if env_file.exists() else ""
+    if " " in value or "#" in value or '"' in value:
+        escaped = value.replace('"', '\\"')
+        line = f'{key}="{escaped}"\n'
+    else:
+        line = f"{key}={value}\n"
+    new_content = existing + line
+    fd, tmp = tempfile.mkstemp(dir=store_path, prefix=".env.tmp")
+    try:
+        os.write(fd, new_content.encode("utf-8"))
+    finally:
+        os.close(fd)
+    os.replace(tmp, env_file)
+    env_file.chmod(0o600)
+
+
+_SECRET_RE = re.compile(r"PASS(WORD)?|TOKEN|KEY|SECRET", re.IGNORECASE)
+
+
+def prompt_required_config(
+    plugin: Plugin,
+    store_path: Path,
+    *,
+    interactive: bool = True,
+) -> list[str]:
+    """
+    Prompt for each required config key that is not already in .env and has no default.
+
+    Returns the list of keys still missing after prompting (empty = all satisfied).
+    When interactive=False, immediately returns all missing keys without prompting.
+    """
+    env = load_env(store_path)
+    missing: list[str] = []
+
+    for key, spec in plugin.config_keys.items():
+        if not spec.get("required"):
+            continue
+        if "default" in spec:
+            continue
+        if key in env:
+            continue
+        if not interactive:
+            missing.append(key)
+            continue
+
+        description = spec.get("description") or key
+        prompt_text = f"  {description} [{key}]"
+        value = ""
+        for _ in range(3):
+            try:
+                if _SECRET_RE.search(key):
+                    value = getpass.getpass(prompt_text + ": ")
+                else:
+                    import click as _click  # noqa: PLC0415
+                    value = _click.prompt(prompt_text, default="")
+            except (EOFError, KeyboardInterrupt):
+                value = ""
+            if value:
+                break
+        if value:
+            append_env(store_path, key, value)
+        else:
+            missing.append(key)
+
+    return missing
 
 
 # ---------------------------------------------------------------------------

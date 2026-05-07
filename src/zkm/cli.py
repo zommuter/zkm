@@ -56,9 +56,18 @@ def cmd_plugin() -> None:
 
 @cmd_plugin.command("add")
 @click.argument("source")
-def cmd_plugin_add(source: str) -> None:
+@click.option(
+    "--store",
+    "store_override",
+    default=None,
+    metavar="PATH",
+    help="Store path (default: $ZKM_STORE or ~/knowledge)",
+)
+@click.option("--no-prompt", is_flag=True, help="Skip interactive .env prompting")
+def cmd_plugin_add(source: str, store_override: str | None, no_prompt: bool) -> None:
     """Install a plugin from a local PATH or git URL."""
-    from zkm.convert import add_plugin
+    from zkm.convert import add_plugin, prompt_required_config
+    from zkm.store import store_path
 
     try:
         plugin = add_plugin(source)
@@ -69,6 +78,28 @@ def cmd_plugin_add(source: str) -> None:
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
+
+    sdir = Path(store_override) if store_override else store_path()
+    interactive = not no_prompt and sys.stdin.isatty()
+    if not (sdir / ".git").exists():
+        # Store not yet initialised — just list the keys the user will need.
+        needed = [
+            k for k, spec in plugin.config_keys.items()
+            if spec.get("required") and "default" not in spec
+        ]
+        if needed:
+            click.echo(
+                f"Note: plugin '{plugin.name}' requires {', '.join(needed)};"
+                f" set them in {sdir / '.env'} after running `zkm init`."
+            )
+        return
+
+    missing = prompt_required_config(plugin, sdir, interactive=interactive)
+    if missing:
+        click.echo(
+            f"Note: plugin '{plugin.name}' requires {', '.join(missing)};"
+            f" set them in {sdir / '.env'}."
+        )
 
 
 @cmd_plugin.command("list")
