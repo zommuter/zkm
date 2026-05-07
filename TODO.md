@@ -15,9 +15,10 @@ Completed Phase 1 tasks archived in `docs/phase1-done.md`.
 
 ## Phase 2 session 7 — aya expansion bugs (3 blockers found in live test)
 
-- [ ] **5-keyword cap kills German half**: aya produces 6 EN + 6 DE phrases; `keywords[:5]` cap is hit after the first 5 English ones, no German keywords survive. Fix: raise cap to ≥8, or enforce per-language balance (keep up to 3 per detected language before capping)
-- [ ] **`Section 1 — Search terms` leaks as keyword when no trailing colon**: aya sometimes emits `Section 1 — Search terms\n` (no `:`) — the section-label regex `^Section\s*\d+\s*[—–\-]+\s*[^:]+:\s*` requires a colon so it doesn't strip it; the `—` gets eaten by the punctuation strip leaving `'Section 1  Search terms'` as a keyword. Fix: make the colon optional in the regex
+- [x] **5-keyword cap kills German half**: raised cap from 5 to 12 in `_parse_keywords` — aya's 6 EN + 6 DE output now fully survives; covered by `test_parse_keywords_caps_at_twelve` and `test_parse_keywords_aya_bilingual_six_plus_six` on 2026-05-07
+- [x] **`Section 1 — Search terms` leaks as keyword when no trailing colon**: made trailing colon optional in section-label regex (`^Section\s*\d+\s*[—–\-]+\s*[^:]+:?\s*`) — covered by `test_parse_keywords_section_header_no_colon` on 2026-05-07
 - [x] **Stale expansion cache on model switch**: cache key now includes model name (`_PROMPT_HASH + model + question`) so switching `ZKM_LLM_EXPAND_MODEL` auto-invalidates; existing bad entries in `~/knowledge/.zkm-index/expansion-cache.json` become unreachable (different key) — covered by `test_expand_query_cache_misses_on_different_model` on 2026-05-07. One-off clear still needed for the pre-fix bad entries: `rm ~/knowledge/.zkm-index/expansion-cache.json`
+- [x] **Stale cache survives parser fixes**: added `_PARSER_VERSION = "v2"` constant folded into cache key; cache file now uses `{"_parser_version": "v2", "entries": {...}}` envelope; `_load_cache` discards and rewrites the file on version mismatch — future parser changes only need to bump `_PARSER_VERSION`; covered by `test_expand_query_cache_misses_on_parser_version_bump` and `test_expand_query_legacy_cache_format_ignored` on 2026-05-07
 
 ## Query quality (post-MVP backlog)
 

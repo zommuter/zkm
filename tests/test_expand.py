@@ -7,7 +7,13 @@ from pathlib import Path
 import httpx
 import pytest
 
-from zkm.expand import _parse_hypothetical, _parse_hypothetical_text, _parse_keywords, expand_query
+from zkm.expand import (
+    _PARSER_VERSION,
+    _parse_hypothetical,
+    _parse_hypothetical_text,
+    _parse_keywords,
+    expand_query,
+)
 from zkm.index import tokenize
 from zkm.query import Hit, rrf_merge
 from zkm.store import init_store
@@ -61,10 +67,10 @@ def test_parse_keywords_drops_prose_lines() -> None:
     assert not any("long line" in k for k in kws)
 
 
-def test_parse_keywords_caps_at_five() -> None:
-    lines = "\n".join(f"term{i}" for i in range(10))
+def test_parse_keywords_caps_at_twelve() -> None:
+    lines = "\n".join(f"term{i}" for i in range(20))
     kws = _parse_keywords(lines)
-    assert len(kws) <= 5
+    assert len(kws) == 12
 
 
 def test_parse_keywords_empty_input() -> None:
@@ -127,6 +133,39 @@ def test_parse_keywords_section_header_not_a_keyword() -> None:
     assert not any("Section" in k or "Search" in k for k in kws)
     assert "Rechnung" in kws
     assert "invoice" in kws
+
+
+def test_parse_keywords_section_header_no_colon() -> None:
+    """Section label without trailing colon must not leak as a keyword."""
+    text = "Section 1 — Search terms\n- Rechnung\n- invoice\n\nSection 2 — Hypothetical answer: ..."
+    kws = _parse_keywords(text)
+    assert not any("Section" in k or "Search" in k for k in kws)
+    assert "Rechnung" in kws
+    assert "invoice" in kws
+
+
+def test_parse_keywords_aya_bilingual_six_plus_six() -> None:
+    """aya-expanse-8b emits 6 EN + 6 DE phrases; all must survive the cap."""
+    lines = (
+        "electricity bill\n"
+        "utility invoice\n"
+        "energy costs\n"
+        "power consumption bill\n"
+        "monthly electricity charge\n"
+        "energy invoice amount\n"
+        "Stromrechnung\n"
+        "Energiekosten\n"
+        "Stadtwerke Rechnung\n"
+        "monatliche Stromkosten\n"
+        "Energieverbrauch Kosten\n"
+        "letzte Stromrechnung\n"
+        "\n"
+        "The electricity bill from Stadtwerke was 120 EUR."
+    )
+    kws = _parse_keywords(lines)
+    assert "electricity bill" in kws or "utility invoice" in kws
+    assert "Stromrechnung" in kws or "letzte Stromrechnung" in kws
+    assert len(kws) >= 10
 
 
 # ---------------------------------------------------------------------------
@@ -273,6 +312,74 @@ def test_expand_query_fallback_on_llm_error(
     result = expand_query("electricity bill", store, "http://localhost:9999", "m", "")
     assert len(result) == 1
     assert result[0] == tokenize("electricity bill")
+
+
+def test_expand_query_cache_misses_on_parser_version_bump(
+    store: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Cache file from an old parser version is ignored and overwritten with the new version."""
+    import json
+
+    cache_file = store / ".zkm-index/expansion-cache.json"
+    cache_file.parent.mkdir(parents=True, exist_ok=True)
+    cache_file.write_text(
+        json.dumps({"_parser_version": "v1", "entries": {"deadbeef": {"keywords": ["stale"]}}}),
+        encoding="utf-8",
+    )
+
+    call_count = [0]
+
+    class MockResp:
+        status_code = 200
+
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> dict:
+            call_count[0] += 1
+            return {"choices": [{"message": {"content": "electricity\n\nA bill."}}]}
+
+    monkeypatch.setattr(httpx, "post", lambda *a, **kw: MockResp())
+
+    expand_query("what was my electricity bill?", store, "http://localhost", "model-a", "")
+    assert call_count[0] == 1  # old entry ignored → LLM called
+
+    data = json.loads(cache_file.read_text(encoding="utf-8"))
+    assert data.get("_parser_version") == _PARSER_VERSION
+
+
+def test_expand_query_legacy_cache_format_ignored(
+    store: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Old flat-dict cache (no _parser_version key) is treated as empty."""
+    import json
+
+    cache_file = store / ".zkm-index/expansion-cache.json"
+    cache_file.parent.mkdir(parents=True, exist_ok=True)
+    cache_file.write_text(
+        json.dumps({"deadbeef": {"keywords": ["stale"]}}),
+        encoding="utf-8",
+    )
+
+    call_count = [0]
+
+    class MockResp:
+        status_code = 200
+
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> dict:
+            call_count[0] += 1
+            return {"choices": [{"message": {"content": "electricity\n\nA bill."}}]}
+
+    monkeypatch.setattr(httpx, "post", lambda *a, **kw: MockResp())
+
+    expand_query("what was my electricity bill?", store, "http://localhost", "model-a", "")
+    assert call_count[0] == 1  # flat format → cache miss → LLM called
+
+    data = json.loads(cache_file.read_text(encoding="utf-8"))
+    assert "_parser_version" in data  # file now uses new envelope format
 
 
 def test_expand_query_returns_multiple_variants_on_success(

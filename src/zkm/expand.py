@@ -33,6 +33,9 @@ _EXPANSION_PROMPT = (
 )
 # WHY: cache keys include a prompt hash so stale entries are ignored when the prompt changes
 _PROMPT_HASH = hashlib.sha256(_EXPANSION_PROMPT.encode()).hexdigest()[:8]
+# Bump whenever _parse_keywords / _parse_hypothetical semantics change so cached entries
+# written by the old parser become unreachable and the file is rewritten clean.
+_PARSER_VERSION = "v2"
 
 # Matches "Section 2" with optional leading markdown heading markers (## Section 2, etc.)
 _SEC2_RE = re.compile(r"\n#*\s*Section\s*2\b", re.IGNORECASE)
@@ -69,8 +72,10 @@ def _parse_keywords(text: str) -> list[str]:
         # Skip markdown sub-headers: **English:**, **German:**, ## Section 1, ## alone, etc.
         if re.match(r"^#|^\*{2}[A-Za-z]", line):
             continue
-        # Strip "Section N — Label:" prefix (e.g. "Section 1 — Search terms:")
-        line = re.sub(r"^Section\s*\d+\s*[—–\-]+\s*[^:]+:\s*", "", line, flags=re.IGNORECASE).strip()
+        # Strip "Section N — Label:" prefix (colon optional — aya sometimes omits it)
+        line = re.sub(
+            r"^Section\s*\d+\s*[—–\-]+\s*[^:]+:?\s*", "", line, flags=re.IGNORECASE
+        ).strip()
         if not line:
             continue
         # Strip leading list markers: "1.", "1)", "-", "*", "•"
@@ -87,7 +92,7 @@ def _parse_keywords(text: str) -> list[str]:
             part = re.sub(r"[^\w\s''\-]", "", part, flags=re.UNICODE).strip()
             if part and len(part) >= 2 and len(part.split()) <= 5:
                 keywords.append(part)
-    return keywords[:5]
+    return keywords[:12]
 
 
 def _parse_hypothetical_text(text: str) -> str:
@@ -125,7 +130,10 @@ def _load_cache(store: Path) -> dict:
     if not p.exists():
         return {}
     try:
-        return json.loads(p.read_text(encoding="utf-8"))
+        data = json.loads(p.read_text(encoding="utf-8"))
+        if data.get("_parser_version") != _PARSER_VERSION:
+            return {}
+        return data.get("entries", {})
     except Exception:
         return {}
 
@@ -134,7 +142,8 @@ def _save_cache(store: Path, cache: dict) -> None:
     p = _cache_path(store)
     p.parent.mkdir(parents=True, exist_ok=True)
     try:
-        p.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8")
+        envelope = {"_parser_version": _PARSER_VERSION, "entries": cache}
+        p.write_text(json.dumps(envelope, ensure_ascii=False, indent=2), encoding="utf-8")
     except Exception:
         pass
 
@@ -157,7 +166,9 @@ def expand_query_with_hyp(
     raw_tokens = tokenize(question)
     fallback: tuple[list[list[str]], str, list[str]] = ([raw_tokens], "", [])
 
-    cache_key = hashlib.sha256((_PROMPT_HASH + model + question).encode()).hexdigest()[:24]
+    cache_key = hashlib.sha256(
+        (_PARSER_VERSION + _PROMPT_HASH + model + question).encode()
+    ).hexdigest()[:24]
     cache = _load_cache(store)
     if cache_key in cache:
         entry = cache[cache_key]
