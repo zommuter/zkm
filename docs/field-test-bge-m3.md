@@ -16,26 +16,38 @@ zkm doctor   # probes endpoint reachability + compares md/bm25/embed counts
 
 ```bash
 # 1. BM25-only baseline
-zkm search "Stromrechnung" --no-dense -k 5
-zkm search "invoice electricity" --no-dense -k 5
+zkm search "O2 Rechnung" --no-dense -k 5
+zkm search "Cloudflare invoice" --no-dense -k 5
 
 # 2. Hybrid — does dense add anything?
-zkm search "Stromrechnung" -k 5
-zkm search "invoice electricity" -k 5
+zkm search "O2 Rechnung" -k 5
+zkm search "Cloudflare invoice" -k 5
 
 # 3. Cross-lingual recall (needs --expand on literal-heavy corpora)
-#    With thousands of literal "Rechnung" docs, the top-k dense ranks are saturated
-#    by exact matches (cosine ~0.95). Cross-lingual hits at cosine ~0.72 surface
-#    only when the pool is wide enough AND LLM expansion provides multilingual context.
-zkm search "Rechnung" --expand -k 50 | grep -i invoice | wc -l   # expect ≥ 2
-zkm search "invoice"  --expand -k 50 | grep -i rechnung | wc -l  # expect ≥ 2
+#    Anchor pairs chosen so the query language and the result language are disjoint:
+#    - "monatliche Cloud Abrechnung" (DE) → pure-EN docs: Google Cloud/Cloudflare/AWS
+#    - "mobile phone monthly bill" (EN) → pure-DE docs: "Ihre Online-Rechnung von O2"
+#    Neither pair shares meaningful vocabulary across languages, so BM25-only returns 0.
+
+# DE→EN: expect 0 without expand, ≥2 with expand
+zkm search "monatliche Cloud Abrechnung" --no-dense -k 10 | grep -ic "invoice"  # expect 0
+ZKM_LLM_EXPAND_MODEL=aya-expanse-8b \
+  zkm search "monatliche Cloud Abrechnung" --expand -k 20 | grep -ic "invoice"  # expect ≥4
+
+# EN→DE: expect 0 without expand, ≥2 with expand
+zkm search "mobile phone monthly bill" --no-dense -k 10 | grep -i "o2"           # expect empty
+ZKM_LLM_EXPAND_MODEL=aya-expanse-8b \
+  zkm search "mobile phone monthly bill" --expand -k 10 | grep -i "o2"           # expect ≥2 hits
 
 # 4. Semantic / no keyword match (pure dense test — no literal match possible)
-zkm search "monatliche Kosten Strom" -k 5   # finds "Stromrechnung" docs?
-zkm search "monthly electricity costs" -k 5  # finds German docs?
+zkm search "monatliche Kosten Telefon" -k 5    # finds O2 Rechnung docs via dense?
+zkm search "cloud hosting monthly charges" -k 5 # finds Cloudflare/GCP/AWS docs via dense?
 
 # 5. End-to-end query (expansion + dense on by default)
-zkm query "Wie hoch war meine letzte Stromrechnung?"
+#    Use queries with real answers in the corpus; avoid categories with no coverage.
+#    NOTE: no electricity utility bills exist in this corpus (only electricity-meter emails).
+ZKM_LLM_EXPAND_MODEL=aya-expanse-8b zkm query "Was hat mein Handyvertrag bei O2 im Herbst 2014 gekostet?"
+ZKM_LLM_EXPAND_MODEL=aya-expanse-8b zkm query "How much did the Hotel Katharinenhof stay cost?"
 ```
 
 ## What to record
@@ -45,6 +57,7 @@ For each query, note:
 - Results in BM25-only but not hybrid → RRF regression (score diluted)
 - Queries that return garbage either way → content/chunking issue
 - "dense leg skipped" warning on stderr → endpoint or index issue (run `zkm doctor`)
+- Step 3 baseline must be 0 — if non-zero, the anchor pair is contaminated (pick a different one)
 
 ## Why step 3 requires --expand and a bilingual model
 
@@ -53,10 +66,22 @@ corpus with thousands of literal keyword matches the dense ranking is saturated:
 all top-200 results by cosine are literal-match docs at ~0.95. English "invoice" docs
 at cosine ~0.72 sit at rank 1000+ — far behind all the German "Rechnung" docs.
 
-`--expand` works by generating multilingual keyword variants (e.g., expanding "Rechnung"
-to include "invoice", "bill", "Faktura") and running a separate BM25 leg for each. The
-English keyword "invoice" finds English-only invoice docs that the German-query BM25 and
-the saturated dense leg both miss.
+`--expand` works by generating multilingual keyword variants and running a separate BM25
+leg for each. The English keyword "invoice" finds English-only billing docs that the
+German-query BM25 and the saturated dense leg both miss.
+
+### Choosing anchor pairs for step 3
+
+The step 3 pairs were chosen so the query vocabulary and the result vocabulary are
+disjoint: O2 bills contain only "Rechnung" (no "bill"/"invoice"); Google Cloud / Cloudflare
+/ AWS billing emails contain only "invoice" (no "Rechnung"/"Abrechnung"). The BM25
+baseline *must* return 0 for the other-language docs — if it doesn't, the pair is
+contaminated by shared vocabulary and the test is not informative.
+
+**Do not use** pairs where a proper noun (hotel name, brand name) appears in both languages
+of the same document, e.g. "Hotel Katharinenhof" sent both a German "Rechnung" and an
+English "invoice" email for the same stay — BM25 finds both via the shared proper noun
+regardless of expansion.
 
 **Bilingual capability is about instruction-following, not parameter count.**
 Tested against every configured model on this machine; only `aya-expanse-8b` and
