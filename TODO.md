@@ -27,6 +27,8 @@ Completed Phase 1 tasks archived in `docs/phase1-done.md`.
 - [x] **LLM conflates generic "Rechnung" docs with "Stromrechnung"** — confirmed corpus gap: no electricity utility bills in store (only one electricity-meter email from 2012); this is expected behaviour, not a retrieval bug; updated field-test step 5 queries to use O2/hotel which have real corpus coverage — confirmed 2026-05-07
 - [x] Separate expansion model from answer model — `ZKM_LLM_EXPAND_MODEL` / `ZKM_LLM_EXPAND_ENDPOINT` / `ZKM_LLM_EXPAND_KEY`; `_resolve_expand_config` falls back to main LLM config; `zkm doctor` shows expand endpoint when it differs — covered by tests (203 zkm tests passing) on 2026-05-07
 - [x] Surface expansion terms to the user (`zkm query --show-expansion`) for transparency and debugging — `--show-expansion` flag on both `zkm search` and `zkm query`; keywords + hyp_text plumbed through `SearchTrace`; 3 new tests (206 passing) — 2026-05-07
+- [ ] **Expansion timeout on cold model** — `expand_query` times out (30s default) when aya-expanse-8b is not loaded in llama-swap; `zkm query` silently falls back to raw BM25 with only a stderr warning; consider: (a) pre-warm the expand model on `zkm query` startup with a lightweight ping, or (b) surface the timeout more visibly (warn in the answer output, not just stderr)
+- [ ] **`zkm query` sources list is unordered** — LLM output body references sources as [1]…[N] but the "Sources:" block is printed as an unordered list without the matching numbers; user cannot correlate citations to filenames; fix: number the sources list to match the LLM's inline [N] references
 - [ ] Doc chunking for long emails/threads (current: first 2000 chars per doc, single embedding)
 
 ## Phase 2 session 1 — zkm-eml hot-fix

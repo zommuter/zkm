@@ -58,6 +58,8 @@ For each query, note:
 - Queries that return garbage either way → content/chunking issue
 - "dense leg skipped" warning on stderr → endpoint or index issue (run `zkm doctor`)
 - Step 3 baseline must be 0 — if non-zero, the anchor pair is contaminated (pick a different one)
+- "query expansion failed (timed out)" on step 5 → aya-expanse-8b wasn't warm; answer still
+  comes from raw BM25 so it is usually still correct, but re-run once the model is loaded
 
 ## Why step 3 requires --expand and a bilingual model
 
