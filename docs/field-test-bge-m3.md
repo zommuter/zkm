@@ -48,6 +48,15 @@ zkm search "cloud hosting monthly charges" -k 5 # finds Cloudflare/GCP/AWS docs 
 #    NOTE: no electricity utility bills exist in this corpus (only electricity-meter emails).
 ZKM_LLM_EXPAND_MODEL=aya-expanse-8b zkm query "Was hat mein Handyvertrag bei O2 im Herbst 2014 gekostet?"
 ZKM_LLM_EXPAND_MODEL=aya-expanse-8b zkm query "How much did the Hotel Katharinenhof stay cost?"
+
+# 5b. Corpus-gap probe — verify hallucination guard (answer prompt + low-score warning)
+#     Probe a category absent from the corpus.  The LLM should say so explicitly;
+#     a "top-hit relevance is low" warning should appear on stderr.
+#     Expected: answer names retrieved docs as phone/meter emails, NOT an invented electricity figure.
+ZKM_LLM_EXPAND_MODEL=aya-expanse-8b zkm query "Wie hoch war meine letzte Stromrechnung?"
+
+# Counter-test: a query WITH real corpus support must NOT warn and must give a concrete answer.
+ZKM_LLM_EXPAND_MODEL=aya-expanse-8b zkm query "Was hat mein Handyvertrag bei O2 im Herbst 2014 gekostet?"
 ```
 
 ## What to record

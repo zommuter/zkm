@@ -562,9 +562,21 @@ def llm_stream(
         {
             "role": "system",
             "content": (
-                f"Today's date: {date.today().isoformat()}. "
-                "Answer the user's question using only the provided sources. "
-                "Cite sources by their bracketed number, e.g. [1], [2]."
+                f"Today's date: {date.today().isoformat()}.\n\n"
+                "Answer the user's question using only the provided sources, but first "
+                "judge whether the sources actually address the question. "
+                "Retrieval is keyword/semantic and can return documents that share "
+                "vocabulary with the question without being on the same topic "
+                "(for example, phone bills retrieved for an electricity-bill question "
+                'because both contain the word "Rechnung" / "bill").\n\n'
+                "Rules:\n"
+                "- If none of the sources directly answer the question, say so plainly "
+                "and name what the sources are actually about "
+                '(e.g. "the retrieved documents are O2 phone bills, not electricity bills"). '
+                "Do not fabricate an answer from tangentially related documents.\n"
+                "- If only some sources are relevant, use only those and ignore the rest. "
+                "Cite sources by their bracketed number, e.g. [1], [2].\n"
+                "- Answer in the language of the question."
             ),
         },
         {"role": "user", "content": user_content},

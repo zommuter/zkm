@@ -393,6 +393,51 @@ def test_zkm_query_exits_2_when_expansion_fails(
     assert "timeout" in (result.output + (result.stderr or ""))
 
 
+def test_zkm_query_warns_on_low_relevance_score(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """zkm query emits a stderr warning when the top hit's score is below the configured floor.
+
+    Regression: previously the model would fabricate answers from tangentially related
+    docs (phone bills returned for an electricity-bill query) with no user-visible signal.
+    """
+    from click.testing import CliRunner
+
+    from zkm.cli import main
+    from zkm.query import Hit
+
+    sdir = tmp_path / "store"
+    init_store(sdir, backend="none")
+    (sdir / "notes").mkdir(exist_ok=True)
+    (sdir / "notes" / "doc.md").write_text("phone bill O2")
+    idx = build_index(sdir)
+    save_index(sdir, idx)
+
+    low_score_hit = Hit(path="notes/doc.md", score=0.1, date="2026-01-01", snippet="phone bill O2")
+    low_score_trace = SearchTrace(
+        bm25_hits=1, dense_hits=0, dense_skipped_reason=None,
+        expanded=False, keywords=[], hyp_text="", expand_skipped_reason=None,
+    )
+
+    def fake_expansion(*a, **kw):
+        return [low_score_hit], low_score_trace
+
+    def fake_llm_stream(*a, **kw):
+        yield "answer"
+
+    runner = CliRunner()
+    with monkeypatch.context() as m:
+        m.setattr("zkm.query.search_with_expansion_traced", fake_expansion)
+        m.setattr("zkm.query.llm_stream", fake_llm_stream)
+        monkeypatch.setenv("ZKM_QUERY_LOW_BM25_THRESHOLD", "0.5")
+        result = runner.invoke(main, ["query", "--store", str(sdir), "Stromrechnung"])
+
+    assert result.exit_code == 0
+    assert "top-hit relevance is low" in result.output, (
+        f"Expected low-relevance warning in output, got: {result.output!r}"
+    )
+
+
 def test_zkm_query_allow_fallback_continues_on_expansion_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

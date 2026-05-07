@@ -879,6 +879,19 @@ def cmd_query(
                     click.echo(f"  hypothetical: {trace.hyp_text}", err=True)
             if trace.expand_skipped_reason:
                 click.echo(f"  expansion failed: {trace.expand_skipped_reason}", err=True)
+        if hits:
+            import os
+            if trace.dense_hits > 0:
+                floor = float(os.environ.get("ZKM_QUERY_LOW_DENSE_THRESHOLD", "0.5"))
+            else:
+                floor = float(os.environ.get("ZKM_QUERY_LOW_BM25_THRESHOLD", "1.0"))
+            if hits[0].score < floor:
+                click.echo(
+                    f"zkm: top-hit relevance is low (score={hits[0].score:.3f}); "
+                    "the answer may not be grounded in directly matching documents — "
+                    "consider rephrasing or checking the Sources list.",
+                    err=True,
+                )
         for chunk in llm_stream(sdir, hits, question):
             click.echo(chunk, nl=False)
             sys.stdout.flush()

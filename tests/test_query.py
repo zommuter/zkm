@@ -336,6 +336,49 @@ def test_llm_stream_system_prompt_contains_current_date(
     )
 
 
+def test_llm_stream_system_prompt_instructs_relevance_check(
+    store: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """System prompt must instruct the LLM to judge relevance and refuse on mismatches.
+
+    Regression: previously the prompt only said "use the provided sources", causing
+    the model to fabricate answers (e.g. electricity bills) from tangentially related
+    docs (e.g. phone bills) when the actual document type was absent from the corpus.
+    """
+    monkeypatch.setenv("ZKM_LLM_ENDPOINT", "http://localhost:11434")
+    monkeypatch.setenv("ZKM_LLM_MODEL", "test-model")
+    monkeypatch.setenv("ZKM_LLM_KEY", "")
+
+    captured: list[dict] = []
+
+    class MockResponse:
+        status_code = 200
+
+        def iter_lines(self):
+            yield f"data: {json.dumps({'choices': [{'delta': {'content': 'ok'}}]})}"
+            yield "data: [DONE]"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            pass
+
+    def mock_stream(method, url, *, headers, json, timeout):
+        captured.append(json)
+        return MockResponse()
+
+    monkeypatch.setattr(httpx, "stream", mock_stream)
+    list(llm_stream(store, [], "Wie hoch war meine Stromrechnung?"))
+
+    assert len(captured) == 1
+    system_msg = next(m for m in captured[0]["messages"] if m["role"] == "system")
+    prompt = system_msg["content"]
+    assert "judge whether" in prompt, f"relevance-check clause missing: {prompt!r}"
+    assert "say so" in prompt, f"escape-hatch clause missing: {prompt!r}"
+    assert "language of the question" in prompt, f"bilingual clause missing: {prompt!r}"
+
+
 def test_no_expand_misses_german_doc(store: Path) -> None:
     """With --no-expand, raw BM25 on an English question returns nothing for a German-only doc."""
     _write_note(
