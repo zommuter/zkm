@@ -8,11 +8,15 @@ import httpx
 import pytest
 
 from zkm.expand import (
+    _EXPAND_COLD_TIMEOUT_DEFAULT,
+    _EXPAND_TIMEOUT_DEFAULT,
     _PARSER_VERSION,
     _parse_hypothetical,
     _parse_hypothetical_text,
     _parse_keywords,
+    _probe_model_loaded,
     expand_query,
+    expand_query_with_hyp,
 )
 from zkm.index import tokenize
 from zkm.query import Hit, rrf_merge
@@ -380,6 +384,167 @@ def test_expand_query_legacy_cache_format_ignored(
 
     data = json.loads(cache_file.read_text(encoding="utf-8"))
     assert "_parser_version" in data  # file now uses new envelope format
+
+
+# ---------------------------------------------------------------------------
+# _probe_model_loaded
+# ---------------------------------------------------------------------------
+
+
+def test_probe_model_loaded_returns_true_when_in_running_list(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class MockGetResp:
+        status_code = 200
+        def raise_for_status(self) -> None: pass
+        def json(self) -> dict: return {"model": "aya-expanse-8b", "status": "running"}
+
+    monkeypatch.setattr(httpx, "get", lambda *a, **kw: MockGetResp())
+    assert _probe_model_loaded("http://localhost:8080", "aya-expanse-8b") is True
+
+
+def test_probe_model_loaded_returns_false_when_absent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class MockGetResp:
+        status_code = 200
+        def raise_for_status(self) -> None: pass
+        def json(self) -> dict: return {"model": "qwen3.5-0.8b", "status": "running"}
+
+    monkeypatch.setattr(httpx, "get", lambda *a, **kw: MockGetResp())
+    assert _probe_model_loaded("http://localhost:8080", "aya-expanse-8b") is False
+
+
+def test_probe_model_loaded_returns_none_on_404(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class MockGetResp:
+        status_code = 404
+        def raise_for_status(self) -> None: pass
+        def json(self) -> dict: return {}
+
+    monkeypatch.setattr(httpx, "get", lambda *a, **kw: MockGetResp())
+    assert _probe_model_loaded("http://localhost:8080", "aya-expanse-8b") is None
+
+
+def test_probe_model_loaded_returns_none_on_connection_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(httpx, "get", lambda *a, **kw: (_ for _ in ()).throw(
+        httpx.ConnectError("refused")
+    ))
+    assert _probe_model_loaded("http://localhost:8080", "aya-expanse-8b") is None
+
+
+# ---------------------------------------------------------------------------
+# Cold-aware timeout selection
+# ---------------------------------------------------------------------------
+
+
+class _FakePostResp:
+    status_code = 200
+    def raise_for_status(self) -> None: pass
+    def json(self) -> dict:
+        return {"choices": [{"message": {"content": "electricity\nStromrechnung\n\nA bill."}}]}
+
+
+def test_expand_query_uses_cold_timeout_when_probe_returns_false(
+    store: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When llama-swap reports the model is not loaded, use the cold timeout."""
+    class MockGetResp:
+        status_code = 200
+        def raise_for_status(self) -> None: pass
+        def json(self) -> dict: return {"model": "other-model"}  # aya not in response
+
+    monkeypatch.setattr(httpx, "get", lambda *a, **kw: MockGetResp())
+
+    observed: list[float] = []
+
+    def mock_post(*a, **kw: object) -> _FakePostResp:
+        observed.append(float(kw.get("timeout", 0.0)))  # type: ignore[arg-type]
+        return _FakePostResp()
+
+    monkeypatch.setattr(httpx, "post", mock_post)
+    expand_query_with_hyp("test question", store, "http://localhost:8080", "aya-expanse-8b", "")
+    assert observed == [_EXPAND_COLD_TIMEOUT_DEFAULT]
+
+
+def test_expand_query_uses_warm_timeout_when_probe_returns_true(
+    store: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When the model is already loaded, use the normal warm timeout."""
+    class MockGetResp:
+        status_code = 200
+        def raise_for_status(self) -> None: pass
+        def json(self) -> dict: return {"model": "aya-expanse-8b"}  # model IS loaded
+
+    monkeypatch.setattr(httpx, "get", lambda *a, **kw: MockGetResp())
+
+    observed: list[float] = []
+
+    def mock_post(*a, **kw: object) -> _FakePostResp:
+        observed.append(float(kw.get("timeout", 0.0)))  # type: ignore[arg-type]
+        return _FakePostResp()
+
+    monkeypatch.setattr(httpx, "post", mock_post)
+    expand_query_with_hyp("test question", store, "http://localhost:8080", "aya-expanse-8b", "")
+    assert observed == [_EXPAND_TIMEOUT_DEFAULT]
+
+
+def test_expand_query_uses_warm_timeout_when_probe_returns_none(
+    store: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When the endpoint is not llama-swap (probe returns None), use the warm timeout."""
+    monkeypatch.setattr(httpx, "get", lambda *a, **kw: (_ for _ in ()).throw(
+        Exception("not llama-swap")
+    ))
+
+    observed: list[float] = []
+
+    def mock_post(*a, **kw: object) -> _FakePostResp:
+        observed.append(float(kw.get("timeout", 0.0)))  # type: ignore[arg-type]
+        return _FakePostResp()
+
+    monkeypatch.setattr(httpx, "post", mock_post)
+    expand_query_with_hyp("test question", store, "http://localhost:8080", "aya-expanse-8b", "")
+    assert observed == [_EXPAND_TIMEOUT_DEFAULT]
+
+
+# ---------------------------------------------------------------------------
+# Typed failure reasons
+# ---------------------------------------------------------------------------
+
+
+def test_expand_query_with_hyp_returns_reason_timeout(
+    store: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(httpx, "get", lambda *a, **kw: (_ for _ in ()).throw(Exception("no server")))
+    monkeypatch.setattr(httpx, "post", lambda *a, **kw: (_ for _ in ()).throw(
+        httpx.TimeoutException("timed out")
+    ))
+    _, _, _, reason = expand_query_with_hyp("test", store, "http://localhost", "m", "")
+    assert reason == "timeout"
+
+
+def test_expand_query_with_hyp_returns_reason_endpoint_error(
+    store: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(httpx, "get", lambda *a, **kw: (_ for _ in ()).throw(Exception("no server")))
+    monkeypatch.setattr(httpx, "post", lambda *a, **kw: (_ for _ in ()).throw(
+        httpx.ConnectError("connection refused")
+    ))
+    _, _, _, reason = expand_query_with_hyp("test", store, "http://localhost:9999", "m", "")
+    assert reason == "endpoint_error"
+
+
+def test_expand_query_with_hyp_returns_none_reason_on_success(
+    store: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(httpx, "get", lambda *a, **kw: (_ for _ in ()).throw(Exception("no server")))
+    monkeypatch.setattr(httpx, "post", lambda *a, **kw: _FakePostResp())
+    _, _, _, reason = expand_query_with_hyp("test", store, "http://localhost", "m", "")
+    assert reason is None
 
 
 def test_expand_query_returns_multiple_variants_on_success(

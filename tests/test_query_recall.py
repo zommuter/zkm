@@ -310,3 +310,99 @@ def test_query_show_expansion_prints_keywords(tmp_path: Path, monkeypatch) -> No
     assert "A hypothetical answer." in result.output
     assert "answer text" in result.output
     assert result.exit_code == 0
+
+
+# ---------------------------------------------------------------------------
+# CLI: expand_skipped_reason → fail-loud / --allow-fallback
+# ---------------------------------------------------------------------------
+
+
+def _failing_expansion_trace(reason: str) -> "SearchTrace":
+    return SearchTrace(bm25_hits=1, dense_hits=0, dense_skipped_reason=None, expanded=True,
+                       keywords=[], hyp_text="", expand_skipped_reason=reason)
+
+
+def test_zkm_query_exits_2_when_expansion_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """zkm query exits 2 when expansion fails and --allow-fallback is not given."""
+    from click.testing import CliRunner
+
+    from zkm.cli import main
+
+    sdir = tmp_path / "store"
+    init_store(sdir, backend="none")
+    (sdir / "notes").mkdir(exist_ok=True)
+    (sdir / "notes" / "doc.md").write_text("electricity bill")
+    idx = build_index(sdir)
+    save_index(sdir, idx)
+
+    def fake_expansion(*a, **kw):
+        return [], _failing_expansion_trace("timeout")
+
+    runner = CliRunner()
+    with monkeypatch.context() as m:
+        m.setattr("zkm.query.search_with_expansion_traced", fake_expansion)
+        result = runner.invoke(main, ["query", "--store", str(sdir), "test question"])
+
+    assert result.exit_code == 2
+    assert "expansion failed" in (result.output + (result.stderr or ""))
+    assert "timeout" in (result.output + (result.stderr or ""))
+
+
+def test_zkm_query_allow_fallback_continues_on_expansion_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """zkm query --allow-fallback falls back silently and still calls the answer LLM."""
+    from click.testing import CliRunner
+
+    from zkm.cli import main
+
+    sdir = tmp_path / "store"
+    init_store(sdir, backend="none")
+    (sdir / "notes").mkdir(exist_ok=True)
+    (sdir / "notes" / "doc.md").write_text("electricity bill")
+    idx = build_index(sdir)
+    save_index(sdir, idx)
+
+    def fake_expansion(*a, **kw):
+        return [], _failing_expansion_trace("endpoint_error")
+
+    def fake_llm_stream(*a, **kw):
+        yield "fallback answer"
+
+    runner = CliRunner()
+    with monkeypatch.context() as m:
+        m.setattr("zkm.query.search_with_expansion_traced", fake_expansion)
+        m.setattr("zkm.query.llm_stream", fake_llm_stream)
+        result = runner.invoke(main, ["query", "--store", str(sdir), "--allow-fallback", "test question"])
+
+    assert result.exit_code == 0
+    assert "fallback answer" in result.output
+
+
+def test_zkm_search_expand_exits_2_when_expansion_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """zkm search --expand exits 2 when expansion fails and --allow-fallback is not given."""
+    from click.testing import CliRunner
+
+    from zkm.cli import main
+
+    sdir = tmp_path / "store"
+    init_store(sdir, backend="none")
+    (sdir / "notes").mkdir(exist_ok=True)
+    (sdir / "notes" / "doc.md").write_text("electricity bill")
+    idx = build_index(sdir)
+    save_index(sdir, idx)
+
+    def fake_expansion(*a, **kw):
+        return [], _failing_expansion_trace("endpoint_error")
+
+    runner = CliRunner()
+    with monkeypatch.context() as m:
+        m.setattr("zkm.query.search_with_expansion_traced", fake_expansion)
+        result = runner.invoke(main, ["search", "--store", str(sdir), "--expand", "electricity"])
+
+    assert result.exit_code == 2
+    assert "expansion failed" in (result.output + (result.stderr or ""))

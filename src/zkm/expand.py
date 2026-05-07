@@ -17,7 +17,8 @@ import httpx
 
 from zkm.index import tokenize
 
-_EXPAND_TIMEOUT_DEFAULT = 30.0  # generous for large local models; override ZKM_LLM_EXPAND_TIMEOUT
+_EXPAND_TIMEOUT_DEFAULT = 30.0       # warm model; override ZKM_LLM_EXPAND_TIMEOUT
+_EXPAND_COLD_TIMEOUT_DEFAULT = 180.0  # cold model loading; override ZKM_LLM_EXPAND_COLD_TIMEOUT
 _MAX_TOKENS = 150
 _CACHE_FILE = ".zkm-index/expansion-cache.json"
 
@@ -41,6 +42,23 @@ _PARSER_VERSION = "v2"
 _SEC2_RE = re.compile(r"\n#*\s*Section\s*2\b", re.IGNORECASE)
 # Leaked end-of-turn tokens from some models (e.g. aya-expanse via llama-server)
 _EOS_TOKEN_RE = re.compile(r"<\|[A-Z_]+_TOKEN\|>")
+
+
+def _probe_model_loaded(endpoint: str, model: str, *, timeout: float = 2.0) -> bool | None:
+    """Check whether `model` is currently loaded in a llama-swap instance.
+
+    Returns True if loaded, False if confirmed absent, None on any error or
+    if the endpoint is not a llama-swap instance (no /running route).
+    """
+    try:
+        resp = httpx.get(endpoint.rstrip("/") + "/running", timeout=timeout)
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        raw = json.dumps(resp.json())
+        return model in raw
+    except Exception:
+        return None
 
 
 def _chat_url(endpoint: str) -> str:
@@ -154,17 +172,18 @@ def expand_query_with_hyp(
     endpoint: str,
     model: str,
     api_key: str,
-) -> tuple[list[list[str]], str, list[str]]:
-    """Return (token_lists, hyp_text, keywords) for multi-BM25 + dense retrieval.
+) -> tuple[list[list[str]], str, list[str], str | None]:
+    """Return (token_lists, hyp_text, keywords, reason) for multi-BM25 + dense retrieval.
 
     token_lists: first entry is always tokenize(question); subsequent entries are
     LLM keyword variants + hypothetical-answer tokens (for BM25).
     hyp_text: raw hypothetical-answer paragraph (for dense embedding).
     keywords: LLM-generated keyword strings (for display/debugging).
-    Falls back to ([tokenize(question)], "", []) on any LLM error.
+    reason: None on success; "timeout" | "endpoint_error" | "parse_error" on failure.
+    Falls back to ([tokenize(question)], "", [], reason) on any LLM error.
     """
     raw_tokens = tokenize(question)
-    fallback: tuple[list[list[str]], str, list[str]] = ([raw_tokens], "", [])
+    _fallback_tokens: list[list[str]] = [raw_tokens]
 
     cache_key = hashlib.sha256(
         (_PARSER_VERSION + _PROMPT_HASH + model + question).encode()
@@ -178,7 +197,7 @@ def expand_query_with_hyp(
         result = [raw_tokens] + [t for kw in keywords if (t := tokenize(kw))]
         if hyp_tokens:
             result.append(hyp_tokens)
-        return (result if len(result) > 1 else [raw_tokens]), hyp_text, keywords
+        return (result if len(result) > 1 else [raw_tokens]), hyp_text, keywords, None
 
     url = _chat_url(endpoint)
     headers: dict[str, str] = {"Content-Type": "application/json"}
@@ -192,15 +211,33 @@ def expand_query_with_hyp(
     }
 
     import os
-    timeout = float(os.environ.get("ZKM_LLM_EXPAND_TIMEOUT", _EXPAND_TIMEOUT_DEFAULT))
+    warm_timeout = float(os.environ.get("ZKM_LLM_EXPAND_TIMEOUT", _EXPAND_TIMEOUT_DEFAULT))
+    cold_timeout = float(os.environ.get("ZKM_LLM_EXPAND_COLD_TIMEOUT", _EXPAND_COLD_TIMEOUT_DEFAULT))
+
+    loaded = _probe_model_loaded(endpoint, model)
+    if loaded is False:
+        timeout = cold_timeout
+        print(
+            f"zkm: expand model '{model}' not loaded — warming up (allowing {timeout:.0f}s)",
+            file=sys.stderr,
+        )
+    else:
+        timeout = warm_timeout
+
     try:
         resp = httpx.post(url, headers=headers, json=payload, timeout=timeout)
         resp.raise_for_status()
         raw_output: str = resp.json()["choices"][0]["message"]["content"] or ""
         raw_output = _EOS_TOKEN_RE.sub("", raw_output).strip()
+    except httpx.TimeoutException as exc:
+        print(f"zkm: query expansion timed out ({str(exc)[:80]}), using raw query", file=sys.stderr)
+        return _fallback_tokens, "", [], "timeout"
+    except httpx.HTTPError as exc:
+        print(f"zkm: query expansion failed ({str(exc)[:80]}), using raw query", file=sys.stderr)
+        return _fallback_tokens, "", [], "endpoint_error"
     except Exception as exc:
         print(f"zkm: query expansion failed ({str(exc)[:80]}), using raw query", file=sys.stderr)
-        return fallback
+        return _fallback_tokens, "", [], "endpoint_error"
 
     keywords = _parse_keywords(raw_output)
     hyp_tokens = _parse_hypothetical(raw_output)
@@ -215,12 +252,12 @@ def expand_query_with_hyp(
     _save_cache(store, cache)
 
     if not keywords and not hyp_tokens:
-        return fallback
+        return _fallback_tokens, "", [], "parse_error"
 
     result = [raw_tokens] + [t for kw in keywords if (t := tokenize(kw))]
     if hyp_tokens:
         result.append(hyp_tokens)
-    return result, hyp_text, keywords
+    return result, hyp_text, keywords, None
 
 
 def expand_query(

@@ -653,9 +653,18 @@ def cmd_doctor(store_override: str | None) -> None:
         click.echo(f"{'llm endpoint':<{col}}(not configured)")
 
     x_ep, x_mdl, x_key = _resolve_expand_config(sdir)
-    if (x_ep, x_mdl) != (l_ep, l_mdl):
-        # Only show expand endpoint when it differs from main LLM
-        if x_ep:
+    from zkm.expand import _probe_model_loaded
+    if x_ep:
+        loaded = _probe_model_loaded(x_ep, x_mdl)
+        if loaded is True:
+            load_tag = "  (loaded)"
+        elif loaded is False:
+            load_tag = "  (not loaded — first query may take ~180s)"
+        else:
+            load_tag = ""
+        click.echo(f"{'expand model':<{col}}{x_mdl}{load_tag}")
+        if (x_ep, x_mdl) != (l_ep, l_mdl):
+            # Only probe expand endpoint separately when it differs from main LLM
             try:
                 headers = {"Content-Type": "application/json"}
                 if x_key:
@@ -672,8 +681,8 @@ def cmd_doctor(store_override: str | None) -> None:
             except Exception as exc:
                 click.echo(f"{'expand endpoint':<{col}}{x_ep}  FAIL ({exc})")
                 ok = False
-        else:
-            click.echo(f"{'expand endpoint':<{col}}(not configured)")
+    else:
+        click.echo(f"{'expand model':<{col}}(not configured)")
 
     if not ok:
         sys.exit(1)
@@ -701,6 +710,12 @@ def cmd_doctor(store_override: str | None) -> None:
     help="Use LLM query expansion (slower, better cross-lingual recall).",
 )
 @click.option(
+    "--allow-fallback",
+    is_flag=True,
+    default=False,
+    help="With --expand: fall back silently to raw BM25 if expansion fails (default: exit 2).",
+)
+@click.option(
     "--show-expansion",
     is_flag=True,
     default=False,
@@ -715,7 +730,7 @@ def cmd_doctor(store_override: str | None) -> None:
 )
 def cmd_search(
     query: str, top_k: int, as_json: bool, no_dense: bool, expand: bool,
-    show_expansion: bool, store_override: str | None,
+    allow_fallback: bool, show_expansion: bool, store_override: str | None,
 ) -> None:
     """Search the knowledge store (BM25 + dense hybrid when embedding index is available)."""
     import json as _json
@@ -732,18 +747,35 @@ def cmd_search(
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
 
+    if expand and trace.expand_skipped_reason:
+        if allow_fallback:
+            click.echo(
+                f"zkm: query expansion failed ({trace.expand_skipped_reason}) — using raw BM25",
+                err=True,
+            )
+        else:
+            click.echo(
+                f"zkm: query expansion failed ({trace.expand_skipped_reason}); "
+                f"pass --allow-fallback to use raw BM25 instead",
+                err=True,
+            )
+            sys.exit(2)
+
     if trace.dense_skipped_reason:
         click.echo(
             f"zkm: dense leg skipped ({trace.dense_skipped_reason}) — results are BM25-only",
             err=True,
         )
 
-    if show_expansion and (trace.keywords or trace.hyp_text):
-        click.echo("zkm: query expansion", err=True)
-        if trace.keywords:
-            click.echo(f"  keywords: {', '.join(trace.keywords)}", err=True)
-        if trace.hyp_text:
-            click.echo(f"  hypothetical: {trace.hyp_text}", err=True)
+    if show_expansion:
+        if trace.keywords or trace.hyp_text:
+            click.echo("zkm: query expansion", err=True)
+            if trace.keywords:
+                click.echo(f"  keywords: {', '.join(trace.keywords)}", err=True)
+            if trace.hyp_text:
+                click.echo(f"  hypothetical: {trace.hyp_text}", err=True)
+        if trace.expand_skipped_reason:
+            click.echo(f"  expansion failed: {trace.expand_skipped_reason}", err=True)
 
     if as_json:
         records = [
@@ -785,6 +817,12 @@ def cmd_search(
     help="Disable dense retrieval; use BM25 only (or BM25 + expansion).",
 )
 @click.option(
+    "--allow-fallback",
+    is_flag=True,
+    default=False,
+    help="Fall back silently to raw BM25 if expansion fails (default: exit 2).",
+)
+@click.option(
     "--show-expansion",
     is_flag=True,
     default=False,
@@ -799,7 +837,7 @@ def cmd_search(
 )
 def cmd_query(
     question: str, top_k: int, no_expand: bool, no_dense: bool,
-    show_expansion: bool, store_override: str | None
+    allow_fallback: bool, show_expansion: bool, store_override: str | None
 ) -> None:
     """Answer a question using hybrid retrieval (BM25 + dense) + LLM."""
     import httpx
@@ -814,17 +852,33 @@ def cmd_query(
             hits, trace = search_with_expansion_traced(
                 sdir, question, top_k=top_k, dense=not no_dense
             )
+        if not no_expand and trace.expand_skipped_reason:
+            if allow_fallback:
+                click.echo(
+                    f"zkm: query expansion failed ({trace.expand_skipped_reason}) — using raw BM25",
+                    err=True,
+                )
+            else:
+                click.echo(
+                    f"zkm: query expansion failed ({trace.expand_skipped_reason}); "
+                    f"pass --allow-fallback to use raw BM25 instead",
+                    err=True,
+                )
+                sys.exit(2)
         if trace.dense_skipped_reason:
             click.echo(
                 f"zkm: dense leg skipped ({trace.dense_skipped_reason}) — results are BM25-only",
                 err=True,
             )
-        if show_expansion and (trace.keywords or trace.hyp_text):
-            click.echo("zkm: query expansion", err=True)
-            if trace.keywords:
-                click.echo(f"  keywords: {', '.join(trace.keywords)}", err=True)
-            if trace.hyp_text:
-                click.echo(f"  hypothetical: {trace.hyp_text}", err=True)
+        if show_expansion:
+            if trace.keywords or trace.hyp_text:
+                click.echo("zkm: query expansion", err=True)
+                if trace.keywords:
+                    click.echo(f"  keywords: {', '.join(trace.keywords)}", err=True)
+                if trace.hyp_text:
+                    click.echo(f"  hypothetical: {trace.hyp_text}", err=True)
+            if trace.expand_skipped_reason:
+                click.echo(f"  expansion failed: {trace.expand_skipped_reason}", err=True)
         for chunk in llm_stream(sdir, hits, question):
             click.echo(chunk, nl=False)
             sys.stdout.flush()
