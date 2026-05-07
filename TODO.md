@@ -59,6 +59,12 @@ git-annex / git-lfs automatically so the user doesn't have to think about it.
 
 Design note: these commands read `.zkm-config` to know the backend and dispatch accordingly. The user never has to type `git annex` directly.
 
+## Incremental processing (backlog)
+
+- [ ] **mbsync post-commit hook** — mbsync writes to a git repo; a post-commit hook there could trigger `zkm convert zkm-eml` automatically after each sync, removing the need for manual or cron-based invocation.
+- [ ] **zkm-eml: git-commit watermark** — instead of scanning all `.eml` files and skipping known message-ids, record the last-processed source-repo commit in the store (e.g. in `.zkm-config` or a small state file) and use `git diff <watermark>..HEAD -- .` to enumerate only new/changed files. Faster for large maildirs.
+- [ ] **zkm index: git-commit watermark** — same idea for `zkm index`: record the last-indexed store commit and only re-index `.md` files touched since then, rather than scanning all docs on every run.
+
 ## Encoding / text quality (backlog)
 
 - [ ] **Text file encoding issues** — emails and other plugin outputs can carry mis-decoded bodies (Latin-1 read as UTF-8, mojibake umlauts, BOM headers, mixed encodings within a single message). Audit `zkm-eml` decode paths and add a normalization pass (detect-and-transcode or at minimum chardet fallback). Add test fixtures with known-bad encodings. Surfaces downstream as broken stemming and tokenization for accented characters.
