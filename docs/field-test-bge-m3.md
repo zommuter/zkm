@@ -76,10 +76,18 @@ Result: LLM correctly refused to invent an electricity figure and named the actu
 fired — `[1]` is a literal "Stromkosten" document that scored above the dense floor — but the
 answer is correctly grounded. Hallucination guard confirmed working.
 
-**Counter-test** (`"Was hat mein Handyvertrag bei O2 im Herbst 2014 gekostet?"`):
+**Counter-test DE** (`"Was hat mein Handyvertrag bei O2 im Herbst 2014 gekostet?"`):
 
 LLM answered "14,98 EUR monatlich" with citations [2]–[10] from the 2014 O2 invoice emails.
 No low-confidence warning. Concrete grounded answer confirmed — guard doesn't over-refuse.
+
+**Counter-test EN** (`"How much did my O2 mobile contract cost in autumn 2014?"`):
+
+LLM answered in English (bilingual clause working), same invoice documents retrieved. It
+correctly noted the distinction between "contract terms" and "monthly subscription fees",
+then answered from the actual invoices (15.37 EUR Sept 2014, 14.98 EUR Oct 2014, 15.58 EUR
+Nov 2014). Relevance-judgement instruction visible even on a legitimate but slightly imprecise
+question — appropriate nuance without refusing.
 
 ## What to record
 
