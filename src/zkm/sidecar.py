@@ -48,6 +48,21 @@ def merge_producer(path: Path, *, sha256: str, producer: dict) -> None:
     write_atomic(path, json.dumps(data, indent=2))
 
 
+def remove_producer(path: Path, *, message: str) -> int:
+    """Drop the producer whose 'message' field equals *message*.
+
+    Returns the number of producers remaining after removal.
+    Raises FileNotFoundError if the sidecar is missing or unreadable.
+    Atomically rewrites the sidecar; callers decide what to do when 0 remain.
+    """
+    data = read_sidecar(path)
+    if data is None:
+        raise FileNotFoundError(path)
+    producers = [p for p in data.get("producers", []) if p.get("message") != message]
+    rebuild_sidecar(path, sha256=data.get("sha256", ""), producers=producers)
+    return len(producers)
+
+
 def rebuild_sidecar(path: Path, *, sha256: str, producers: list[dict]) -> None:
     """Atomically write a fresh sidecar from a complete *producers* list.
 

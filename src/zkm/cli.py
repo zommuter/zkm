@@ -182,6 +182,115 @@ def cmd_pull(remote: str | None, content: bool, store_override: str | None) -> N
 
 
 # ---------------------------------------------------------------------------
+# zkm rm / zkm gc
+# ---------------------------------------------------------------------------
+
+
+def _normalise_relpath(store: Path, path_arg: str) -> Path:
+    """Return *path_arg* as a path relative to *store*.
+
+    Accepts either an absolute path inside the store or a relative path
+    (resolved against cwd). Raises ValueError when the result escapes the store.
+    """
+    p = Path(path_arg)
+    if not p.is_absolute():
+        p = Path.cwd() / p
+    try:
+        return p.resolve().relative_to(store.resolve())
+    except ValueError:
+        raise ValueError(f"{path_arg!r} is outside the store at {store}")
+
+
+def _git_run(store: Path, *args: str) -> None:
+    subprocess.run(list(args), cwd=store, check=True)
+
+
+@main.command("rm")
+@click.argument("path")
+@click.option("--apply", "do_apply", is_flag=True, help="Perform deletions (default: dry-run)")
+@click.option("--no-commit", "no_commit", is_flag=True, help="Skip auto-commit after --apply")
+@click.option(
+    "--store",
+    "store_override",
+    default=None,
+    metavar="PATH",
+    help="Store path (default: $ZKM_STORE or ~/knowledge)",
+)
+def cmd_rm(path: str, do_apply: bool, no_commit: bool, store_override: str | None) -> None:
+    """Remove a managed .md and its orphaned CAS objects."""
+    from zkm.hygiene import apply_plan, format_plan, plan_rm
+
+    sdir = Path(store_override) if store_override else store_path()
+    _require_store(sdir)
+    try:
+        md_relpath = _normalise_relpath(sdir, path)
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    try:
+        action = plan_rm(sdir, md_relpath)
+    except (FileNotFoundError, ValueError) as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+    click.echo(format_plan(action))
+    if do_apply:
+        apply_plan(action)
+        if not no_commit:
+            _git_run(sdir, "git", "add", "-A")
+            result = subprocess.run(
+                ["git", "diff", "--cached", "--quiet"], cwd=sdir
+            )
+            if result.returncode != 0:
+                msg = f"chore: rm {md_relpath}"
+                _git_run(sdir, "git", "commit", "-m", msg)
+                click.echo(f"Committed: {msg}")
+        click.echo("Applied.")
+    else:
+        click.echo("Dry run — re-run with --apply to commit.")
+
+
+@main.command("gc")
+@click.option("--apply", "do_apply", is_flag=True, help="Remove orphans (default: dry-run)")
+@click.option("--no-commit", "no_commit", is_flag=True, help="Skip auto-commit after --apply")
+@click.option(
+    "--store",
+    "store_override",
+    default=None,
+    metavar="PATH",
+    help="Store path (default: $ZKM_STORE or ~/knowledge)",
+)
+def cmd_gc(do_apply: bool, no_commit: bool, store_override: str | None) -> None:
+    """Scan sidecars and remove CAS objects with no producers."""
+    from zkm.hygiene import apply_plan, format_gc_plan, plan_gc
+
+    sdir = Path(store_override) if store_override else store_path()
+    _require_store(sdir)
+    actions = plan_gc(sdir)
+
+    click.echo(format_gc_plan(actions))
+    if not actions:
+        return
+
+    if do_apply:
+        for action in actions:
+            apply_plan(action)
+        n = len(actions)
+        if not no_commit:
+            _git_run(sdir, "git", "add", "-A")
+            result = subprocess.run(
+                ["git", "diff", "--cached", "--quiet"], cwd=sdir
+            )
+            if result.returncode != 0:
+                msg = f"chore: gc {n} orphan(s)"
+                _git_run(sdir, "git", "commit", "-m", msg)
+                click.echo(f"Committed: {msg}")
+        click.echo("Applied.")
+    else:
+        click.echo("Dry run — re-run with --apply to commit.")
+
+
+# ---------------------------------------------------------------------------
 # zkm plugin
 # ---------------------------------------------------------------------------
 
