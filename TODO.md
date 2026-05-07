@@ -113,6 +113,45 @@ Design note: these commands read `.zkm-config` to know the backend and dispatch 
 - [x] `zkm-eml` `originals.py` — implement sidecar write/merge in `symlink_inbox`; one-canonical-symlink-per-CAS + sidecar listing all producers — covered by tests (57/57 passing) on 2026-05-05
 - [x] `zkm-eml` `tests/test_attachments.py` — multi-message-same-attachment round-trip: single canonical symlink, sidecar schema, producer list — covered by test_inbox_sidecar_multi_producer on 2026-05-05
 
+## Phase 2: object storage and store hygiene
+
+See `docs/phase2-plan.md` and `docs/object-storage.md` for rationale and full design.
+
+### Hot-fix first (zkm-eml) — session 1
+- [ ] `originals.py:_merge_inbox_sidecar` + `_merge_cas_sidecar` — change
+      producer dedup key from rendered `.md` path to producer's source-content
+      `sha256` (`raw_sha256` for messages). Source content is stable across
+      runs; rendered paths are not (Message-ID synthesis + header churn).
+- [ ] `thread_index.py:41` — replace bare `except Exception: continue` with
+      narrow `except (OSError, yaml.YAMLError)` + `logger.warning(...)`. A
+      load failure must never silently become a `_1.md` duplicate.
+- [ ] Regression test in zkm-eml: simulate header churn between two passes of
+      the same message; assert `producers[]` length stable across both runs.
+
+### Core library — session 3
+- [ ] `src/zkm/atomic.py` — `write_atomic(path, content)` (tmp + rename)
+- [ ] `src/zkm/hashing.py` — `sha256_file(path)`, `git_blob_sha1(path)`
+- [ ] `src/zkm/cas.py` — `write_object(store, subdir, path_or_bytes) -> Path`,
+      idempotent, returns `<subdir>/_objects/<aa>/<rest>`
+- [ ] `src/zkm/sidecar.py` — read / `merge_producer` / rebuild `.origin.json`
+      per spec v1; atomic write; producer dedup on `sha256`; sort by `message`
+- [ ] `src/zkm/inbox.py` — `symlink_with_sidecar(store, target, link_dir,
+      producer)` implementing one-canonical-symlink-per-CAS-object
+
+### Plugin migration — session 4
+- [ ] `examples/zkm-notes/convert.py` — adopt `zkm.atomic.write_atomic`
+      (currently writes non-atomically, contradicts plugin-spec.md)
+- [ ] `zkm-eml` — replace in-plugin atomic/CAS/sidecar/symlink helpers with
+      imports from core; delete the copied implementations in `originals.py`
+- [ ] All existing plugin tests still pass; `zkm-eml/originals.py` shrinks
+
+### Hygiene commands — session 5 (after one week using session 4)
+- [ ] `zkm rm <path>` — remove a managed `.md`; decrement sidecar
+      `producers[]`; if last producer, remove the inbox symlink; if CAS object
+      now unreferenced, remove it. Dry-run by default; `--apply` to commit.
+- [ ] `zkm gc` — scan all sidecars; CAS objects with empty/missing producers
+      are reported (dry-run) or removed (`--apply`)
+
 ## Encoding / text quality (backlog)
 
 - [ ] **Text file encoding issues** — emails and other plugin outputs can carry mis-decoded

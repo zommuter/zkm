@@ -200,16 +200,20 @@ Invariants:
 
 ### Update strategies
 
-**Incremental run** (processing new items): if a sidecar already exists for a CAS object (another message already produced this attachment), read the existing sidecar, append the new producer entry (dedup by `message` path), sort, and write atomically (write-to-temp → rename).
+**Incremental run** (processing new items): if a sidecar already exists for a CAS object (another message already produced this attachment), read the existing sidecar, append the new producer entry (dedup on `producer.sha256` — the source-content hash, not the rendered `message` path, which can shift between runs), sort by `message`, and write atomically (write-to-temp → rename).
 
 **`--reprocess-all`**: rebuild the sidecar from scratch by scanning all managed `.md` files for attachment references. This guarantees the sidecar is consistent with the current store state even if messages were deleted or renamed.
 
 ### Plugin contract
 
 - A plugin that writes inbox symlinks MUST also write/update `.origin.json` sidecars.
-- Sidecars MUST be written atomically (tmp-file + rename) so a mid-write cancel doesn't leave a corrupt JSON file.
+- Sidecars MUST be written atomically (tmp-file + rename) so a mid-write cancel doesn't leave a corrupt JSON file. Plugins SHOULD use `zkm.sidecar.merge_producer()` once available (Phase 2) rather than implementing this directly.
 - Downstream plugins MUST NOT assume the sidecar exists — gracefully handle its absence.
 - The `zkm convert` auto-commit picks up sidecar files via `git add -A`; plugins do not need to return them from `convert()`.
+
+### Core helpers (Phase 2+)
+
+Once `zkm.sidecar`, `zkm.cas`, `zkm.inbox`, `zkm.atomic`, and `zkm.hashing` land in core, plugins SHOULD import from these rather than re-implementing the protocol. See `docs/object-storage.md` for the full API and rationale. Direct file-writing is still permitted but treated as legacy once the library is available.
 
 ## Secret management
 

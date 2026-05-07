@@ -112,18 +112,20 @@ See `TODO.md` for the detailed, checked-off task list.
 - [x] `zkm plugin add/list/remove` — plugin registry (local symlink + git clone)
 - [x] Sample plugin: `examples/zkm-notes/` — plain text/md importer
 - [x] `zkm convert <plugin>` — dispatches to plugin's `convert()`, auto-commits
-- [ ] First production plugin: `zkm-imap` (IMAP → markdown, separate repo)
-- [ ] `zkm index` — BM25 index over all .md files
-- [ ] `zkm search "query"` — top-k with snippets
-- [ ] `zkm query "question"` — search + LLM context (OpenAI-compatible endpoint)
+- [x] First production plugin: `zkm-eml` (mbsync .mbox → markdown, separate repo `~/src/zkm-eml/`)
+- [x] `zkm index` — BM25 index over all .md files
+- [x] `zkm search "query"` — top-k with snippets
+- [x] `zkm query "question"` — search + LLM context (OpenAI-compatible endpoint)
+- Deferred: `zkm-imap` (live IMAP fetch) — mbsync + zkm-eml preferred for now
 
 ### Phase 2: Richer search + sources + store management
-See `docs/phase2-plan.md` (to be written when Phase 1 is done).
-- **Store management** (`zkm remote`, `zkm clone`, `zkm push`, `zkm pull`) — git-like commands that dispatch correctly for annex/lfs/none backends. Reads `.zkm-config` to know which backend to use. See TODO.md for full spec.
+See `docs/phase2-plan.md` for full scope and sequencing.
+- **Object-storage library** in core: `zkm.atomic`, `zkm.hashing`, `zkm.cas`, `zkm.sidecar`, `zkm.inbox` — single implementation of the spec contract; plugins import rather than reinvent. See `docs/object-storage.md`.
+- **Store hygiene commands**: `zkm rm` (decrement producers, remove orphaned symlink + CAS object), `zkm gc` (sweep unreferenced CAS objects)
 - [x] **Hybrid BM25 + dense embeddings** — `embed.py`, `docs/hybrid-search.md`; OpenAI-compatible `/v1/embeddings`, numpy EmbedStore, RRF fusion, `--no-dense` flag, graceful fallback — 2026-05-06
-- Entity extraction (NER → frontmatter `entities`, written back to md)
-- Provenance tracking (SHA256 dedup, original→derived chains)
-- More plugins: whatsapp, threema, signal, telegram, scan/OCR, photo-sidecar
+- **Store management** (`zkm remote`, `zkm clone`, `zkm push`, `zkm pull`) — git-like commands that dispatch correctly for annex/lfs/none backends. Reads `.zkm-config` to know which backend to use. See TODO.md for full spec.
+- Entity extraction (NER → frontmatter `entities`, written back to md) — Phase 3
+- More plugins: whatsapp, threema, signal, scan/OCR, photo-sidecar
 
 ### Phase 3: Integration + WebUI
 See `docs/entity-model.md`.
