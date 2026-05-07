@@ -6,7 +6,7 @@ import json
 import os
 import re
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -43,6 +43,8 @@ class SearchTrace:
     dense_hits: int
     dense_skipped_reason: str | None  # "no_embed_store" | "no_endpoint" | "embed_failed" | None
     expanded: bool
+    keywords: list[str] = field(default_factory=list)
+    hyp_text: str = ""
 
 
 def search(store: Path, query: str, top_k: int = 10) -> list[Hit]:
@@ -411,12 +413,12 @@ def search_with_expansion_traced(
 
     from zkm.expand import expand_query_with_hyp  # lazy import avoids circular dependency
 
-    variant_lists, hyp_text = expand_query_with_hyp(question, store, ep, mdl, key)
+    variant_lists, hyp_text, keywords = expand_query_with_hyp(question, store, ep, mdl, key)
 
     if not dense:
         hit_lists = [_search(store, idx, tokens, date_range, top_k) for tokens in variant_lists]
         hits = rrf_merge(hit_lists)[:top_k]
-        return hits, SearchTrace(len(hits), 0, None, True)
+        return hits, SearchTrace(len(hits), 0, None, True, keywords, hyp_text)
 
     pool = max(top_k * _DENSE_POOL_MULT, _DENSE_POOL_FLOOR)
     hit_lists = [_search(store, idx, tokens, date_range, pool) for tokens in variant_lists]
@@ -424,11 +426,11 @@ def search_with_expansion_traced(
 
     es = load_embed_store(store)
     if es is None:
-        return bm25_rrf_hits[:top_k], SearchTrace(len(bm25_rrf_hits), 0, "no_embed_store", True)
+        return bm25_rrf_hits[:top_k], SearchTrace(len(bm25_rrf_hits), 0, "no_embed_store", True, keywords, hyp_text)
 
     e_ep, e_mdl, e_key = resolve_embed_config(store)
     if not e_ep:
-        return bm25_rrf_hits[:top_k], SearchTrace(len(bm25_rrf_hits), 0, "no_endpoint", True)
+        return bm25_rrf_hits[:top_k], SearchTrace(len(bm25_rrf_hits), 0, "no_endpoint", True, keywords, hyp_text)
 
     embed_texts_input = [question]
     if hyp_text:
@@ -439,13 +441,13 @@ def search_with_expansion_traced(
             store, es, embed_texts_input, date_range, top_k, pool, e_ep, e_mdl, e_key
         )
     except EmbedUnavailable:
-        return bm25_rrf_hits[:top_k], SearchTrace(len(bm25_rrf_hits), 0, "embed_failed", True)
+        return bm25_rrf_hits[:top_k], SearchTrace(len(bm25_rrf_hits), 0, "embed_failed", True, keywords, hyp_text)
 
     if not dense_hits:
-        return bm25_rrf_hits[:top_k], SearchTrace(len(bm25_rrf_hits), 0, None, True)
+        return bm25_rrf_hits[:top_k], SearchTrace(len(bm25_rrf_hits), 0, None, True, keywords, hyp_text)
 
     merged = rrf_merge([bm25_rrf_hits, dense_hits])[:top_k]
-    return merged, SearchTrace(len(bm25_rrf_hits), len(dense_hits), None, True)
+    return merged, SearchTrace(len(bm25_rrf_hits), len(dense_hits), None, True, keywords, hyp_text)
 
 
 def search_with_expansion(

@@ -701,6 +701,12 @@ def cmd_doctor(store_override: str | None) -> None:
     help="Use LLM query expansion (slower, better cross-lingual recall).",
 )
 @click.option(
+    "--show-expansion",
+    is_flag=True,
+    default=False,
+    help="Print expansion keywords and hypothetical answer to stderr (implies --expand was used).",
+)
+@click.option(
     "--store",
     "store_override",
     default=None,
@@ -709,7 +715,7 @@ def cmd_doctor(store_override: str | None) -> None:
 )
 def cmd_search(
     query: str, top_k: int, as_json: bool, no_dense: bool, expand: bool,
-    store_override: str | None,
+    show_expansion: bool, store_override: str | None,
 ) -> None:
     """Search the knowledge store (BM25 + dense hybrid when embedding index is available)."""
     import json as _json
@@ -731,6 +737,13 @@ def cmd_search(
             f"zkm: dense leg skipped ({trace.dense_skipped_reason}) — results are BM25-only",
             err=True,
         )
+
+    if show_expansion and (trace.keywords or trace.hyp_text):
+        click.echo("zkm: query expansion", err=True)
+        if trace.keywords:
+            click.echo(f"  keywords: {', '.join(trace.keywords)}", err=True)
+        if trace.hyp_text:
+            click.echo(f"  hypothetical: {trace.hyp_text}", err=True)
 
     if as_json:
         records = [
@@ -772,6 +785,12 @@ def cmd_search(
     help="Disable dense retrieval; use BM25 only (or BM25 + expansion).",
 )
 @click.option(
+    "--show-expansion",
+    is_flag=True,
+    default=False,
+    help="Print expansion keywords and hypothetical answer to stderr.",
+)
+@click.option(
     "--store",
     "store_override",
     default=None,
@@ -779,7 +798,8 @@ def cmd_search(
     help="Store path (default: $ZKM_STORE or ~/knowledge)",
 )
 def cmd_query(
-    question: str, top_k: int, no_expand: bool, no_dense: bool, store_override: str | None
+    question: str, top_k: int, no_expand: bool, no_dense: bool,
+    show_expansion: bool, store_override: str | None
 ) -> None:
     """Answer a question using hybrid retrieval (BM25 + dense) + LLM."""
     import httpx
@@ -799,6 +819,12 @@ def cmd_query(
                 f"zkm: dense leg skipped ({trace.dense_skipped_reason}) — results are BM25-only",
                 err=True,
             )
+        if show_expansion and (trace.keywords or trace.hyp_text):
+            click.echo("zkm: query expansion", err=True)
+            if trace.keywords:
+                click.echo(f"  keywords: {', '.join(trace.keywords)}", err=True)
+            if trace.hyp_text:
+                click.echo(f"  hypothetical: {trace.hyp_text}", err=True)
         for chunk in llm_stream(sdir, hits, question):
             click.echo(chunk, nl=False)
             sys.stdout.flush()

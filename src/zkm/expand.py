@@ -133,16 +133,17 @@ def expand_query_with_hyp(
     endpoint: str,
     model: str,
     api_key: str,
-) -> tuple[list[list[str]], str]:
-    """Return (token_lists, hyp_text) for multi-BM25 + dense retrieval.
+) -> tuple[list[list[str]], str, list[str]]:
+    """Return (token_lists, hyp_text, keywords) for multi-BM25 + dense retrieval.
 
     token_lists: first entry is always tokenize(question); subsequent entries are
     LLM keyword variants + hypothetical-answer tokens (for BM25).
     hyp_text: raw hypothetical-answer paragraph (for dense embedding).
-    Falls back to ([tokenize(question)], "") on any LLM error.
+    keywords: LLM-generated keyword strings (for display/debugging).
+    Falls back to ([tokenize(question)], "", []) on any LLM error.
     """
     raw_tokens = tokenize(question)
-    fallback: tuple[list[list[str]], str] = ([raw_tokens], "")
+    fallback: tuple[list[list[str]], str, list[str]] = ([raw_tokens], "", [])
 
     cache_key = hashlib.sha256((_PROMPT_HASH + question).encode()).hexdigest()[:24]
     cache = _load_cache(store)
@@ -154,7 +155,7 @@ def expand_query_with_hyp(
         result = [raw_tokens] + [t for kw in keywords if (t := tokenize(kw))]
         if hyp_tokens:
             result.append(hyp_tokens)
-        return (result if len(result) > 1 else [raw_tokens]), hyp_text
+        return (result if len(result) > 1 else [raw_tokens]), hyp_text, keywords
 
     url = _chat_url(endpoint)
     headers: dict[str, str] = {"Content-Type": "application/json"}
@@ -195,7 +196,7 @@ def expand_query_with_hyp(
     result = [raw_tokens] + [t for kw in keywords if (t := tokenize(kw))]
     if hyp_tokens:
         result.append(hyp_tokens)
-    return result, hyp_text
+    return result, hyp_text, keywords
 
 
 def expand_query(
@@ -211,5 +212,5 @@ def expand_query(
     Subsequent entries are LLM-generated keyword variants + hypothetical-answer tokens.
     Falls back to [tokenize(question)] on any LLM error or empty output.
     """
-    variants, _ = expand_query_with_hyp(question, store, endpoint, model, api_key)
+    variants, *_ = expand_query_with_hyp(question, store, endpoint, model, api_key)
     return variants

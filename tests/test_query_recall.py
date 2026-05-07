@@ -218,3 +218,95 @@ def test_cmd_search_expand_calls_search_with_expansion(
         runner.invoke(main, ["search", "--store", str(sdir), "--expand", "test"])
     assert expansion_called, "search_with_expansion_traced should be called with --expand"
     assert not hybrid_called, "search_hybrid_traced should not be called with --expand"
+
+
+def test_search_show_expansion_prints_keywords(tmp_path: Path, monkeypatch) -> None:
+    """--show-expansion prints keywords and hyp_text to stderr when trace contains them."""
+    from click.testing import CliRunner
+
+    from zkm.cli import main
+    from zkm.query import SearchTrace
+
+    sdir = tmp_path / "store"
+    init_store(sdir, backend="none")
+    (sdir / "notes").mkdir(exist_ok=True)
+    (sdir / "notes" / "doc.md").write_text("electricity bill")
+    idx = build_index(sdir)
+    save_index(sdir, idx)
+
+    stub_trace = SearchTrace(1, 0, None, True, ["Stromrechnung", "utility invoice"], "Here is a sample electricity bill.")
+
+    def fake_expansion(*a, **kw):
+        return [], stub_trace
+
+    runner = CliRunner()
+    with monkeypatch.context() as m:
+        m.setattr("zkm.query.search_with_expansion_traced", fake_expansion)
+        result = runner.invoke(main, ["search", "--store", str(sdir), "--expand", "--show-expansion", "test"])
+
+    assert "zkm: query expansion" in result.output
+    assert "Stromrechnung" in result.output
+    assert "utility invoice" in result.output
+    assert "Here is a sample electricity bill." in result.output
+    assert result.exit_code == 0
+
+
+def test_search_show_expansion_silent_without_expand(tmp_path: Path, monkeypatch) -> None:
+    """--show-expansion without --expand is a silent no-op (trace has no keywords)."""
+    from click.testing import CliRunner
+
+    from zkm.cli import main
+    from zkm.query import SearchTrace
+
+    sdir = tmp_path / "store"
+    init_store(sdir, backend="none")
+    (sdir / "notes").mkdir(exist_ok=True)
+    (sdir / "notes" / "doc.md").write_text("electricity bill")
+    idx = build_index(sdir)
+    save_index(sdir, idx)
+
+    def fake_hybrid(*a, **kw):
+        return [], SearchTrace(0, 0, None, False)
+
+    runner = CliRunner()
+    with monkeypatch.context() as m:
+        m.setattr("zkm.query.search_hybrid_traced", fake_hybrid)
+        result = runner.invoke(main, ["search", "--store", str(sdir), "--show-expansion", "test"])
+
+    assert "query expansion" not in result.output
+    assert result.exit_code == 0
+
+
+def test_query_show_expansion_prints_keywords(tmp_path: Path, monkeypatch) -> None:
+    """zkm query --show-expansion prints expansion block to stderr without polluting stdout."""
+    from click.testing import CliRunner
+
+    from zkm.cli import main
+    from zkm.query import SearchTrace
+
+    sdir = tmp_path / "store"
+    init_store(sdir, backend="none")
+    (sdir / "notes").mkdir(exist_ok=True)
+    (sdir / "notes" / "doc.md").write_text("electricity bill")
+    idx = build_index(sdir)
+    save_index(sdir, idx)
+
+    stub_trace = SearchTrace(1, 0, None, True, ["Stromrechnung"], "A hypothetical answer.")
+
+    def fake_expansion(*a, **kw):
+        return [], stub_trace
+
+    def fake_llm_stream(*a, **kw):
+        yield "answer text"
+
+    runner = CliRunner()
+    with monkeypatch.context() as m:
+        m.setattr("zkm.query.search_with_expansion_traced", fake_expansion)
+        m.setattr("zkm.query.llm_stream", fake_llm_stream)
+        result = runner.invoke(main, ["query", "--store", str(sdir), "--show-expansion", "test question"])
+
+    assert "zkm: query expansion" in result.output
+    assert "Stromrechnung" in result.output
+    assert "A hypothetical answer." in result.output
+    assert "answer text" in result.output
+    assert result.exit_code == 0
