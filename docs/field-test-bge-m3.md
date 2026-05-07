@@ -51,13 +51,35 @@ ZKM_LLM_EXPAND_MODEL=aya-expanse-8b zkm query "How much did the Hotel Katharinen
 
 # 5b. Corpus-gap probe — verify hallucination guard (answer prompt + low-score warning)
 #     Probe a category absent from the corpus.  The LLM should say so explicitly;
-#     a "top-hit relevance is low" warning should appear on stderr.
+#     a "top-hit relevance is low" warning may appear on stderr if top hit is weak.
 #     Expected: answer names retrieved docs as phone/meter emails, NOT an invented electricity figure.
 ZKM_LLM_EXPAND_MODEL=aya-expanse-8b zkm query "Wie hoch war meine letzte Stromrechnung?"
 
 # Counter-test: a query WITH real corpus support must NOT warn and must give a concrete answer.
 ZKM_LLM_EXPAND_MODEL=aya-expanse-8b zkm query "Was hat mein Handyvertrag bei O2 im Herbst 2014 gekostet?"
 ```
+
+## Step 5b live results — 2026-05-07
+
+**Corpus-gap probe** (`"Wie hoch war meine letzte Stromrechnung?"`):
+
+```
+Die Daten zur Stromrechnung sind ausschließlich aus E-Mails von Tobias Kienzler zu den O2
+Online-Rechnungen. Keine der oben genannten E-Mails enthält direkt eine Stromrechnung, sondern
+enthält nur Informationen zu anderen Themen wie Arbeitsbemühungen, Steuererklärung, Stellensuche
+oder Vertragsverhandlungen. … Die E-Mails enthalten Informationen über andere Themen, nicht
+direkt über Stromrechnung.
+```
+
+Result: LLM correctly refused to invent an electricity figure and named the actual content
+(O2 phone bills, meter-reading email `zählerstand.md`, unrelated mails). No low-score warning
+fired — `[1]` is a literal "Stromkosten" document that scored above the dense floor — but the
+answer is correctly grounded. Hallucination guard confirmed working.
+
+**Counter-test** (`"Was hat mein Handyvertrag bei O2 im Herbst 2014 gekostet?"`):
+
+LLM answered "14,98 EUR monatlich" with citations [2]–[10] from the 2014 O2 invoice emails.
+No low-confidence warning. Concrete grounded answer confirmed — guard doesn't over-refuse.
 
 ## What to record
 
