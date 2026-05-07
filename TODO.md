@@ -16,6 +16,10 @@ Completed Phase 1 tasks archived in `docs/phase1-done.md`.
 - [x] `thread_index.py:41` — replace bare `except Exception: continue` with narrow `except (OSError, yaml.YAMLError)` + `logger.warning(...)`. A load failure must never silently become a `_1.md` duplicate — 2026-05-07
 - [x] Regression tests in zkm-eml: `test_inbox_sidecar_stable_under_message_path_drift`, `test_cas_sidecar_dedup_by_sha256` — assert `producers[]` length stable under path drift — 2026-05-07
 
+## Phase 2 session 2 — embed index fixes
+
+- [ ] `embed.py:save_embed_store` — make checkpoint write atomic (write to tmp path + `os.replace`) so an interrupted embedding run cannot corrupt the NPZ file
+
 ## Phase 2 session 3 — core library
 
 See `docs/object-storage.md` for the spec contract.
