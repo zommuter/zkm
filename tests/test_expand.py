@@ -212,7 +212,7 @@ def test_rrf_merge_single_list_preserves_order() -> None:
 
 
 def test_expand_query_caches_result(store: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Second call with same question uses cache; LLM is called exactly once."""
+    """Second call with same question+model uses cache; LLM is called exactly once."""
     call_count = [0]
 
     class MockResp:
@@ -229,10 +229,36 @@ def test_expand_query_caches_result(store: Path, monkeypatch: pytest.MonkeyPatch
 
     monkeypatch.setattr(httpx, "post", lambda *a, **kw: MockResp())
 
-    expand_query("what was my electricity bill?", store, "http://localhost", "m", "")
-    expand_query("what was my electricity bill?", store, "http://localhost", "m", "")
+    expand_query("what was my electricity bill?", store, "http://localhost", "model-a", "")
+    expand_query("what was my electricity bill?", store, "http://localhost", "model-a", "")
 
     assert call_count[0] == 1  # second call served from cache
+
+
+def test_expand_query_cache_misses_on_different_model(
+    store: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Switching models must not serve a cached result from a different model."""
+    call_count = [0]
+
+    class MockResp:
+        status_code = 200
+
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> dict:
+            call_count[0] += 1
+            return {
+                "choices": [{"message": {"content": "electricity\nStromrechnung\n\nA bill."}}]
+            }
+
+    monkeypatch.setattr(httpx, "post", lambda *a, **kw: MockResp())
+
+    expand_query("what was my electricity bill?", store, "http://localhost", "model-a", "")
+    expand_query("what was my electricity bill?", store, "http://localhost", "model-b", "")
+
+    assert call_count[0] == 2  # different model → cache miss → two LLM calls
 
 
 def test_expand_query_fallback_on_llm_error(

@@ -17,7 +17,7 @@ Completed Phase 1 tasks archived in `docs/phase1-done.md`.
 
 - [ ] **5-keyword cap kills German half**: aya produces 6 EN + 6 DE phrases; `keywords[:5]` cap is hit after the first 5 English ones, no German keywords survive. Fix: raise cap to ≥8, or enforce per-language balance (keep up to 3 per detected language before capping)
 - [ ] **`Section 1 — Search terms` leaks as keyword when no trailing colon**: aya sometimes emits `Section 1 — Search terms\n` (no `:`) — the section-label regex `^Section\s*\d+\s*[—–\-]+\s*[^:]+:\s*` requires a colon so it doesn't strip it; the `—` gets eaten by the punctuation strip leaving `'Section 1  Search terms'` as a keyword. Fix: make the colon optional in the regex
-- [ ] **Stale expansion cache**: entries for "Rechnung" and similar queries were written when aya was echoing the instruction text (`kws=['one per line','no blank lines','no bullets']`). Must be cleared before field-testing. Fix: `rm ~/knowledge/.zkm-index/expansion-cache.json` as a one-off; longer term consider a per-model cache key so model swaps auto-invalidate
+- [x] **Stale expansion cache on model switch**: cache key now includes model name (`_PROMPT_HASH + model + question`) so switching `ZKM_LLM_EXPAND_MODEL` auto-invalidates; existing bad entries in `~/knowledge/.zkm-index/expansion-cache.json` become unreachable (different key) — covered by `test_expand_query_cache_misses_on_different_model` on 2026-05-07. One-off clear still needed for the pre-fix bad entries: `rm ~/knowledge/.zkm-index/expansion-cache.json`
 
 ## Query quality (post-MVP backlog)
 

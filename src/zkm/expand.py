@@ -157,7 +157,7 @@ def expand_query_with_hyp(
     raw_tokens = tokenize(question)
     fallback: tuple[list[list[str]], str, list[str]] = ([raw_tokens], "", [])
 
-    cache_key = hashlib.sha256((_PROMPT_HASH + question).encode()).hexdigest()[:24]
+    cache_key = hashlib.sha256((_PROMPT_HASH + model + question).encode()).hexdigest()[:24]
     cache = _load_cache(store)
     if cache_key in cache:
         entry = cache[cache_key]
