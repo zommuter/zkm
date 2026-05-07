@@ -22,7 +22,7 @@ Completed Phase 1 tasks archived in `docs/phase1-done.md`.
 
 ## Query quality (post-MVP backlog)
 
-- [ ] **Field-test on real store** — run through updated `docs/field-test-bge-m3.md` sequence: steps 3+4 with `--expand`, step 5 end-to-end query; collect remaining retrieval failures (blocked on session 7 fixes above)
+- [ ] **Field-test on real store** — run through updated `docs/field-test-bge-m3.md` sequence: steps 3+4 with `--expand`, step 5 end-to-end query; collect remaining retrieval failures
 - [x] Separate expansion model from answer model — `ZKM_LLM_EXPAND_MODEL` / `ZKM_LLM_EXPAND_ENDPOINT` / `ZKM_LLM_EXPAND_KEY`; `_resolve_expand_config` falls back to main LLM config; `zkm doctor` shows expand endpoint when it differs — covered by tests (203 zkm tests passing) on 2026-05-07
 - [x] Surface expansion terms to the user (`zkm query --show-expansion`) for transparency and debugging — `--show-expansion` flag on both `zkm search` and `zkm query`; keywords + hyp_text plumbed through `SearchTrace`; 3 new tests (206 passing) — 2026-05-07
 - [ ] Doc chunking for long emails/threads (current: first 2000 chars per doc, single embedding)
