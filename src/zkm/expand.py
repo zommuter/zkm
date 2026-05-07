@@ -24,12 +24,14 @@ _CACHE_FILE = ".zkm-index/expansion-cache.json"
 _EXPANSION_PROMPT = (
     "Given this question, output two sections separated by a blank line.\n\n"
     "Section 1 — Search terms: list 3-5 short keyword phrases, one per line, "
-    "in the language(s) most likely used in the source documents "
-    "(user has both English and German documents).\n"
+    "in BOTH English and German (the source documents contain both languages; "
+    "always include the direct translation of the key term).\n"
     "Section 2 — Hypothetical answer: one sentence that would be a plausible direct answer, "
     "using vocabulary likely to appear in the documents.\n\n"
     "Question: {question}"
 )
+# WHY: cache keys include a prompt hash so stale entries are ignored when the prompt changes
+_PROMPT_HASH = hashlib.sha256(_EXPANSION_PROMPT.encode()).hexdigest()[:8]
 
 
 def _chat_url(endpoint: str) -> str:
@@ -42,36 +44,64 @@ def _chat_url(endpoint: str) -> str:
 
 
 def _parse_keywords(text: str) -> list[str]:
-    """Extract short keyword lines from section 1 of LLM output (before first blank line)."""
+    """Extract keyword phrases from section 1 of LLM output.
+
+    Handles both the expected one-per-line format and the inline format where the
+    model puts all keywords on the same line as the section header (comma- or
+    space-quote-separated). Section 1 ends at the first blank line or Section 2 marker.
+    """
     keywords: list[str] = []
-    for line in text.splitlines():
+    # Isolate section 1 — stop at blank line or "Section 2" marker
+    section1 = re.split(r"\n\s*\n|\nSection\s*2\b", text, maxsplit=1, flags=re.IGNORECASE)[0]
+    for line in section1.splitlines():
         line = line.strip()
         if not line:
-            break  # first blank line ends section 1
+            continue
+        # Strip "Section N — Label:" prefix (e.g. "Section 1 — Search terms:")
+        line = re.sub(r"^Section\s*\d+\s*[—–\-]+\s*[^:]+:\s*", "", line, flags=re.IGNORECASE).strip()
+        if not line:
+            continue
         # Strip leading list markers: "1.", "1)", "-", "*", "•"
         line = re.sub(r"^[\d]+[.)]\s*|^[-*•]\s*", "", line).strip()
-        if not line or len(line.split()) > 5:
-            continue  # skip prose lines
-        cleaned = re.sub(r"[^\w\s'''\-]", "", line, flags=re.UNICODE).strip()
-        if cleaned and len(cleaned) >= 2:
-            keywords.append(cleaned)
+        if not line:
+            continue
+        # If line looks like inline list (commas, or ≥4 quoted terms), split it
+        if "," in line or line.count('"') >= 4:
+            parts = re.split(r',\s*|(?<=["”])\s+(?=["“"])', line)
+        else:
+            parts = [line]
+        for part in parts:
+            part = re.sub(r'^["""\'\'\']+|["""\'\'\']+$', "", part).strip()
+            part = re.sub(r"[^\w\s''\-]", "", part, flags=re.UNICODE).strip()
+            if part and len(part) >= 2 and len(part.split()) <= 5:
+                keywords.append(part)
     return keywords[:5]
 
 
-def _parse_hypothetical(text: str) -> list[str]:
-    """Tokenize the hypothetical-answer section (after first blank line in LLM output)."""
-    parts = re.split(r"\n\s*\n", text, maxsplit=1)
-    if len(parts) < 2:
-        return []
-    return tokenize(parts[1])
-
-
 def _parse_hypothetical_text(text: str) -> str:
-    """Return the raw hypothetical-answer section (after first blank line)."""
+    """Return the raw hypothetical-answer section, stripped of any section label.
+
+    Splits on a blank line (expected format) or a 'Section 2' marker on a new line
+    (model sometimes omits the blank line). Strips any remaining 'Section 2 — …:'
+    label from the extracted text.
+    """
     parts = re.split(r"\n\s*\n", text, maxsplit=1)
-    if len(parts) < 2:
+    if len(parts) >= 2:
+        hyp = parts[1].strip()
+    else:
+        # No blank line — try splitting on the Section 2 marker itself
+        parts = re.split(r"\nSection\s*2\b[^:]*:\s*", text, maxsplit=1, flags=re.IGNORECASE)
+        if len(parts) >= 2:
+            return parts[1].strip()
         return ""
-    return parts[1].strip()
+    # Strip leading "Section 2 — Hypothetical answer:" label if the model included it
+    hyp = re.sub(r"^Section\s*2\s*[—–\-]+\s*[^:]+:\s*", "", hyp, flags=re.IGNORECASE).strip()
+    return hyp
+
+
+def _parse_hypothetical(text: str) -> list[str]:
+    """Tokenize the hypothetical-answer section of LLM output."""
+    return tokenize(_parse_hypothetical_text(text))
 
 
 def _cache_path(store: Path) -> Path:
@@ -114,7 +144,7 @@ def expand_query_with_hyp(
     raw_tokens = tokenize(question)
     fallback: tuple[list[list[str]], str] = ([raw_tokens], "")
 
-    cache_key = hashlib.sha256(question.encode()).hexdigest()[:24]
+    cache_key = hashlib.sha256((_PROMPT_HASH + question).encode()).hexdigest()[:24]
     cache = _load_cache(store)
     if cache_key in cache:
         entry = cache[cache_key]

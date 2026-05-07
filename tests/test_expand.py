@@ -7,7 +7,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from zkm.expand import _parse_hypothetical, _parse_keywords, expand_query
+from zkm.expand import _parse_hypothetical, _parse_hypothetical_text, _parse_keywords, expand_query
 from zkm.index import tokenize
 from zkm.query import Hit, rrf_merge
 from zkm.store import init_store
@@ -68,8 +68,44 @@ def test_parse_keywords_empty_input() -> None:
     assert _parse_keywords("") == []
 
 
+def test_parse_keywords_inline_comma_separated() -> None:
+    """Model puts all keywords on one line after the section header — comma-separated."""
+    text = (
+        "Section 1 — Search terms: Rechnung, invoice, Faktura, bill\n"
+        "\nSection 2 — Hypothetical answer: The invoice was 142 EUR."
+    )
+    kws = _parse_keywords(text)
+    assert "Rechnung" in kws
+    assert "invoice" in kws
+    assert "Faktura" in kws
+    assert "bill" in kws
+    assert not any("Section" in k for k in kws)
+
+
+def test_parse_keywords_inline_quoted_space_separated() -> None:
+    """Model puts quoted terms space-separated on the section header line."""
+    text = (
+        'Section 1 — Search terms: "invoice" "payment" "Rechnung" "Betrag"\n'
+        "\nSection 2 — Hypothetical answer: The electricity bill was 80 EUR."
+    )
+    kws = _parse_keywords(text)
+    assert "invoice" in kws
+    assert "payment" in kws
+    assert "Rechnung" in kws
+    assert not any("Section" in k for k in kws)
+
+
+def test_parse_keywords_section_header_not_a_keyword() -> None:
+    """The 'Section 1 — Search terms:' label itself must not appear in the result."""
+    text = "Section 1 — Search terms:\n- Rechnung\n- invoice\n\nSection 2 — Hypothetical answer: ..."
+    kws = _parse_keywords(text)
+    assert not any("Section" in k or "Search" in k for k in kws)
+    assert "Rechnung" in kws
+    assert "invoice" in kws
+
+
 # ---------------------------------------------------------------------------
-# _parse_hypothetical
+# _parse_hypothetical / _parse_hypothetical_text
 # ---------------------------------------------------------------------------
 
 
@@ -77,13 +113,28 @@ def test_parse_hypothetical_returns_tokens_after_blank_line() -> None:
     text = "keyword one\nkeyword two\n\nThe electricity bill from Stadtwerke was 142 CHF."
     tokens = _parse_hypothetical(text)
     assert len(tokens) > 0
-    # Should contain tokens from the hypothetical sentence
     all_text = " ".join(tokens)
     assert any(t in all_text for t in ["elektr", "electricity", "stadtwerk", "stadtwerke"])
 
 
 def test_parse_hypothetical_no_blank_line_returns_empty() -> None:
     assert _parse_hypothetical("just keywords\nno blank line") == []
+
+
+def test_parse_hypothetical_text_strips_section2_label() -> None:
+    """'Section 2 — Hypothetical answer:' prefix must be stripped from result."""
+    text = "keywords\n\nSection 2 — Hypothetical answer: The bill was 80 EUR."
+    hyp = _parse_hypothetical_text(text)
+    assert hyp == "The bill was 80 EUR."
+    assert "Section" not in hyp
+
+
+def test_parse_hypothetical_text_section2_marker_no_blank_line() -> None:
+    """When sections are separated by newline only (no blank line), still extracts hyp."""
+    text = "Section 1 — Search terms:\n- term one\nSection 2 — Hypothetical answer: It costs 80 EUR."
+    hyp = _parse_hypothetical_text(text)
+    assert "80 EUR" in hyp
+    assert "Section" not in hyp
 
 
 # ---------------------------------------------------------------------------

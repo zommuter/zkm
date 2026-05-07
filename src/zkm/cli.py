@@ -570,7 +570,7 @@ def cmd_doctor(store_override: str | None) -> None:
 
     from zkm.embed import resolve_embed_config
     from zkm.index import load_index
-    from zkm.query import _chat_url, _resolve_llm_config
+    from zkm.query import _chat_url, _resolve_expand_config, _resolve_llm_config
 
     sdir = Path(store_override) if store_override else store_path()
     col = 16
@@ -651,6 +651,29 @@ def cmd_doctor(store_override: str | None) -> None:
             ok = False
     else:
         click.echo(f"{'llm endpoint':<{col}}(not configured)")
+
+    x_ep, x_mdl, x_key = _resolve_expand_config(sdir)
+    if (x_ep, x_mdl) != (l_ep, l_mdl):
+        # Only show expand endpoint when it differs from main LLM
+        if x_ep:
+            try:
+                headers = {"Content-Type": "application/json"}
+                if x_key:
+                    headers["Authorization"] = f"Bearer {x_key}"
+                resp = httpx.post(
+                    _chat_url(x_ep),
+                    headers=headers,
+                    json={"model": x_mdl, "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1},
+                    timeout=30.0,
+                )
+                resp.raise_for_status()
+                actual_model = resp.json().get("model", x_mdl)
+                click.echo(f"{'expand endpoint':<{col}}{x_ep}  OK (model={actual_model})")
+            except Exception as exc:
+                click.echo(f"{'expand endpoint':<{col}}{x_ep}  FAIL ({exc})")
+                ok = False
+        else:
+            click.echo(f"{'expand endpoint':<{col}}(not configured)")
 
     if not ok:
         sys.exit(1)

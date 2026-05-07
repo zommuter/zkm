@@ -46,17 +46,33 @@ For each query, note:
 - Queries that return garbage either way → content/chunking issue
 - "dense leg skipped" warning on stderr → endpoint or index issue (run `zkm doctor`)
 
-## Why step 3 requires --expand
+## Why step 3 requires --expand and a bilingual model
 
 bge-m3 cross-lingual quality is good (cos("invoice", "Rechnung") ≈ 0.72), but on a
 corpus with thousands of literal keyword matches the dense ranking is saturated:
-all top-200 results by cosine are literal-match docs at ~0.95. Cross-lingual hits
-at ~0.72 appear only at rank 1000+.
+all top-200 results by cosine are literal-match docs at ~0.95. English "invoice" docs
+at cosine ~0.72 sit at rank 1000+ — far behind all the German "Rechnung" docs.
 
-`--expand` uses the local LLM (qwen3.5-0.8b) to generate a bilingual hypothetical
-answer that shifts the dense query vector into both language spaces, breaking through
-the saturation. Steps 4 and 5 work without expansion because they test queries where
-no exact keyword match exists.
+`--expand` works by generating multilingual keyword variants (e.g., expanding "Rechnung"
+to include "invoice", "bill", "Faktura") and running a separate BM25 leg for each. The
+English keyword "invoice" finds English-only invoice docs that the German-query BM25 and
+the saturated dense leg both miss.
+
+**Cross-lingual expansion requires a bilingual-capable model (≥7B parameters).**
+qwen3.5-0.8b ignores the "in both English and German" instruction and generates
+monolingual keywords only. Configure a larger model for expansion:
+
+```bash
+# In $ZKM_STORE/.env or shell profile:
+ZKM_LLM_EXPAND_ENDPOINT=http://localhost:8080
+ZKM_LLM_EXPAND_MODEL=qwen3:7b   # or any model with reliable bilingual output
+# ZKM_LLM_MODEL stays as qwen3.5-0.8b for fast RAG answers
+
+zkm doctor   # shows both "llm endpoint" and "expand endpoint" when they differ
+```
+
+Steps 4 and 5 work without expansion because they test queries where no exact keyword
+match exists, so pool saturation is not the problem.
 
 ## Diagnostic checklist
 

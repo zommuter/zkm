@@ -400,7 +400,13 @@ def search_with_expansion_traced(
         raise FileNotFoundError(
             f"No index found at {store / '.zkm-index'}. Run: zkm index"
         )
-    ep, mdl, key = _resolve_llm_config(store, endpoint, model, api_key)
+    ep, mdl, key = _resolve_expand_config(store)
+    if endpoint:
+        ep = endpoint
+    if model:
+        mdl = model
+    if api_key:
+        key = api_key
     date_range = _temporal_filter(question)
 
     from zkm.expand import expand_query_with_hyp  # lazy import avoids circular dependency
@@ -488,6 +494,29 @@ def _resolve_llm_config(
     resolved_model = _get("ZKM_LLM_MODEL", model, _DEFAULT_MODEL)
     resolved_key = _get("ZKM_LLM_KEY", api_key, "")
     return resolved_endpoint, resolved_model, resolved_key
+
+
+def _resolve_expand_config(store: Path) -> tuple[str, str, str]:
+    """Resolve expansion-model config, falling back to main LLM config.
+
+    ZKM_LLM_EXPAND_ENDPOINT / ZKM_LLM_EXPAND_MODEL / ZKM_LLM_EXPAND_KEY override
+    the main LLM settings so a bilingual-capable model can be used for keyword
+    extraction while a smaller model handles the RAG answer.
+    """
+    main_ep, main_mdl, main_key = _resolve_llm_config(store, None, None, None)
+    env = load_env(store)
+
+    def _get(key: str, fallback: str) -> str:
+        if key in os.environ:
+            return os.environ[key]
+        if key in env:
+            return env[key]
+        return fallback
+
+    ep = _get("ZKM_LLM_EXPAND_ENDPOINT", main_ep)
+    mdl = _get("ZKM_LLM_EXPAND_MODEL", main_mdl)
+    key = _get("ZKM_LLM_EXPAND_KEY", main_key)
+    return ep, mdl, key
 
 
 def _chat_url(endpoint: str) -> str:
