@@ -3,9 +3,17 @@
 See `CLAUDE.md` for architecture overview. See `docs/phase2-plan.md` for sequencing.
 Completed Phase 1 tasks archived in `docs/phase1-done.md`.
 
+## Phase 2 session 6 — hybrid search quality
+
+- [x] Widen dense candidate pool from `top_k*3` to `max(top_k*20, 200)` — clears literal-match saturation so cross-lingual hits enter RRF fusion — covered by tests/test_query_recall.py on 2026-05-07
+- [x] Add `SearchTrace` dataclass; three silent BM25-only fallbacks now set a `dense_skipped_reason`; CLI emits stderr warning on skip — covered by tests/test_query_recall.py on 2026-05-07
+- [x] Add `--expand` flag to `zkm search` (opt-in LLM expansion for cross-lingual recall; `zkm query` keeps expansion default-on) — covered by tests/test_query_recall.py on 2026-05-07
+- [x] New `zkm doctor` subcommand: md/bm25/embed doc counts, stale-index detection, embed + LLM endpoint probes — manually verified on real store 2026-05-07
+- [x] Updated `docs/field-test-bge-m3.md`: realistic step 3 (--expand required on literal-heavy corpora), diagnostic checklist — 2026-05-07
+
 ## Query quality (post-MVP backlog)
 
-- [ ] **Field-test on real store** with bge-m3 via llama-swap; collect concrete retrieval failures before deciding next step
+- [ ] **Field-test on real store** — run through updated `docs/field-test-bge-m3.md` sequence: steps 3+4 with `--expand`, step 5 end-to-end query; collect remaining retrieval failures
 - [ ] Separate expansion model from answer model — `ZKM_LLM_EXPAND_MODEL` / `ZKM_LLM_EXPAND_ENDPOINT` so a fast small model (0.8B) handles keyword extraction while a large model (35B) handles the answer
 - [ ] Surface expansion terms to the user (`zkm query --show-expansion`) for transparency and debugging
 - [ ] Doc chunking for long emails/threads (current: first 2000 chars per doc, single embedding)
