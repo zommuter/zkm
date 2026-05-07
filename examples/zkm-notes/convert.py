@@ -16,6 +16,8 @@ from pathlib import Path
 
 import frontmatter
 
+from zkm.atomic import write_atomic
+
 PLUGIN_NAME = "notes"
 PLUGIN_VERSION = "0.1.0"
 
@@ -81,7 +83,7 @@ def convert(store_path: Path, config: dict, *, progress=None) -> list[Path]:
         out = _unique_path(notes_dir, date_str[:10], slug)
 
         new_post = frontmatter.Post(body, **meta)
-        out.write_text(frontmatter.dumps(new_post), encoding="utf-8")
+        write_atomic(out, frontmatter.dumps(new_post))
         created.append(out)
         existing_shas.add(sha)
 

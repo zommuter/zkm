@@ -19,7 +19,11 @@ def sha256_file(path: Path) -> str:
 
 def git_blob_sha1(path: Path) -> str:
     """Return the git blob SHA-1 of *path* without invoking git."""
-    data = path.read_bytes()
+    return git_blob_sha1_bytes(path.read_bytes())
+
+
+def git_blob_sha1_bytes(data: bytes) -> str:
+    """Return the git blob SHA-1 of in-memory *data* without invoking git."""
     h = hashlib.sha1(usedforsecurity=False)
     h.update(f"blob {len(data)}\0".encode())
     h.update(data)

@@ -7,7 +7,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from zkm.hashing import git_blob_sha1, sha256_file
+from zkm.hashing import git_blob_sha1, git_blob_sha1_bytes, sha256_file
 
 
 def test_sha256_file_empty(tmp_path: Path) -> None:
@@ -57,3 +57,16 @@ def test_sha256_file_returns_hex_string(tmp_path: Path) -> None:
     digest = sha256_file(f)
     assert len(digest) == 64
     assert all(c in "0123456789abcdef" for c in digest)
+
+
+def test_git_blob_sha1_bytes_matches_path_form(tmp_path: Path) -> None:
+    f = tmp_path / "sample.txt"
+    f.write_bytes(b"same content for both forms\n")
+    assert git_blob_sha1_bytes(f.read_bytes()) == git_blob_sha1(f)
+
+
+def test_git_blob_sha1_bytes_matches_git(tmp_path: Path) -> None:
+    f = tmp_path / "data.bin"
+    f.write_bytes(bytes(range(256)))
+    expected = subprocess.check_output(["git", "hash-object", str(f)], text=True).strip()
+    assert git_blob_sha1_bytes(f.read_bytes()) == expected
