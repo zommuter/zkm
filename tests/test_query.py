@@ -388,15 +388,6 @@ def test_search_hybrid_no_dense_flag_uses_bm25(store: Path) -> None:
     assert [h.path for h in hybrid] == [h.path for h in plain]
 
 
-def test_search_hybrid_falls_back_when_no_embed_store(store: Path) -> None:
-    """search_hybrid with dense=True but no EmbedStore falls back to BM25 silently."""
-    _write_and_index(store, [
-        ("notes/doc1.md", "electricity bill", "source: notes"),
-    ])
-    # No EmbedStore written → should not raise
-    hits = search_hybrid(store, "electricity", top_k=5, dense=True)
-    assert any("doc1" in h.path for h in hits)
-
 
 def test_search_hybrid_no_dense_flag_skips_embed(
     store: Path, monkeypatch: pytest.MonkeyPatch

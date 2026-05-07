@@ -25,6 +25,8 @@ from zkm.index import Doc, Index, load_index, tokenize
 
 _DEFAULT_MAX_DOC_CHARS = 500  # ~125 tokens; fits 20 docs inside an 8k-token context
 _SNIPPET_WINDOW = 240
+_DENSE_POOL_MULT = 20      # WHY: 3× saturates on corpora with large literal-match clusters
+_DENSE_POOL_FLOOR = 200    # minimum to clear typical literal-match cluster
 
 
 @dataclass
@@ -33,6 +35,14 @@ class Hit:
     score: float
     date: str
     snippet: str
+
+
+@dataclass
+class SearchTrace:
+    bm25_hits: int
+    dense_hits: int
+    dense_skipped_reason: str | None  # "no_embed_store" | "no_endpoint" | "embed_failed" | None
+    expanded: bool
 
 
 def search(store: Path, query: str, top_k: int = 10) -> list[Hit]:
@@ -252,22 +262,23 @@ def _dense_search(
     texts: list[str],
     date_range: tuple[date, date] | None,
     top_k: int,
+    pool: int,
     endpoint: str,
     model: str,
     api_key: str,
 ) -> list[Hit]:
-    """Embed texts, query the EmbedStore, apply temporal filter, return top_k Hits."""
-    try:
-        vecs = embed_texts(texts, endpoint, model, api_key)
-    except EmbedUnavailable:
-        return []
+    """Embed texts, query the EmbedStore, apply temporal filter, return top_k Hits.
+
+    Raises EmbedUnavailable when the embedding request fails — caller decides how to handle.
+    """
+    vecs = embed_texts(texts, endpoint, model, api_key)
     # Average the query vectors (handles both single query and question+hypothetical)
     q_vec = vecs.mean(axis=0).astype("float32")
     norm = float(q_vec @ q_vec) ** 0.5
     if norm > 0:
         q_vec = q_vec / norm
 
-    results = es.topk(q_vec, min(top_k * 3, len(es.paths)))
+    results = es.topk(q_vec, min(pool, len(es.paths)))
 
     hits: list[Hit] = []
     for row_idx, score in results:
@@ -315,17 +326,17 @@ def _parse_doc_date_from_meta(meta: dict) -> date | None:
     return None
 
 
-def search_hybrid(
+def search_hybrid_traced(
     store: Path,
     query: str,
     top_k: int = 10,
     *,
     dense: bool = True,
-) -> list[Hit]:
-    """BM25 search with optional dense leg (no LLM expansion).
+) -> tuple[list[Hit], SearchTrace]:
+    """BM25 + dense hybrid search; returns results and a diagnostic trace.
 
-    Falls back to pure BM25 when dense=False, EmbedStore is missing, or
-    the embed endpoint is unconfigured.
+    Falls back to pure BM25 when dense=False, EmbedStore missing, endpoint
+    unconfigured, or embed request fails. Trace records which path was taken.
     """
     idx = load_index(store)
     if idx is None:
@@ -333,24 +344,102 @@ def search_hybrid(
             f"No index found at {store / '.zkm-index'}. Run: zkm index"
         )
     date_range = _temporal_filter(query)
-    bm25_hits = _search(store, idx, tokenize(query), date_range, top_k)
 
     if not dense:
-        return bm25_hits
+        hits = _search(store, idx, tokenize(query), date_range, top_k)
+        return hits, SearchTrace(len(hits), 0, None, False)
+
+    pool = max(top_k * _DENSE_POOL_MULT, _DENSE_POOL_FLOOR)
+    bm25_hits = _search(store, idx, tokenize(query), date_range, pool)
 
     es = load_embed_store(store)
     if es is None:
-        return bm25_hits
+        return bm25_hits[:top_k], SearchTrace(len(bm25_hits), 0, "no_embed_store", False)
 
     ep, mdl, key = resolve_embed_config(store)
     if not ep:
-        return bm25_hits
+        return bm25_hits[:top_k], SearchTrace(len(bm25_hits), 0, "no_endpoint", False)
 
-    dense_hits = _dense_search(store, es, [query], date_range, top_k, ep, mdl, key)
+    try:
+        dense_hits = _dense_search(store, es, [query], date_range, top_k, pool, ep, mdl, key)
+    except EmbedUnavailable:
+        return bm25_hits[:top_k], SearchTrace(len(bm25_hits), 0, "embed_failed", False)
+
     if not dense_hits:
-        return bm25_hits
+        return bm25_hits[:top_k], SearchTrace(len(bm25_hits), 0, None, False)
 
-    return rrf_merge([bm25_hits, dense_hits])[:top_k]
+    merged = rrf_merge([bm25_hits, dense_hits])[:top_k]
+    return merged, SearchTrace(len(bm25_hits), len(dense_hits), None, False)
+
+
+def search_hybrid(
+    store: Path,
+    query: str,
+    top_k: int = 10,
+    *,
+    dense: bool = True,
+) -> list[Hit]:
+    """BM25 search with optional dense leg (no LLM expansion)."""
+    hits, _ = search_hybrid_traced(store, query, top_k, dense=dense)
+    return hits
+
+
+def search_with_expansion_traced(
+    store: Path,
+    question: str,
+    top_k: int = 20,
+    endpoint: str | None = None,
+    model: str | None = None,
+    api_key: str | None = None,
+    *,
+    dense: bool = True,
+) -> tuple[list[Hit], SearchTrace]:
+    """Multi-query BM25 + LLM expansion + optional dense, with diagnostic trace."""
+    idx = load_index(store)
+    if idx is None:
+        raise FileNotFoundError(
+            f"No index found at {store / '.zkm-index'}. Run: zkm index"
+        )
+    ep, mdl, key = _resolve_llm_config(store, endpoint, model, api_key)
+    date_range = _temporal_filter(question)
+
+    from zkm.expand import expand_query_with_hyp  # lazy import avoids circular dependency
+
+    variant_lists, hyp_text = expand_query_with_hyp(question, store, ep, mdl, key)
+
+    if not dense:
+        hit_lists = [_search(store, idx, tokens, date_range, top_k) for tokens in variant_lists]
+        hits = rrf_merge(hit_lists)[:top_k]
+        return hits, SearchTrace(len(hits), 0, None, True)
+
+    pool = max(top_k * _DENSE_POOL_MULT, _DENSE_POOL_FLOOR)
+    hit_lists = [_search(store, idx, tokens, date_range, pool) for tokens in variant_lists]
+    bm25_rrf_hits = rrf_merge(hit_lists)
+
+    es = load_embed_store(store)
+    if es is None:
+        return bm25_rrf_hits[:top_k], SearchTrace(len(bm25_rrf_hits), 0, "no_embed_store", True)
+
+    e_ep, e_mdl, e_key = resolve_embed_config(store)
+    if not e_ep:
+        return bm25_rrf_hits[:top_k], SearchTrace(len(bm25_rrf_hits), 0, "no_endpoint", True)
+
+    embed_texts_input = [question]
+    if hyp_text:
+        embed_texts_input.append(hyp_text)
+
+    try:
+        dense_hits = _dense_search(
+            store, es, embed_texts_input, date_range, top_k, pool, e_ep, e_mdl, e_key
+        )
+    except EmbedUnavailable:
+        return bm25_rrf_hits[:top_k], SearchTrace(len(bm25_rrf_hits), 0, "embed_failed", True)
+
+    if not dense_hits:
+        return bm25_rrf_hits[:top_k], SearchTrace(len(bm25_rrf_hits), 0, None, True)
+
+    merged = rrf_merge([bm25_rrf_hits, dense_hits])[:top_k]
+    return merged, SearchTrace(len(bm25_rrf_hits), len(dense_hits), None, True)
 
 
 def search_with_expansion(
@@ -364,39 +453,10 @@ def search_with_expansion(
     dense: bool = True,
 ) -> list[Hit]:
     """Multi-query BM25 with LLM query expansion merged via RRF, plus optional dense leg."""
-    idx = load_index(store)
-    if idx is None:
-        raise FileNotFoundError(
-            f"No index found at {store / '.zkm-index'}. Run: zkm index"
-        )
-    ep, mdl, key = _resolve_llm_config(store, endpoint, model, api_key)
-    date_range = _temporal_filter(question)
-
-    from zkm.expand import expand_query_with_hyp  # lazy import avoids circular dependency
-
-    variant_lists, hyp_text = expand_query_with_hyp(question, store, ep, mdl, key)
-    hit_lists = [_search(store, idx, tokens, date_range, top_k) for tokens in variant_lists]
-    bm25_rrf_hits = rrf_merge(hit_lists)
-
-    if not dense:
-        return bm25_rrf_hits[:top_k]
-
-    es = load_embed_store(store)
-    if es is None:
-        return bm25_rrf_hits[:top_k]
-
-    e_ep, e_mdl, e_key = resolve_embed_config(store)
-    if not e_ep:
-        return bm25_rrf_hits[:top_k]
-
-    embed_texts_input = [question]
-    if hyp_text:
-        embed_texts_input.append(hyp_text)
-    dense_hits = _dense_search(store, es, embed_texts_input, date_range, top_k, e_ep, e_mdl, e_key)
-    if not dense_hits:
-        return bm25_rrf_hits[:top_k]
-
-    return rrf_merge([bm25_rrf_hits, dense_hits])[:top_k]
+    hits, _ = search_with_expansion_traced(
+        store, question, top_k, endpoint, model, api_key, dense=dense
+    )
+    return hits
 
 
 # ---------------------------------------------------------------------------

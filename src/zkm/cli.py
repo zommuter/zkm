@@ -550,6 +550,113 @@ def cmd_index(store_override: str | None, no_progress: bool, no_embed: bool, ful
 
 
 # ---------------------------------------------------------------------------
+# zkm doctor
+# ---------------------------------------------------------------------------
+
+
+@main.command("doctor")
+@click.option(
+    "--store",
+    "store_override",
+    default=None,
+    metavar="PATH",
+    help="Store path (default: $ZKM_STORE or ~/knowledge)",
+)
+def cmd_doctor(store_override: str | None) -> None:
+    """Diagnose the knowledge store: index counts and endpoint reachability."""
+    import json as _json
+
+    import httpx
+
+    from zkm.embed import resolve_embed_config
+    from zkm.index import load_index
+    from zkm.query import _chat_url, _resolve_llm_config
+
+    sdir = Path(store_override) if store_override else store_path()
+    col = 16
+    ok = True
+
+    md_count = sum(
+        1 for p in sdir.rglob("*.md")
+        if ".zkm-index" not in p.parts and ".git" not in p.parts
+    )
+    click.echo(f"{'store':<{col}}{sdir}")
+    click.echo(f"{'md files':<{col}}{md_count}")
+
+    idx = load_index(sdir)
+    bm25_docs = len(idx.docs) if idx else 0
+    if not idx:
+        click.echo(f"{'bm25 docs':<{col}}0  (not built — run: zkm index)")
+    else:
+        stale = md_count - bm25_docs
+        stale_str = f"  (stale: {stale} unindexed)" if stale > 0 else ""
+        click.echo(f"{'bm25 docs':<{col}}{bm25_docs}{stale_str}")
+
+    meta_path = sdir / ".zkm-index" / "embeddings-meta.json"
+    if meta_path.exists():
+        meta = _json.loads(meta_path.read_text(encoding="utf-8"))
+        embed_docs = meta.get("n_docs", 0)
+        embed_model = meta.get("model", "?")
+        embed_dim = meta.get("dim", 0)
+        stale = md_count - embed_docs
+        stale_str = f"  (stale: {stale} unindexed)" if stale > 0 else ""
+        click.echo(
+            f"{'embed docs':<{col}}{embed_docs}  (model={embed_model}, dim={embed_dim}){stale_str}"
+        )
+    else:
+        click.echo(f"{'embed docs':<{col}}0  (not built — run: zkm index)")
+
+    ep, mdl, key = resolve_embed_config(sdir)
+    if ep:
+        try:
+            headers: dict[str, str] = {"Content-Type": "application/json"}
+            if key:
+                headers["Authorization"] = f"Bearer {key}"
+            resp = httpx.post(
+                ep.rstrip("/") + "/v1/embeddings",
+                headers=headers,
+                json={"model": mdl, "input": ["test"]},
+                timeout=10.0,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            actual_dim = len(data["data"][0]["embedding"])
+            actual_model = data.get("model", mdl)
+            click.echo(
+                f"{'embed endpoint':<{col}}{ep}  OK (model={actual_model}, dim={actual_dim})"
+            )
+        except Exception as exc:
+            click.echo(f"{'embed endpoint':<{col}}{ep}  FAIL ({exc})")
+            ok = False
+    else:
+        click.echo(f"{'embed endpoint':<{col}}(not configured)")
+
+    l_ep, l_mdl, l_key = _resolve_llm_config(sdir, None, None, None)
+    if l_ep:
+        try:
+            headers = {"Content-Type": "application/json"}
+            if l_key:
+                headers["Authorization"] = f"Bearer {l_key}"
+            resp = httpx.post(
+                _chat_url(l_ep),
+                headers=headers,
+                json={"model": l_mdl, "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1},
+                timeout=30.0,
+            )
+            resp.raise_for_status()
+            actual_model = resp.json().get("model", l_mdl)
+            click.echo(f"{'llm endpoint':<{col}}{l_ep}  OK (model={actual_model})")
+        except Exception as exc:
+            click.echo(f"{'llm endpoint':<{col}}{l_ep}  FAIL ({exc})")
+            ok = False
+    else:
+        click.echo(f"{'llm endpoint':<{col}}(not configured)")
+
+    if not ok:
+        sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
 # zkm search
 # ---------------------------------------------------------------------------
 
@@ -565,6 +672,12 @@ def cmd_index(store_override: str | None, no_progress: bool, no_embed: bool, ful
     help="Disable dense retrieval; use BM25 only.",
 )
 @click.option(
+    "--expand",
+    is_flag=True,
+    default=False,
+    help="Use LLM query expansion (slower, better cross-lingual recall).",
+)
+@click.option(
     "--store",
     "store_override",
     default=None,
@@ -572,19 +685,29 @@ def cmd_index(store_override: str | None, no_progress: bool, no_embed: bool, ful
     help="Store path (default: $ZKM_STORE or ~/knowledge)",
 )
 def cmd_search(
-    query: str, top_k: int, as_json: bool, no_dense: bool, store_override: str | None
+    query: str, top_k: int, as_json: bool, no_dense: bool, expand: bool,
+    store_override: str | None,
 ) -> None:
     """Search the knowledge store (BM25 + dense hybrid when embedding index is available)."""
     import json as _json
 
-    from zkm.query import search_hybrid
+    from zkm.query import search_hybrid_traced, search_with_expansion_traced
 
     sdir = Path(store_override) if store_override else store_path()
     try:
-        hits = search_hybrid(sdir, query, top_k=top_k, dense=not no_dense)
+        if expand:
+            hits, trace = search_with_expansion_traced(sdir, query, top_k=top_k, dense=not no_dense)
+        else:
+            hits, trace = search_hybrid_traced(sdir, query, top_k=top_k, dense=not no_dense)
     except FileNotFoundError as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
+
+    if trace.dense_skipped_reason:
+        click.echo(
+            f"zkm: dense leg skipped ({trace.dense_skipped_reason}) — results are BM25-only",
+            err=True,
+        )
 
     if as_json:
         records = [
@@ -638,14 +761,21 @@ def cmd_query(
     """Answer a question using hybrid retrieval (BM25 + dense) + LLM."""
     import httpx
 
-    from zkm.query import llm_stream, search_hybrid, search_with_expansion
+    from zkm.query import llm_stream, search_hybrid_traced, search_with_expansion_traced
 
     sdir = Path(store_override) if store_override else store_path()
     try:
         if no_expand:
-            hits = search_hybrid(sdir, question, top_k=top_k, dense=not no_dense)
+            hits, trace = search_hybrid_traced(sdir, question, top_k=top_k, dense=not no_dense)
         else:
-            hits = search_with_expansion(sdir, question, top_k=top_k, dense=not no_dense)
+            hits, trace = search_with_expansion_traced(
+                sdir, question, top_k=top_k, dense=not no_dense
+            )
+        if trace.dense_skipped_reason:
+            click.echo(
+                f"zkm: dense leg skipped ({trace.dense_skipped_reason}) — results are BM25-only",
+                err=True,
+            )
         for chunk in llm_stream(sdir, hits, question):
             click.echo(chunk, nl=False)
             sys.stdout.flush()
