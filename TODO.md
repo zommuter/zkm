@@ -13,9 +13,15 @@ Completed Phase 1 tasks archived in `docs/phase1-done.md`.
 - [x] Fix `expand.py` parser bugs: `_parse_keywords` handles inline comma/quote-separated and section-header formats; `_parse_hypothetical_text` handles `Section 2` marker without blank line and strips label prefix; bilingual prompt + `_PROMPT_HASH` cache invalidation — covered by tests/test_expand.py (20 tests) on 2026-05-07
 - [x] Bilingual expand model audit — live-tested all configured models + aya-expanse-8b + Apertus-8B against the exact _EXPANSION_PROMPT; finding: aya-expanse-8b is the only local model that reliably emits EN+DE keywords for both DE and EN questions; tightened _EXPANSION_PROMPT ("3 EN then 3 DE phrases, translate into the OTHER language"), made _parse_keywords cross Section-2-marker blank lines (aya markdown format), skip **Language:** sub-headers, strip <|END_OF_TURN_TOKEN|>; added aya-expanse-8b to /etc/llama-swap/config.yaml; updated docs/field-test-bge-m3.md with live-test model table + bilingual probe — covered by tests/test_expand.py (21 tests) on 2026-05-07
 
+## Phase 2 session 7 — aya expansion bugs (3 blockers found in live test)
+
+- [ ] **5-keyword cap kills German half**: aya produces 6 EN + 6 DE phrases; `keywords[:5]` cap is hit after the first 5 English ones, no German keywords survive. Fix: raise cap to ≥8, or enforce per-language balance (keep up to 3 per detected language before capping)
+- [ ] **`Section 1 — Search terms` leaks as keyword when no trailing colon**: aya sometimes emits `Section 1 — Search terms\n` (no `:`) — the section-label regex `^Section\s*\d+\s*[—–\-]+\s*[^:]+:\s*` requires a colon so it doesn't strip it; the `—` gets eaten by the punctuation strip leaving `'Section 1  Search terms'` as a keyword. Fix: make the colon optional in the regex
+- [ ] **Stale expansion cache**: entries for "Rechnung" and similar queries were written when aya was echoing the instruction text (`kws=['one per line','no blank lines','no bullets']`). Must be cleared before field-testing. Fix: `rm ~/knowledge/.zkm-index/expansion-cache.json` as a one-off; longer term consider a per-model cache key so model swaps auto-invalidate
+
 ## Query quality (post-MVP backlog)
 
-- [ ] **Field-test on real store** — run through updated `docs/field-test-bge-m3.md` sequence: steps 3+4 with `--expand`, step 5 end-to-end query; collect remaining retrieval failures
+- [ ] **Field-test on real store** — run through updated `docs/field-test-bge-m3.md` sequence: steps 3+4 with `--expand`, step 5 end-to-end query; collect remaining retrieval failures (blocked on session 7 fixes above)
 - [x] Separate expansion model from answer model — `ZKM_LLM_EXPAND_MODEL` / `ZKM_LLM_EXPAND_ENDPOINT` / `ZKM_LLM_EXPAND_KEY`; `_resolve_expand_config` falls back to main LLM config; `zkm doctor` shows expand endpoint when it differs — covered by tests (203 zkm tests passing) on 2026-05-07
 - [x] Surface expansion terms to the user (`zkm query --show-expansion`) for transparency and debugging — `--show-expansion` flag on both `zkm search` and `zkm query`; keywords + hyp_text plumbed through `SearchTrace`; 3 new tests (206 passing) — 2026-05-07
 - [ ] Doc chunking for long emails/threads (current: first 2000 chars per doc, single embedding)
