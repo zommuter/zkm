@@ -54,7 +54,7 @@ Pre-flight sessions (9a–9d) must land before any plugin session starts.
 
 - [x] **Reorg**: `mv ~/src/zkm-{eml,pdf,photo,scan} ~/src/zkm/plugins/`; deleted dangling symlinks `plugins/zkm-zkm-{eml,photo}`; fievel: `mkdir ~/src/zkm-plugins && mv ~/src/zkm-{eml,photo}.git ~/src/zkm-plugins/` + `git init --bare` for pdf + scan; updated local remote URLs; pushed to verify. 285 tests passing — completed 2026-05-08
 - [x] **`add_plugin()` double-prefix** (`src/zkm/convert.py:119`): use `dir_name = name if name.startswith("zkm-") else f"zkm-{name}"`. Covered by `test_add_local_plugin_zkm_prefixed_name` (24 plugin tests passing) — 2026-05-08
-- [ ] **`add_plugin()` self-link guard** (`src/zkm/convert.py:119`): when the resolved source path is already inside `plugins_dir()`, return a friendly "already installed in place" message instead of creating a symlink. Contract: `zkm plugin add ./plugins/zkm-eml` prints "Plugin 'zkm-eml' is already in the plugins directory" and exits 0 without creating `plugins/zkm-zkm-eml → ./plugins/zkm-eml`.
+- [x] **`add_plugin()` self-link guard** (`src/zkm/convert.py:119`): check `src_path.parent == pdir.resolve()`; return manifest + print "already in the plugins directory"; no symlink created. Covered by `test_add_self_link_guard` (25 plugin tests passing) — 2026-05-08
 
 ## Phase 2 session 8 — doc chunking (core)
 

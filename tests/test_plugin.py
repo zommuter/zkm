@@ -83,6 +83,19 @@ def test_add_local_plugin_zkm_prefixed_name(isolated_plugins: Path, tmp_path: Pa
     assert not (isolated_plugins / "zkm-zkm-eml").exists()
 
 
+def test_add_self_link_guard(isolated_plugins: Path, capsys: pytest.CaptureFixture) -> None:
+    """Plugin already inside plugins_dir must not create a self-referencing symlink."""
+    src = isolated_plugins / "zkm-eml"
+    src.mkdir()
+    (src / "plugin.yaml").write_text("name: zkm-eml\nversion: 0.1.0\ncreates_dirs: []\n")
+    (src / "convert.py").write_text("def convert(store_path, config, *, progress=None): return []\n")
+    plugin = add_plugin(str(src))
+    assert plugin.name == "zkm-eml"
+    assert not (isolated_plugins / "zkm-zkm-eml").exists()
+    out = capsys.readouterr().out
+    assert "already in the plugins directory" in out
+
+
 def test_add_duplicate_raises(isolated_plugins: Path, notes_plugin_dir: Path) -> None:
     add_plugin(str(notes_plugin_dir))
     with pytest.raises(FileExistsError):

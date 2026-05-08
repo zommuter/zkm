@@ -118,6 +118,11 @@ def add_plugin(source: str) -> Plugin:
         name = yaml.safe_load(manifest.read_text())["name"]
         dir_name = name if name.startswith("zkm-") else f"zkm-{name}"
         dest = pdir / dir_name
+        # Already in place — dev plugin repo nested inside plugins_dir()
+        if src_path.parent == pdir.resolve():
+            plugin = load_plugin_manifest(src_path)
+            print(f"Plugin '{plugin.name}' is already in the plugins directory")
+            return plugin
         if dest.exists() or dest.is_symlink():
             raise FileExistsError(f"Plugin '{name}' already installed at {dest}")
         dest.symlink_to(src_path, target_is_directory=True)
