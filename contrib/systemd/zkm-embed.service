@@ -1,0 +1,17 @@
+[Unit]
+Description=zkm dense embedding + doctor
+# Run after the local network is up so the embed endpoint is reachable
+After=network.target
+
+[Service]
+Type=oneshot
+# Default store path — override via a drop-in if your store is elsewhere:
+#   systemctl --user edit zkm-embed.service
+#   [Service]
+#   Environment=ZKM_STORE=/path/to/store
+Environment=ZKM_STORE=%h/knowledge
+ExecStart=%h/.local/bin/zkm embed
+ExecStart=%h/.local/bin/zkm doctor
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=zkm-embed

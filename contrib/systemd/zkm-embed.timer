@@ -1,0 +1,11 @@
+[Unit]
+Description=Run zkm embed + doctor every 30 minutes
+
+[Timer]
+# Fire every 30 minutes, on the hour and half-hour
+OnCalendar=*:0/30
+# If the system was off at a scheduled time, run once on next boot
+Persistent=true
+
+[Install]
+WantedBy=timers.target

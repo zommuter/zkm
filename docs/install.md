@@ -31,6 +31,47 @@ Do not set `ZKM_BYPASS_DIRTY_CHECK` in your shell profile. It is an explicit opt
 escape hatch, not a default. Non-editable installs (`uv tool install` without
 `--editable`) skip the guard automatically because there is no `.git/` ancestor to check.
 
+## Periodic embed + doctor timer
+
+`zkm embed` runs dense embeddings (GPU-bound, slower) and `zkm doctor` checks
+store health. These are too slow for the mbsync post-commit path; run them on a
+30-minute systemd timer instead.
+
+Install the user units from `contrib/systemd/`:
+
+```bash
+mkdir -p ~/.config/systemd/user
+cp ~/src/zkm/contrib/systemd/zkm-embed.{service,timer} ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now zkm-embed.timer
+```
+
+Verify the timer is active:
+
+```bash
+systemctl --user list-timers zkm-embed.timer
+```
+
+If your store is not at `~/knowledge`, add a drop-in override:
+
+```bash
+systemctl --user edit zkm-embed.service
+# Add under [Service]:
+# Environment=ZKM_STORE=/path/to/store
+```
+
+Logs are queryable via journald:
+
+```bash
+journalctl --user -t zkm-embed -n 50
+```
+
+To run immediately (outside the timer schedule):
+
+```bash
+systemctl --user start zkm-embed.service
+```
+
 ## mbsync auto-trigger
 
 After installing, follow the hook setup in `plugins/zkm-eml/README.md` to wire up
