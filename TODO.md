@@ -127,8 +127,19 @@ Design note: these commands read `.zkm-config` to know the backend and dispatch 
 - [x] Hook live: `make install-hook` → symlink in `~/mail/.git/hooks/`; empty mail commit triggered convert (27 msgs) + index; journald confirms — verified by user on 2026-05-08
 - [x] Hook fix: `zkm index` → `zkm index --no-embed` — bare index was hitting GPU on every sync; embed belongs on separate timer (A5) — verified by user on 2026-05-08
 - [ ] A5 (deferred): separate systemd timer for `zkm embed` + `zkm doctor`.
-- [ ] `zkm index` / embed: handle `SIGUSR1` to emit current progress (docs embedded / total) to stderr — allows `kill -USR1 <pid>` progress query without a CLI invocation, consistent with dd/rsync convention.
 - [ ] from 2026-06-05: review journald evidence for convert-overlap; decide on lock if observed.
+
+## Phase 2 — SIGUSR1 progress + `zkm status` (decided 2026-05-08-1913-sigusr1-status.md)
+
+Scope: `convert` and `index` (BM25 + embed phases) only. `query`, `clone`, `push`, `pull` explicitly out. Daemon/supervisor model deferred (N<2 background callers). Host-wide multi-store registry, historical run log, `--kill`, `--watch`, live-tail all deferred.
+
+- [ ] **S1.** `src/zkm/runstate.py` (new): `RunSession` context manager — PID file lifecycle (`<store>/.zkm-state/running/<pid>.json`, atomic write via tmp+rename) + SIGUSR1 handler (forces immediate file write + dd-style stderr line). Fibonacci backoff via `_should_write(count)` helper. Schema: `{command, pid, started_at, args, phase, current, total, message, last_updated}`. Tests: PID create/unlink, SIGUSR1 forces write, stderr line emitted, fibonacci spacing, atomic write, exception-path cleanup. (`src/zkm/runstate.py` + `tests/test_runstate.py`)
+- [ ] **S2.** Wire `RunSession` into `cmd_convert` (`src/zkm/cli.py:386`). PID file appears at start, updated via `RunSession.tick()` alongside tqdm, unlinked on exit (success, error, or signal).
+- [ ] **S3.** Wire `RunSession` into `cmd_index` (`src/zkm/cli.py:526`). Single session spans BM25 + embed phases; `phase` field flips `"bm25"` → `"embed"`. Iteration points: `index.py:187`, `:213`; `embed.py:270`. With `--no-embed`, stays in `"bm25"` phase only. Tests cover phase transitions and `--no-embed`.
+- [ ] **S4.** New `cmd_status` subcommand (`src/zkm/cli.py`). Lists `<store>/.zkm-state/running/*.json`, drops stale PIDs (with stderr notice), sends SIGUSR1 to live ones, sleeps 50ms, re-reads, prints human table (`pid`, `command`, `phase`, `started_at`, `progress`, `message`). `--json` flag emits JSON array. Empty store prints "no running zkm processes". Tests: alive vs dead mock PIDs, JSON shape, table layout, signal path.
+- [ ] **S5.** Update `docs/plugin-spec.md` cancellation section: SIGUSR1 is reserved by core for progress reporting; plugins must not install their own SIGUSR1 handler.
+- [ ] **S6.** Update `TODO.md` after S1–S4 land: add a verification checklist entry referencing the end-to-end check in the meeting note.
+- [ ] **S7+S8.** Update `docs/meeting-notes/meeting-style.md` "Past meetings" index with all meetings since repo-reorg (mbsync-hook + this one). Orphan from prior meeting list.
 
 ## Encoding / text quality (backlog)
 
