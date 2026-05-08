@@ -75,6 +75,7 @@ def convert(store_path: Path, config: dict, *, progress: ProgressCallback | None
     - Set `processor:` to this plugin's name and `processor_version:` to its semver
     - Place binary originals in store_path/originals/ with git-lfs-friendly extensions
     - Be idempotent: re-running should not duplicate existing entries (use sha256 dedup)
+    - Be a **no-op on inbox items it does not own**: when scanning `inbox/`, the plugin MUST only process items whose `.origin.json` sidecar lists this plugin's name in `producers[]` (or items the plugin produced itself by walking its own source). Running a plugin against an inbox containing only foreign items MUST return `[]` and exit 0.
     - Create its declared dirs if they don't exist
     - Accept a `progress` keyword argument and call it once per processed item when non-None
 
@@ -165,6 +166,49 @@ The `original` field is optional for sources without binary originals (e.g. a ge
 
 For plugins that handle conversations (email, chat, SMS), see [docs/messaging-spec.md](messaging-spec.md) for additional required fields (`message_id`, `thread_id`, `in_reply_to`, etc.).
 
+## Frontmatter amendments
+
+The md *body* is single-writer — the producing plugin owns it and must not be modified by other plugins. The md *frontmatter*, however, is multi-writer: source plugins write initial placeholder values (`tags: []`, `entities: []`) and *amender* plugins extend those values by emitting amendment records. The merge engine (`zkm.amendments`, landing in Session 10) reads the amendment queue and merges records into frontmatter atomically. This mirrors the multi-producer pattern of `.origin.json` sidecars but operates on md frontmatter instead of CAS objects.
+
+### Per-field merge rules
+
+| Field | Merge rule |
+|-------|------------|
+| `tags` | Set-union (deduplicate, sort) |
+| `entities` | Set-union with role-tagged dedup (key: `(name, role)`) |
+| Scalars | Last-write-wins; `emitted_by` attribution recorded in `.amendments.json` sidecar |
+| Structured lists | Require an explicit merge key declared by the amender (e.g. `participants` keyed on `address`) |
+
+### Amendment record schema
+
+```json
+{
+  "schema": 1,
+  "key": {"message_id": "<abc123@example.com>"},
+  "fields": {"tags": ["bill"]},
+  "emitted_by": "zkm-notmuch",
+  "emitted_at": "2026-05-08T14:30:00+02:00"
+}
+```
+
+Key resolution order: `message_id` → `sha256` → relative `path`. The first present key in the record is used. Amenders SHOULD prefer `message_id` for messaging plugins and `sha256` for all other sources.
+
+### Queue-if-md-missing
+
+If an amendment's key resolves to no md file (e.g. `zkm-notmuch` ran before `zkm-eml`), the record is held in the amendments queue and replayed on the next `zkm convert <amender>` or `zkm reconcile`. Records are never silently dropped.
+
+### Attribution sidecar
+
+Each amended md gets a per-md sidecar at `<md-path>.amendments.json`:
+
+```json
+{"schema": 1, "applied": [<record>, ...]}
+```
+
+This lists every amendment record merged into the md, in application order.
+
+Round-trip test contract (implementation in Session 10): `zkm-eml` writes `tags: []`; a `zkm-notmuch` amendment with `tags: [bill]` is applied; merged md shows `tags: [bill]`; `<md>.amendments.json` contains the record with `emitted_at`.
+
 ## Inbox handoff and origin sidecar
 
 Plugins that produce binary attachments (e.g. `zkm-eml`, `zkm-whatsapp`) place them in `inbox/<subdir>/YYYY/MM/` as symlinks into `store_path/mail/_objects/<aa>/<rest>` (or an equivalent CAS store). This lets downstream plugins (`zkm-pdf`, `zkm-photo`) pick them up without re-fetching.
@@ -214,6 +258,10 @@ Invariants:
 ### Core helpers (Phase 2+)
 
 Once `zkm.sidecar`, `zkm.cas`, `zkm.inbox`, `zkm.atomic`, and `zkm.hashing` land in core, plugins SHOULD import from these rather than re-implementing the protocol. See `docs/object-storage.md` for the full API and rationale. Direct file-writing is still permitted but treated as legacy once the library is available.
+
+### Unowned items
+
+The inbox is a shared zone — multiple producer plugins may deposit items there, and multiple consumer plugins may read from it. A plugin MUST NOT process, rewrite, or delete inbox items it did not produce. Ownership is determined by the `.origin.json` sidecar: an item belongs to plugin `X` if `X` appears in `producers[].plugin`. Plugins that scan `inbox/` for downstream processing (e.g. `zkm-pdf` picking up attachments) MUST check the sidecar and skip items not produced by a plugin they are designed to consume. This prevents `zkm-photo` from accidentally re-processing a PDF that `zkm-eml` deposited for `zkm-pdf`.
 
 ## Secret management
 
