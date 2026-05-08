@@ -127,6 +127,7 @@ Design note: these commands read `.zkm-config` to know the backend and dispatch 
 - [x] Hook live: `make install-hook` → symlink in `~/mail/.git/hooks/`; empty mail commit triggered convert (27 msgs) + index; journald confirms — verified by user on 2026-05-08
 - [x] Hook fix: `zkm index` → `zkm index --no-embed` — bare index was hitting GPU on every sync; embed belongs on separate timer (A5) — verified by user on 2026-05-08
 - [ ] A5 (deferred): separate systemd timer for `zkm embed` + `zkm doctor`.
+- [ ] `zkm index` / embed: handle `SIGUSR1` to emit current progress (docs embedded / total) to stderr — allows `kill -USR1 <pid>` progress query without a CLI invocation, consistent with dd/rsync convention.
 - [ ] from 2026-06-05: review journald evidence for convert-overlap; decide on lock if observed.
 
 ## Encoding / text quality (backlog)
