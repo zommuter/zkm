@@ -108,6 +108,18 @@ sha256: abc123...
 - Minimize dependencies: stdlib > small lib > framework. No LangChain.
 - Locale-aware formatting where needed (de_CH default)
 
+## Versioning
+
+Follows the global bump-and-tag + loose-0.x rule (see `~/.claude/CLAUDE.md`).
+
+Repos in this polyrepo:
+- `~/src/zkm/` — core (currently `0.2.0`); tag `vX.Y.Z` here
+- `plugins/zkm-eml/` — currently `0.6.0`; own git repo, own `vX.Y.Z` tags
+- `plugins/zkm-photo/`, `zkm-pdf/`, `zkm-scan/`, `zkm-notmuch/` — currently `0.1.0` each; own repos
+- `examples/zkm-notes/` — not independently versioned; follows core tags
+
+**Bump trigger:** every pyproject `version` change → tag in same commit. Never bump silently.
+
 ## Phases
 
 ### Phase 1: MVP

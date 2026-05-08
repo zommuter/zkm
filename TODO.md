@@ -159,6 +159,17 @@ Scope: `convert` and `index` (BM25 + embed phases) only. `query`, `clone`, `push
 - [x] **Text file encoding issues — implementation** — refactored `_decode_part` and `_decode_header_str` in `plugins/zkm-eml/src/zkm_eml/parse.py`; added `charset-normalizer` detection + `ftfy` mojibake repair; 6 new fixtures + 6 tests; 21 zkm-eml + 315 core tests passing — 2026-05-08
 - [x] **Text file encoding issues — live reprocess** — 29 mojibake messages corrected; grep count confirmed 0; embed running via systemd timer — verified by user on 2026-05-08
 
+## Versioning — retroactive tags (decided 2026-05-08-2318-tagging-cadence.md)
+
+Convention: bump-and-tag + loose-0.x + plain `vX.Y.Z` per repo. See `CLAUDE.md` "Versioning".
+
+- [x] `plugins/zkm-eml/`: tagged `9d06d1a` as `v0.1.0`; HEAD (`daf9ab4`) as `v0.6.0`. Pushed to fievel — 2026-05-08
+- [x] `plugins/zkm-photo/`: tagged HEAD as `v0.1.0`. Pushed to fievel — 2026-05-08
+- [x] `plugins/zkm-pdf/`: tagged HEAD as `v0.1.0`. Pushed to fievel — 2026-05-08
+- [x] `plugins/zkm-scan/`: tagged HEAD as `v0.1.0`. Pushed to fievel — 2026-05-08
+- [ ] `plugins/zkm-notmuch/`: tag HEAD as `v0.1.0`. No fievel remote yet — add remote first.
+- [ ] Backfill `zkm>=X,<Y` requires-clauses in all plugin pyprojects (loose coupling). Separate session.
+
 ## Plugin dependency loading (backlog)
 
 - [ ] **Plugin-specific deps when loaded via importlib** — when `zkm convert` loads a plugin via `importlib.util.spec_from_file_location` into the main process, the plugin runs in the main zkm venv which lacks plugin-only deps (e.g. `ftfy`, `charset-normalizer` in zkm-eml). Current workaround: `convert.py` injects `.venv/lib/python*/site-packages` into `sys.path` at import time. Explore proper solutions: (a) subprocess isolation per plugin, (b) uv-run-in-plugin-venv wrapper, (c) declare plugin deps as optional extras in core and install them together. Warrants a scoping meeting before changing the plugin loading model.

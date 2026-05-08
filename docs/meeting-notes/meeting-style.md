@@ -14,3 +14,4 @@ This file contains only zkm-specific augmentations, appended to the global forma
 - [2026-05-08 — SIGUSR1 progress + zkm status](2026-05-08-1913-sigusr1-status.md) — PID-file model in .zkm-state/running/; fibonacci auto-writes; SIGUSR1 dual channel (file + stderr); zkm status survey command
 - [2026-05-08 — Encoding audit](2026-05-08-2101-encoding-audit.md) — charset-normalizer detection + ftfy mojibake repair in zkm-eml; plugin dep loading workaround; uv.sources path fix
 - [2026-05-08 — Privacy audit](2026-05-08-2254-privacy-audit.md) — full GitHub repo scan; repo clean; claude.ai URL in 5d8646c accepted as residual risk; no remediation needed
+- [2026-05-08 — Tagging cadence](2026-05-08-2318-tagging-cadence.md) — bump-and-tag rule; loose-0.x; 6 retroactive tags; plain vX.Y.Z per repo; coupling deferred
