@@ -125,6 +125,7 @@ Design note: these commands read `.zkm-config` to know the backend and dispatch 
 - [x] A3 fix: renamed `MAIL` → `MAIL_REPO` in Makefile — `$MAIL` is a standard Unix env var inherited by make, overriding `?=` default — verified by user on 2026-05-08
 - [x] Python 3.14 pin: added `.python-version`, bumped `requires-python = ">=3.14"` — `uv tool install` was defaulting to 3.11 (requires-python floor) causing needless re-downloads — verified by user on 2026-05-08
 - [x] Hook live: `make install-hook` → symlink in `~/mail/.git/hooks/`; empty mail commit triggered convert (27 msgs) + index; journald confirms — verified by user on 2026-05-08
+- [x] Hook fix: `zkm index` → `zkm index --no-embed` — bare index was hitting GPU on every sync; embed belongs on separate timer (A5) — verified by user on 2026-05-08
 - [ ] A5 (deferred): separate systemd timer for `zkm embed` + `zkm doctor`.
 - [ ] from 2026-06-05: review journald evidence for convert-overlap; decide on lock if observed.
 
