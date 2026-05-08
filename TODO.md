@@ -157,7 +157,7 @@ Scope: `convert` and `index` (BM25 + embed phases) only. `query`, `clone`, `push
 ## Encoding / text quality (backlog)
 
 - [x] **Text file encoding issues — implementation** — refactored `_decode_part` and `_decode_header_str` in `plugins/zkm-eml/src/zkm_eml/parse.py`; added `charset-normalizer` detection + `ftfy` mojibake repair; 6 new fixtures + 6 tests; 21 zkm-eml + 315 core tests passing — 2026-05-08
-- [ ] **Text file encoding issues — live reprocess** — run `ZKM_BYPASS_DIRTY_CHECK=1 ZKM_STORE=~/knowledge zkm convert zkm-eml --reprocess-all` to fix 29 known mojibake messages in ~/knowledge; then `zkm index` to refresh BM25; verify mojibake grep count drops to 0.
+- [x] **Text file encoding issues — live reprocess** — 29 mojibake messages corrected; grep count confirmed 0; embed running via systemd timer — verified by user on 2026-05-08
 
 ## Plugin dependency loading (backlog)
 
