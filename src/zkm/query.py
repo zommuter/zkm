@@ -27,6 +27,7 @@ _DEFAULT_MAX_DOC_CHARS = 500  # ~125 tokens; fits 20 docs inside an 8k-token con
 _SNIPPET_WINDOW = 240
 _DENSE_POOL_MULT = 20      # WHY: 3× saturates on corpora with large literal-match clusters
 _DENSE_POOL_FLOOR = 200    # minimum to clear typical literal-match cluster
+_CHUNK_OVERSAMPLE = 3      # extra topk rows to fetch per pool slot to account for chunk multiplicity
 
 
 @dataclass
@@ -281,11 +282,20 @@ def _dense_search(
     if norm > 0:
         q_vec = q_vec / norm
 
-    results = es.topk(q_vec, min(pool, len(es.paths)))
+    # Fetch extra rows to account for chunk multiplicity per document
+    pool_rows = min(pool * _CHUNK_OVERSAMPLE, len(es.paths))
+    results = es.topk(q_vec, pool_rows)
 
-    hits: list[Hit] = []
+    # Aggregate to file-level: keep max score per unique path
+    best_per_path: dict[str, float] = {}
     for row_idx, score in results:
         rel_path = es.paths[row_idx]
+        if rel_path not in best_per_path or score > best_per_path[rel_path]:
+            best_per_path[rel_path] = score
+    ranked = sorted(best_per_path.items(), key=lambda kv: kv[1], reverse=True)
+
+    hits: list[Hit] = []
+    for rel_path, score in ranked:
         doc_meta: dict = {}
         try:
             post = frontmatter.load(store / rel_path)

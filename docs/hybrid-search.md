@@ -45,6 +45,8 @@ Default `k = 60`. Dense hits and BM25-RRF hits are treated as two input lists.
 | `ZKM_EMBED_ENDPOINT` | *(empty — dense disabled)* | Base URL of an OpenAI-compatible `/v1/embeddings` server |
 | `ZKM_EMBED_MODEL` | `bge-m3` | Embedding model name |
 | `ZKM_EMBED_KEY` | *(empty)* | Bearer token (leave empty for local servers) |
+| `ZKM_EMBED_CHUNK_CHARS` | `2000` | Char-window size for chunking long documents |
+| `ZKM_EMBED_CHUNK_OVERLAP` | `200` | Overlap between consecutive chunk windows |
 
 Same lookup order as LLM config: CLI override → env var → `$ZKM_STORE/.env` → default.
 
@@ -82,9 +84,9 @@ zkm index                   # BM25 + embeddings (if ZKM_EMBED_ENDPOINT set)
 zkm index --no-embed        # BM25 only, skip embedding pass
 ```
 
-The embedding index is stored at `$ZKM_STORE/.zkm-index/embeddings.npz` (compressed NumPy) and `embeddings-meta.json`. It is incremental: unchanged docs (same mtime) reuse their cached vectors.
+The embedding index is stored at `$ZKM_STORE/.zkm-index/embeddings.npz` (compressed NumPy) and `embeddings-meta.json`. It is incremental: unchanged docs (same mtime) reuse all their cached chunk vectors.
 
-When the `ZKM_EMBED_MODEL` changes, the cache is discarded and all docs are re-embedded.
+When the `ZKM_EMBED_MODEL` changes, or when the schema version is bumped (e.g. after a chunker upgrade), the cache is discarded and all docs are re-embedded.
 
 ## Querying
 
@@ -110,7 +112,7 @@ No flag is needed to enable degradation; it is automatic.
 $ZKM_STORE/.zkm-index/
 ├── bm25.pkl               # BM25 index (existing)
 ├── embeddings.npz         # Dense vectors (float32, L2-normalized, compressed)
-└── embeddings-meta.json   # Model name, dim, n_docs, built_at
+└── embeddings-meta.json   # Model name, dim, n_docs, schema_version, built_at
 ```
 
 Both files are gitignored (`.zkm-index/` is already in `.gitignore`).
@@ -122,8 +124,24 @@ Both files are gitignored (`.zkm-index/` is already in `.gitignore`).
 - **`src/zkm/index.py`** — `build_index` unchanged; `cmd_index` in `cli.py` calls `build_embed_store` after BM25
 - No torch, no sentence-transformers, no local GPU required — embedding is a remote HTTP call
 
+## Chunk aggregation (session 8)
+
+Long documents are split into overlapping char-window chunks before embedding.
+Each chunk produces one row in the `EmbedStore`; the BM25 index is unchanged (still whole-file).
+
+At query time, `_dense_search` fetches extra topk rows (`pool × _CHUNK_OVERSAMPLE`), then collapses to file-level by keeping the **max score per path** before passing hits to RRF. BM25 and RRF operate on files, not chunks — CLI snippets and LLM context are also file-level.
+
+| Env var | Default | Description |
+|---|---|---|
+| `ZKM_EMBED_CHUNK_CHARS` | `2000` | Window size in characters |
+| `ZKM_EMBED_CHUNK_OVERLAP` | `200` | Overlap between consecutive windows |
+| `ZKM_EMBED_MAX_CHARS` | *(deprecated)* | Old single-truncation cap; emits a deprecation warning and sets chunk size |
+
+A 20 kB email thread produces ~10 chunks. Embed index runs are slower on first build but subsequent incremental runs are unaffected (mtime cache skips unchanged docs including all their chunks).
+
+The schema version in `embeddings-meta.json` is bumped when the chunker changes. On version mismatch, `load_embed_store` returns `None` and `zkm index` performs a full rebuild automatically.
+
 ## Phase 2 next steps
 
-- Doc chunking for long emails/threads (current: first 2000 chars per doc)
 - Multi-vector search (bge-m3 supports sparse + dense + multi-vector colbert mode)
-- Embedding the hypothetical paragraph generated during query expansion (already wired in `search_with_expansion`)
+- Per-chunk LLM context (passing the matching chunk, not the document head, to the answer LLM)

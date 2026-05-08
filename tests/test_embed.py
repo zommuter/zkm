@@ -12,6 +12,7 @@ import pytest
 from zkm.embed import (
     EmbedStore,
     EmbedUnavailable,
+    _chunk_texts,
     _embeddings_url,
     build_embed_store,
     embed_texts,
@@ -179,12 +180,6 @@ def test_topk_empty_store() -> None:
     assert es.topk(q, 5) == []
 
 
-def test_lookup() -> None:
-    es = _make_store(3, 4)
-    assert es.lookup("doc1.md") == 1
-    assert es.lookup("missing.md") is None
-
-
 # ---------------------------------------------------------------------------
 # save_embed_store / load_embed_store
 # ---------------------------------------------------------------------------
@@ -345,6 +340,215 @@ def test_build_embed_store_reembeds_on_model_change(tmp_path: Path) -> None:
         build_embed_store(
             store, docs, prev_es=es1, endpoint="http://localhost:8080",
             model="e5-large", api_key="",
+        )
+
+    assert call_count > 0
+
+
+# ---------------------------------------------------------------------------
+# _chunk_texts
+# ---------------------------------------------------------------------------
+
+
+def test_chunk_texts_short_doc_yields_single_chunk(tmp_path: Path) -> None:
+    store = tmp_path / "store"
+    init_store(store, backend="none")
+    doc = _make_doc(store, "notes/short.md", body="hello world", mtime_ns=1000)
+    chunks = _chunk_texts(store, doc)
+    assert len(chunks) == 1
+    assert "hello world" in chunks[0]
+
+
+def test_chunk_texts_long_doc_yields_multiple_with_overlap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ZKM_EMBED_CHUNK_CHARS", "2000")
+    monkeypatch.setenv("ZKM_EMBED_CHUNK_OVERLAP", "200")
+    store = tmp_path / "store"
+    init_store(store, backend="none")
+    body = "A" * 6000
+    doc = _make_doc(store, "notes/long.md", body=body, mtime_ns=1000)
+    chunks = _chunk_texts(store, doc)
+    # stride = 2000 - 200 = 1800; starts at 0, 1800, 3600, 5400 → 4 chunks
+    assert len(chunks) == 4
+    # Consecutive chunks share a 200-char suffix/prefix from the raw body
+    for i in range(len(chunks) - 1):
+        # The last 200 chars of chunk i's body window == first 200 chars of chunk i+1's body window
+        # Strip the header (no title/tags in this fixture) — chunks[i] == window text only
+        assert chunks[i][-200:] == chunks[i + 1][: len(chunks[i + 1]) - len(chunks[i + 1].lstrip("A"))][:200]
+
+
+def test_chunk_texts_long_doc_overlap_content(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Verify overlap by checking that the overlapping characters match between chunks."""
+    monkeypatch.setenv("ZKM_EMBED_CHUNK_CHARS", "100")
+    monkeypatch.setenv("ZKM_EMBED_CHUNK_OVERLAP", "20")
+    store = tmp_path / "store"
+    init_store(store, backend="none")
+    body = "X" * 300
+    doc = _make_doc(store, "notes/ol.md", body=body, mtime_ns=1000)
+    chunks = _chunk_texts(store, doc)
+    # stride = 80; starts at 0, 80, 160, 240 → 4 chunks
+    assert len(chunks) == 4
+    # Each chunk is entirely X's (no title/tags) — the last 20 of chunk[i] == first 20 of chunk[i+1]
+    for i in range(len(chunks) - 1):
+        assert chunks[i][-20:] == chunks[i + 1][:20]
+
+
+def test_chunk_texts_respects_env_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ZKM_EMBED_CHUNK_CHARS", "500")
+    monkeypatch.setenv("ZKM_EMBED_CHUNK_OVERLAP", "50")
+    store = tmp_path / "store"
+    init_store(store, backend="none")
+    body = "B" * 1200  # stride=450; starts at 0, 450, 900 → 3 chunks
+    doc = _make_doc(store, "notes/env.md", body=body, mtime_ns=1000)
+    chunks = _chunk_texts(store, doc)
+    assert len(chunks) == 3
+
+
+def test_chunk_texts_legacy_max_chars_deprecation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+) -> None:
+    monkeypatch.setenv("ZKM_EMBED_MAX_CHARS", "300")
+    monkeypatch.delenv("ZKM_EMBED_CHUNK_CHARS", raising=False)
+    store = tmp_path / "store"
+    init_store(store, backend="none")
+    body = "C" * 800  # stride = 300-200=100? No — legacy sets chunk_chars=300, overlap still default 200
+    # With chunk_chars=300, overlap=200, stride=100; body=800 → starts 0,100,200,...,700 → 8 chunks
+    # But we just care about the deprecation warning appearing
+    doc = _make_doc(store, "notes/legacy.md", body=body, mtime_ns=1000)
+    _chunk_texts(store, doc)
+    captured = capsys.readouterr()
+    assert "ZKM_EMBED_MAX_CHARS is deprecated" in captured.err
+
+
+# ---------------------------------------------------------------------------
+# EmbedStore schema versioning
+# ---------------------------------------------------------------------------
+
+
+def test_embed_store_round_trip_with_chunks(tmp_path: Path) -> None:
+    store = tmp_path / "store"
+    init_store(store, backend="none")
+    es = EmbedStore(
+        paths=["a.md", "a.md", "b.md"],
+        mtimes_ns=[1000, 1000, 2000],
+        vectors=np.eye(3, 4, dtype=np.float32),
+        model="bge-m3",
+        chunk_indices=[0, 1, 0],
+    )
+    save_embed_store(store, es)
+    loaded = load_embed_store(store)
+    assert loaded is not None
+    assert loaded.paths == es.paths
+    assert loaded.chunk_indices == [0, 1, 0]
+    assert loaded.mtimes_ns == es.mtimes_ns
+    np.testing.assert_allclose(loaded.vectors, es.vectors, atol=1e-6)
+
+
+def test_load_embed_store_rejects_old_schema_version(tmp_path: Path) -> None:
+    store = tmp_path / "store"
+    init_store(store, backend="none")
+    es = _make_store(2, 4)
+    save_embed_store(store, es)
+    # Overwrite meta with old schema version
+    meta_path = store / ".zkm-index/embeddings-meta.json"
+    meta = json.loads(meta_path.read_text())
+    meta["schema_version"] = 1
+    meta_path.write_text(json.dumps(meta))
+    assert load_embed_store(store) is None
+
+
+def test_load_embed_store_rejects_missing_schema_version(tmp_path: Path) -> None:
+    store = tmp_path / "store"
+    init_store(store, backend="none")
+    es = _make_store(2, 4)
+    save_embed_store(store, es)
+    meta_path = store / ".zkm-index/embeddings-meta.json"
+    meta = json.loads(meta_path.read_text())
+    del meta["schema_version"]
+    meta_path.write_text(json.dumps(meta))
+    assert load_embed_store(store) is None
+
+
+# ---------------------------------------------------------------------------
+# build_embed_store — chunk cache reuse and invalidation
+# ---------------------------------------------------------------------------
+
+
+def test_build_embed_store_reuses_chunks_on_unchanged_mtime(tmp_path: Path) -> None:
+    """All chunks for an unchanged doc are reused without a POST call."""
+    store = tmp_path / "store"
+    init_store(store, backend="none")
+    body = "W" * 5000  # produces 3 chunks with defaults
+    doc = _make_doc(store, "notes/long.md", body=body, mtime_ns=999)
+
+    call_count = 0
+
+    def fake_post(url, headers, json, timeout):  # noqa: A002
+        nonlocal call_count
+        n = len(json["input"])
+        call_count += 1
+        resp = MagicMock()
+        resp.json.return_value = _fake_embed_response(n, 4)
+        resp.raise_for_status = MagicMock()
+        return resp
+
+    with patch("httpx.post", side_effect=fake_post):
+        es1 = build_embed_store(
+            store, [doc], prev_es=None, endpoint="http://localhost:8080",
+            model="bge-m3", api_key="",
+        )
+
+    # 3 chunks produced
+    assert es1.paths.count("notes/long.md") == 3
+
+    call_count = 0
+    with patch("httpx.post", side_effect=fake_post):
+        es2 = build_embed_store(
+            store, [doc], prev_es=es1, endpoint="http://localhost:8080",
+            model="bge-m3", api_key="",
+        )
+
+    assert call_count == 0
+    assert es2.paths.count("notes/long.md") == 3
+    np.testing.assert_allclose(es1.vectors, es2.vectors)
+
+
+def test_build_embed_store_rechunks_on_mtime_change(tmp_path: Path) -> None:
+    """Changing mtime causes all chunks for the doc to be re-embedded."""
+    store = tmp_path / "store"
+    init_store(store, backend="none")
+    doc = _make_doc(store, "notes/doc.md", body="hello world", mtime_ns=100)
+
+    call_count = 0
+
+    def fake_post(url, headers, json, timeout):  # noqa: A002
+        nonlocal call_count
+        n = len(json["input"])
+        call_count += 1
+        resp = MagicMock()
+        resp.json.return_value = _fake_embed_response(n, 4)
+        resp.raise_for_status = MagicMock()
+        return resp
+
+    with patch("httpx.post", side_effect=fake_post):
+        es1 = build_embed_store(
+            store, [doc], prev_es=None, endpoint="http://localhost:8080",
+            model="bge-m3", api_key="",
+        )
+
+    call_count = 0
+    doc_changed = Doc(
+        rel_path="notes/doc.md", mtime_ns=999, metadata={}, tokens=["hello", "world"]
+    )
+    with patch("httpx.post", side_effect=fake_post):
+        build_embed_store(
+            store, [doc_changed], prev_es=es1, endpoint="http://localhost:8080",
+            model="bge-m3", api_key="",
         )
 
     assert call_count > 0

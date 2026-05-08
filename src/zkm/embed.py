@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -22,10 +23,12 @@ _DEFAULT_MODEL = "bge-m3"
 _EMBED_BATCH = 32
 # ~335 tokens worst-case (dense German subwords ~6 chars/tok → ~2000/6=333 tok).
 # Requires --ubatch-size >= 512 on the llama-server side (default is 512, raise to 2048+
-# for headroom). Override with ZKM_EMBED_MAX_CHARS env var.
-_DEFAULT_EMBED_MAX_CHARS = 2000
+# for headroom). Override with ZKM_EMBED_CHUNK_CHARS env var.
+_DEFAULT_CHUNK_CHARS = 2000
+_DEFAULT_CHUNK_OVERLAP = 200
 _NPZ_FILE = ".zkm-index/embeddings.npz"
 _META_FILE = ".zkm-index/embeddings-meta.json"
+_STORE_SCHEMA_VERSION = 2
 
 
 class EmbedUnavailable(Exception):
@@ -111,16 +114,21 @@ def embed_texts(
 
 @dataclass
 class EmbedStore:
-    """In-memory embedding matrix with path→row index for fast lookup."""
+    """In-memory embedding matrix with one row per (path, chunk_index) pair."""
 
     paths: list[str]
     mtimes_ns: list[int]
     vectors: np.ndarray  # float32 (N, D), L2-normalized
     model: str = _DEFAULT_MODEL
-    _path_index: dict[str, int] = field(default_factory=dict, init=False, repr=False)
+    chunk_indices: list[int] = field(default_factory=list)
+    _path_to_rows: dict[str, list[int]] = field(default_factory=dict, init=False, repr=False)
 
     def __post_init__(self) -> None:
-        self._path_index = {p: i for i, p in enumerate(self.paths)}
+        if not self.chunk_indices:
+            self.chunk_indices = [0] * len(self.paths)
+        self._path_to_rows = {}
+        for i, p in enumerate(self.paths):
+            self._path_to_rows.setdefault(p, []).append(i)
 
     def topk(self, query_vec: np.ndarray, k: int) -> list[tuple[int, float]]:
         """Return up to k (row_index, score) pairs, descending cosine similarity."""
@@ -131,9 +139,6 @@ class EmbedStore:
         top_idx = np.argpartition(scores, -k)[-k:]
         top_idx = top_idx[np.argsort(scores[top_idx])[::-1]]
         return [(int(i), float(scores[i])) for i in top_idx]
-
-    def lookup(self, rel_path: str) -> int | None:
-        return self._path_index.get(rel_path)
 
 
 def save_embed_store(store: Path, es: EmbedStore) -> None:
@@ -148,6 +153,7 @@ def save_embed_store(store: Path, es: EmbedStore) -> None:
             f,
             paths=np.array(es.paths, dtype=object),
             mtimes_ns=np.array(es.mtimes_ns, dtype=np.int64),
+            chunk_indices=np.array(es.chunk_indices, dtype=np.int32),
             vectors=es.vectors,
         )
     os.replace(npz_tmp, npz_path)
@@ -156,7 +162,8 @@ def save_embed_store(store: Path, es: EmbedStore) -> None:
         "model": es.model,
         "dim": int(es.vectors.shape[1]) if es.paths else 0,
         "built_at": datetime.now(tz=UTC).isoformat(),
-        "n_docs": len(es.paths),
+        "n_docs": len(set(es.paths)),
+        "schema_version": _STORE_SCHEMA_VERSION,
     }
     meta_path = store / _META_FILE
     meta_tmp = meta_path.with_name(meta_path.name + ".tmp")
@@ -170,13 +177,17 @@ def load_embed_store(store: Path) -> EmbedStore | None:
     if not npz_path.exists() or not meta_path.exists():
         return None
     try:
-        data = np.load(npz_path, allow_pickle=True)
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        if meta.get("schema_version") != _STORE_SCHEMA_VERSION:
+            return None
+        data = np.load(npz_path, allow_pickle=True)
+        chunk_indices = list(map(int, data["chunk_indices"].tolist()))
         return EmbedStore(
             paths=list(data["paths"]),
             mtimes_ns=list(map(int, data["mtimes_ns"].tolist())),
             vectors=data["vectors"].astype(np.float32),
             model=meta.get("model", _DEFAULT_MODEL),
+            chunk_indices=chunk_indices,
         )
     except Exception:
         return None
@@ -196,51 +207,75 @@ def build_embed_store(
 ) -> EmbedStore:
     """Build or incrementally update an EmbedStore for the given docs.
 
-    Reuses cached vectors for docs whose mtime_ns is unchanged and whose
+    Reuses all cached chunks for docs whose mtime_ns is unchanged and whose
     model matches. Saves a checkpoint to disk every checkpoint_every newly
-    embedded docs so that interrupted runs can resume without re-embedding.
+    embedded texts so that interrupted runs can resume without re-embedding.
     """
-    # Build lookup from previous store (None → empty)
-    prev_paths: dict[str, tuple[int, int]] = {}  # rel_path → (row, mtime_ns)
-    prev_vecs: dict[str, np.ndarray] = {}
+    # Group previous store by rel_path: {path: (mtime_ns, [(chunk_idx, vec), ...])}
+    prev_cached: dict[str, tuple[int, list[tuple[int, np.ndarray]]]] = {}
     if prev_es is not None and prev_es.model == model:
-        for idx, (p, m) in enumerate(zip(prev_es.paths, prev_es.mtimes_ns)):
-            prev_paths[p] = (idx, m)
-            prev_vecs[p] = prev_es.vectors[idx]
+        groups: dict[str, list[tuple[int, np.ndarray]]] = {}
+        prev_path_mtime: dict[str, int] = {}
+        for idx, (p, m, ci) in enumerate(
+            zip(prev_es.paths, prev_es.mtimes_ns, prev_es.chunk_indices)
+        ):
+            groups.setdefault(p, []).append((ci, prev_es.vectors[idx]))
+            prev_path_mtime[p] = m
+        for p, chunks in groups.items():
+            prev_cached[p] = (prev_path_mtime[p], chunks)
 
-    # Partition docs into cached vs. needing embedding
-    # acc_* grows through the loop — starts with already-cached vectors so
-    # checkpoints always include everything done so far.
+    # Partition docs into cached vs. needing embedding.
+    # acc_* grows through the loop — starts with cached vectors so checkpoints
+    # always include everything done so far.
     acc_paths: list[str] = []
     acc_mtimes: list[int] = []
+    acc_chunk_indices: list[int] = []
     acc_vecs: list[np.ndarray] = []
     new_docs: list = []
 
     for doc in docs:
-        prev = prev_paths.get(doc.rel_path)
-        if prev is not None and prev[1] == doc.mtime_ns:
-            acc_paths.append(doc.rel_path)
-            acc_mtimes.append(doc.mtime_ns)
-            acc_vecs.append(prev_vecs[doc.rel_path])
-        else:
-            new_docs.append(doc)
+        if doc.rel_path in prev_cached:
+            cached_mtime, cached_chunks = prev_cached[doc.rel_path]
+            if cached_mtime == doc.mtime_ns:
+                for ci, vec in sorted(cached_chunks, key=lambda x: x[0]):
+                    acc_paths.append(doc.rel_path)
+                    acc_mtimes.append(doc.mtime_ns)
+                    acc_chunk_indices.append(ci)
+                    acc_vecs.append(vec)
+                continue
+        new_docs.append(doc)
 
-    # Embed new/changed docs, checkpointing every checkpoint_every docs
+    # Embed new/changed docs
     if new_docs:
-        n = len(new_docs)
+        # Pre-compute chunks for all new docs to avoid double-reading files
+        new_doc_chunks = [(doc, _chunk_texts(store, doc)) for doc in new_docs]
+
+        # Flatten to one text per chunk, keeping (doc, chunk_idx) metadata
+        flat_texts: list[str] = []
+        flat_meta: list[tuple] = []  # (doc, chunk_idx)
+        for doc, chunks in new_doc_chunks:
+            for ci, text in enumerate(chunks):
+                flat_texts.append(text)
+                flat_meta.append((doc, ci))
+
+        n = len(flat_texts)
         if progress is not None:
             progress(0, n, "embedding…")
+
         url = _embeddings_url(endpoint)
         headers: dict[str, str] = {"Content-Type": "application/json"}
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
         done = 0
         for batch_start in range(0, n, _EMBED_BATCH):
-            batch_docs = new_docs[batch_start : batch_start + _EMBED_BATCH]
-            texts = [_embed_text(store, doc) for doc in batch_docs]
+            batch_texts = flat_texts[batch_start : batch_start + _EMBED_BATCH]
+            batch_meta = flat_meta[batch_start : batch_start + _EMBED_BATCH]
             try:
                 resp = httpx.post(
-                    url, headers=headers, json={"model": model, "input": texts}, timeout=timeout
+                    url,
+                    headers=headers,
+                    json={"model": model, "input": batch_texts},
+                    timeout=timeout,
                 )
                 resp.raise_for_status()
                 data = resp.json()["data"]
@@ -253,30 +288,33 @@ def build_embed_store(
                 raise
             except Exception as exc:
                 raise EmbedUnavailable(f"embed_texts failed: {exc}") from exc
-            for doc, vec in zip(batch_docs, batch_vecs):
+            for (doc, ci), vec in zip(batch_meta, batch_vecs):
                 acc_paths.append(doc.rel_path)
                 acc_mtimes.append(doc.mtime_ns)
+                acc_chunk_indices.append(ci)
                 acc_vecs.append(vec)
-            done += len(batch_docs)
+            done += len(batch_texts)
             if progress is not None:
-                progress(done, n, batch_docs[-1].rel_path.split("/")[-1])
+                progress(done, n, batch_meta[-1][0].rel_path.split("/")[-1])
             if checkpoint_every and done % checkpoint_every < _EMBED_BATCH:
-                _save_partial(store, acc_paths, acc_mtimes, acc_vecs, model)
+                _save_partial(store, acc_paths, acc_mtimes, acc_chunk_indices, acc_vecs, model)
 
-    # acc_* now contains everything (cached + newly embedded); reconstruct in doc order
-    path_to_vec: dict[str, tuple[int, np.ndarray]] = {
-        p: (m, v) for p, m, v in zip(acc_paths, acc_mtimes, acc_vecs)
-    }
+    # Reconstruct in doc order, with chunks sorted by chunk_index per path
+    path_chunks: dict[str, list[tuple[int, int, np.ndarray]]] = {}
+    for p, m, ci, v in zip(acc_paths, acc_mtimes, acc_chunk_indices, acc_vecs):
+        path_chunks.setdefault(p, []).append((m, ci, v))
 
     final_paths: list[str] = []
     final_mtimes: list[int] = []
+    final_chunk_indices: list[int] = []
     final_vecs: list[np.ndarray] = []
     for doc in docs:
-        if doc.rel_path in path_to_vec:
-            m, v = path_to_vec[doc.rel_path]
-            final_paths.append(doc.rel_path)
-            final_mtimes.append(m)
-            final_vecs.append(v)
+        if doc.rel_path in path_chunks:
+            for m, ci, v in sorted(path_chunks[doc.rel_path], key=lambda x: x[1]):
+                final_paths.append(doc.rel_path)
+                final_mtimes.append(m)
+                final_chunk_indices.append(ci)
+                final_vecs.append(v)
 
     if final_vecs:
         mat = np.stack(final_vecs, axis=0).astype(np.float32)
@@ -288,6 +326,7 @@ def build_embed_store(
         mtimes_ns=final_mtimes,
         vectors=mat,
         model=model,
+        chunk_indices=final_chunk_indices,
     )
 
 
@@ -295,6 +334,7 @@ def _save_partial(
     store: Path,
     paths: list[str],
     mtimes_ns: list[int],
+    chunk_indices: list[int],
     vecs: list[np.ndarray],
     model: str,
 ) -> None:
@@ -302,26 +342,57 @@ def _save_partial(
     if not vecs:
         return
     mat = np.stack(vecs, axis=0).astype(np.float32)
-    es = EmbedStore(paths=list(paths), mtimes_ns=list(mtimes_ns), vectors=mat, model=model)
+    es = EmbedStore(
+        paths=list(paths),
+        mtimes_ns=list(mtimes_ns),
+        vectors=mat,
+        model=model,
+        chunk_indices=list(chunk_indices),
+    )
     save_embed_store(store, es)
 
 
-def _embed_text(store: Path, doc) -> str:  # doc: Doc
-    """Build embed text: title + tags + first N chars of body.
+def _chunk_texts(store: Path, doc) -> list[str]:  # doc: Doc
+    """Produce one embed text per char-window chunk of the document body.
 
-    N defaults to _DEFAULT_EMBED_MAX_CHARS (~375 tokens); override with ZKM_EMBED_MAX_CHARS.
+    ZKM_EMBED_CHUNK_CHARS (default 2000) sets the window size.
+    ZKM_EMBED_CHUNK_OVERLAP (default 200) sets the overlap between consecutive chunks.
+    ZKM_EMBED_MAX_CHARS is a deprecated alias for ZKM_EMBED_CHUNK_CHARS.
     """
-    import os
+    chunk_chars = int(os.environ.get("ZKM_EMBED_CHUNK_CHARS", _DEFAULT_CHUNK_CHARS))
+    chunk_overlap = int(os.environ.get("ZKM_EMBED_CHUNK_OVERLAP", _DEFAULT_CHUNK_OVERLAP))
 
-    import frontmatter
+    if "ZKM_EMBED_MAX_CHARS" in os.environ:
+        print(
+            "ZKM_EMBED_MAX_CHARS is deprecated; use ZKM_EMBED_CHUNK_CHARS",
+            file=sys.stderr,
+        )
+        chunk_chars = int(os.environ["ZKM_EMBED_MAX_CHARS"])
 
-    max_chars = int(os.environ.get("ZKM_EMBED_MAX_CHARS", _DEFAULT_EMBED_MAX_CHARS))
     try:
+        import frontmatter
+
         post = frontmatter.load(store / doc.rel_path)
         title = str(post.metadata.get("title", ""))
         tags = post.metadata.get("tags", [])
         tag_str = " ".join(str(t) for t in tags) if tags else ""
-        body = post.content[:max_chars]
-        return "\n".join(p for p in [title, tag_str, body] if p)
+        body = post.content
     except Exception:
-        return " ".join(doc.tokens[:200])
+        return [" ".join(doc.tokens[:200])]
+
+    if not body:
+        text = "\n".join(p for p in [title, tag_str] if p)
+        return [text or " ".join(doc.tokens[:200])]
+
+    stride = max(1, chunk_chars - chunk_overlap)
+    chunks: list[str] = []
+    start = 0
+    while start < len(body):
+        window = body[start : start + chunk_chars]
+        text = "\n".join(p for p in [title, tag_str, window] if p)
+        chunks.append(text)
+        if start + chunk_chars >= len(body):
+            break
+        start += stride
+
+    return chunks or [" ".join(doc.tokens[:200])]

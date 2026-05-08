@@ -494,3 +494,98 @@ def test_zkm_search_expand_exits_2_when_expansion_fails(
 
     assert result.exit_code == 2
     assert "expansion failed" in (result.output + (result.stderr or ""))
+
+
+# ---------------------------------------------------------------------------
+# Chunking: long-document recall and max-per-path aggregation (session 8)
+# ---------------------------------------------------------------------------
+
+
+def test_dense_finds_content_past_first_chunk(
+    store: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Dense leg returns a doc whose matching content is only in a later chunk.
+
+    Before session 8, embed_text truncated to char 2000, so paragraph 3+ of a
+    long thread was invisible to the dense leg.  The fix: chunk the doc and
+    aggregate chunk scores back to file-level by max before RRF.
+    """
+    # Write and index a doc; body content before char 2000 is generic, the
+    # keyword only appears past char 2000 (simulated by the vector arrangement).
+    _write_and_index(store, [("mail/threads/long.md", "generic content\n" + "x " * 100)])
+
+    # Build an EmbedStore with 2 chunks for the doc.
+    # chunk 0 scores low against the query; chunk 1 scores high (simulating that
+    # the matching content lives in the second chunk window).
+    dim = 3
+    q_vec = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+    v_chunk0 = np.array([0.1, 0.995, 0.0], dtype=np.float32)   # low cos-sim with q_vec
+    v_chunk1 = np.array([0.95, 0.312, 0.0], dtype=np.float32)  # high cos-sim with q_vec
+
+    es = EmbedStore(
+        paths=["mail/threads/long.md", "mail/threads/long.md"],
+        mtimes_ns=[0, 0],
+        vectors=np.stack([v_chunk0, v_chunk1]).astype(np.float32),
+        model="bge-m3",
+        chunk_indices=[0, 1],
+    )
+    save_embed_store(store, es)
+
+    monkeypatch.setenv("ZKM_EMBED_ENDPOINT", "http://localhost:8080")
+    monkeypatch.setattr("zkm.query.embed_texts", lambda *a, **kw: q_vec.reshape(1, dim))
+
+    hits, trace = search_hybrid_traced(store, "generic content", top_k=5, dense=True)
+
+    assert trace.dense_hits > 0, "dense leg should find the doc via its high-scoring second chunk"
+    dense_paths = [h.path for h in hits]
+    assert "mail/threads/long.md" in dense_paths
+
+
+def test_dense_max_per_path_aggregation(
+    store: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """File-level max-score aggregation ranks a multi-chunk doc above a single-chunk competitor.
+
+    doc_a has 2 chunks with scores 0.9 and 0.5.
+    doc_b has 1 chunk with score 0.8.
+    After max-per-path aggregation doc_a (0.9) should outrank doc_b (0.8).
+    """
+    _write_and_index(
+        store,
+        [
+            ("notes/doc_a.md", "alpha content"),
+            ("notes/doc_b.md", "beta content"),
+        ],
+    )
+
+    dim = 3
+    q_vec = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+
+    # Vectors designed so cos-sim with q_vec equals v[0] (all are unit-norm, q = e_0).
+    v_a0 = np.array([0.9, 0.436, 0.0], dtype=np.float32)   # doc_a chunk 0, score ≈ 0.9
+    v_a1 = np.array([0.5, 0.866, 0.0], dtype=np.float32)   # doc_a chunk 1, score ≈ 0.5
+    v_b0 = np.array([0.8, 0.600, 0.0], dtype=np.float32)   # doc_b chunk 0, score ≈ 0.8
+
+    es = EmbedStore(
+        paths=["notes/doc_a.md", "notes/doc_a.md", "notes/doc_b.md"],
+        mtimes_ns=[0, 0, 0],
+        vectors=np.stack([v_a0, v_a1, v_b0]).astype(np.float32),
+        model="bge-m3",
+        chunk_indices=[0, 1, 0],
+    )
+    save_embed_store(store, es)
+
+    monkeypatch.setenv("ZKM_EMBED_ENDPOINT", "http://localhost:8080")
+    monkeypatch.setattr("zkm.query.embed_texts", lambda *a, **kw: q_vec.reshape(1, dim))
+
+    # Query that BM25 cannot resolve (not in either doc) so dense is the sole ranking signal.
+    hits, trace = search_hybrid_traced(store, "QQQXYZNOTININDEX", top_k=5, dense=True)
+
+    assert trace.dense_hits >= 2
+    dense_paths = [h.path for h in hits]
+    assert "notes/doc_a.md" in dense_paths
+    assert "notes/doc_b.md" in dense_paths
+    # doc_a must rank above doc_b in the final merged result
+    assert dense_paths.index("notes/doc_a.md") < dense_paths.index("notes/doc_b.md"), (
+        "doc_a (max chunk score 0.9) should outrank doc_b (score 0.8)"
+    )

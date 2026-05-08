@@ -192,3 +192,42 @@ print(c[:300])
 
 These are the concrete failures that drive decisions on doc chunking,
 expansion-model split, and RRF weight tuning (see TODO.md).
+
+## Step 6 — long-document recall (session 8 chunking validation)
+
+After running `zkm index` with the new char-window chunker, verify that dense retrieval
+finds content past the first 2000 chars of long documents.
+
+Find a known-long thread where the relevant content is not near the top:
+
+```bash
+# Identify a long md file (> 5 kB) in the store
+find $ZKM_STORE/mail/threads -name "*.md" -size +5k | head -5
+```
+
+For each candidate, confirm that a distinctive keyword appears only past char 2000:
+
+```bash
+python3 -c "
+import sys
+body = open('$ZKM_STORE/mail/threads/YOURFILE.md').read()
+kw = 'KEYWORD'
+idx = body.find(kw)
+print(f'{kw!r} at char {idx} (past 2000: {idx > 2000})')
+"
+```
+
+Then query with dense enabled and check the `SearchTrace`:
+
+```bash
+# With --show-expansion the trace is printed to stderr
+zkm search "KEYWORD" --show-expansion 2>&1 | head -10
+# Look for: dense_hits > 0
+
+# Compare with BM25-only to confirm the doc was already findable via BM25
+zkm search "KEYWORD" --no-dense -k 5
+```
+
+Expected: the long-thread file appears in hybrid results with `dense_hits > 0`.
+Before session 8, dense retrieval would see only the first 2000 chars of that file;
+the same query would show `dense_hits = 0` and the file would be a BM25-only hit.
