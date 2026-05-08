@@ -13,3 +13,4 @@ This file contains only zkm-specific augmentations, appended to the global forma
 - [2026-05-08 — mbsync auto-trigger](2026-05-08-mbsync-hook.md) — git post-commit hook in ~/mail/.git/hooks/ triggers zkm convert + index; dirty-tree guard in core; embed deferred to A5 systemd timer
 - [2026-05-08 — SIGUSR1 progress + zkm status](2026-05-08-1913-sigusr1-status.md) — PID-file model in .zkm-state/running/; fibonacci auto-writes; SIGUSR1 dual channel (file + stderr); zkm status survey command
 - [2026-05-08 — Encoding audit](2026-05-08-2101-encoding-audit.md) — charset-normalizer detection + ftfy mojibake repair in zkm-eml; plugin dep loading workaround; uv.sources path fix
+- [2026-05-08 — Privacy audit](2026-05-08-2254-privacy-audit.md) — full GitHub repo scan; repo clean; claude.ai URL in 5d8646c accepted as residual risk; no remediation needed
