@@ -32,6 +32,18 @@ Completed Phase 1 tasks archived in `docs/phase1-done.md`.
 - [x] **`zkm query` sources list is unordered** — numbered Sources block `[1] path…` matches LLM's inline `[N]` citations; system prompt updated to request `[N]` style consistently — covered by tests/test_query_recall.py on 2026-05-07
 - [ ] Doc chunking (any long .md, not just emails/threads) — see `docs/meeting-notes/2026-05-08-doc-chunking.md`; decision: core feature, embed-side char-window chunker, file-level RRF
 
+## Phase 2.5 — next plugins (decided 2026-05-08-next-plugins.md)
+
+Order: photo → pdf (text-only) → scan (OCR) → (scoping meeting) → whatsapp.
+WhatsApp requires three core additions before its own session; see session 13.
+
+- [ ] Session 9a (pre-flight): add "MUST be no-op on unowned inbox items" rule to `docs/plugin-spec.md` (~1 paragraph); contract: plugin run against foreign-only inbox returns `[]` exit 0
+- [ ] Session 9b (pre-flight): add paragraph to `docs/object-storage.md` confirming multi-producer-plugin sidecars are normal (e.g. photo + scan against same CAS object)
+- [ ] Session 10: `zkm-photo` repo (`~/src/zkm-photo/`) — EXIF → md, CAS binary, sidecar, inbox; uses only `zkm.atomic|cas|sidecar|inbox|hashing`; `creates_dirs: [photos, originals/photos]`; idempotent (second run → 0 new files)
+- [ ] Session 11: `zkm-pdf` (text-only) — emit md when text extraction ≥ N chars; silently skip scanned-only PDFs (leaves them for zkm-scan); test confirms skip
+- [ ] Session 12: `zkm-scan` (OCR, tesseract) — per-doc md; `progress` reporter; cancellable per plugin-spec cancellation contract
+- [ ] Session 13 (scoping, not implementation): meeting on zkm-whatsapp core gaps — (a) non-git source state / `zkm.state` helper, (b) per-store YAML config replacing long env-var lists, (c) stable-ID synthesis contract; deliverable: `docs/meeting-notes/YYYY-MM-DD-whatsapp-scope.md`
+
 ## Phase 2 session 8 — doc chunking (core)
 
 - [ ] Session 8a: `embed.py` — char-window chunker replacing single truncation; `chunk_index` column in `EmbedStore`; store version bump with rebuild-on-mismatch; env knobs `ZKM_EMBED_CHUNK_CHARS` (default 2000), `ZKM_EMBED_CHUNK_OVERLAP` (default 200); `ZKM_EMBED_MAX_CHARS` deprecated
