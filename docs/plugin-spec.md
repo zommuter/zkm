@@ -124,6 +124,7 @@ def reprocess(store_path: Path, config: dict, existing: list[Path], *, progress:
 - **First Ctrl+C, SIGTERM, or ESC** (in TTY) → *soft cancel*. The progress callback raises `PluginInterrupt` at the next item boundary. A 30-second countdown is shown; if the plugin doesn't yield within the deadline, hard cancel fires automatically.
 - **Second signal, or 30s timer expiry** → *hard cancel*. `KeyboardInterrupt` is raised in the main thread at the next interpreter check (interrupts blocking I/O).
 - **SIGKILL** → OS-handled; no graceful path possible.
+- **SIGUSR1** → reserved by core for progress reporting. `zkm` installs a SIGUSR1 handler that forces an immediate PID-file write and emits a dd-style stderr line. **Plugins must not install their own SIGUSR1 handler** — doing so will break `zkm status`.
 
 Plugin contract for cancel:
 

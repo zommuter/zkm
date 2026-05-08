@@ -133,13 +133,20 @@ Design note: these commands read `.zkm-config` to know the backend and dispatch 
 
 Scope: `convert` and `index` (BM25 + embed phases) only. `query`, `clone`, `push`, `pull` explicitly out. Daemon/supervisor model deferred (N<2 background callers). Host-wide multi-store registry, historical run log, `--kill`, `--watch`, live-tail all deferred.
 
-- [ ] **S1.** `src/zkm/runstate.py` (new): `RunSession` context manager — PID file lifecycle (`<store>/.zkm-state/running/<pid>.json`, atomic write via tmp+rename) + SIGUSR1 handler (forces immediate file write + dd-style stderr line). Fibonacci backoff via `_should_write(count)` helper. Schema: `{command, pid, started_at, args, phase, current, total, message, last_updated}`. Tests: PID create/unlink, SIGUSR1 forces write, stderr line emitted, fibonacci spacing, atomic write, exception-path cleanup. (`src/zkm/runstate.py` + `tests/test_runstate.py`)
-- [ ] **S2.** Wire `RunSession` into `cmd_convert` (`src/zkm/cli.py:386`). PID file appears at start, updated via `RunSession.tick()` alongside tqdm, unlinked on exit (success, error, or signal).
-- [ ] **S3.** Wire `RunSession` into `cmd_index` (`src/zkm/cli.py:526`). Single session spans BM25 + embed phases; `phase` field flips `"bm25"` → `"embed"`. Iteration points: `index.py:187`, `:213`; `embed.py:270`. With `--no-embed`, stays in `"bm25"` phase only. Tests cover phase transitions and `--no-embed`.
-- [ ] **S4.** New `cmd_status` subcommand (`src/zkm/cli.py`). Lists `<store>/.zkm-state/running/*.json`, drops stale PIDs (with stderr notice), sends SIGUSR1 to live ones, sleeps 50ms, re-reads, prints human table (`pid`, `command`, `phase`, `started_at`, `progress`, `message`). `--json` flag emits JSON array. Empty store prints "no running zkm processes". Tests: alive vs dead mock PIDs, JSON shape, table layout, signal path.
-- [ ] **S5.** Update `docs/plugin-spec.md` cancellation section: SIGUSR1 is reserved by core for progress reporting; plugins must not install their own SIGUSR1 handler.
-- [ ] **S6.** Update `TODO.md` after S1–S4 land: add a verification checklist entry referencing the end-to-end check in the meeting note.
-- [ ] **S7+S8.** Update `docs/meeting-notes/meeting-style.md` "Past meetings" index with all meetings since repo-reorg (mbsync-hook + this one). Orphan from prior meeting list.
+- [x] **S1.** `src/zkm/runstate.py` (new): `RunSession` context manager — PID file lifecycle (`<store>/.zkm-state/running/<pid>.json`, atomic write via tmp+rename) + SIGUSR1 handler (forces immediate file write + dd-style stderr line). Fibonacci backoff via `_should_write(count)` helper. Schema: `{command, pid, started_at, args, phase, current, total, message, last_updated}`. 15 tests passing — 2026-05-08
+- [x] **S2.** Wire `RunSession` into `cmd_convert` (`src/zkm/cli.py`). PID file appears at start, updated via `session.tick()` alongside tqdm (tqdm guards `if not show_progress`), unlinked on exit. progress callback always passed to run_convert/run_reprocess — 2026-05-08
+- [x] **S3.** Wire `RunSession` into `cmd_index` (`src/zkm/cli.py`). Single session spans BM25 + embed phases; `phase` flips `"bm25"` → `"embed"` via `session.set_phase("embed")`. With `--no-embed`, stays in `"bm25"` phase only. progress callback always passed — 2026-05-08
+- [x] **S4.** New `cmd_status` subcommand (`src/zkm/cli.py`). Lists `<store>/.zkm-state/running/*.json`, drops stale PIDs (stderr notice), sends SIGUSR1 to live ones, sleeps 50ms, re-reads, prints human table (`pid`, `cmd`, `phase`, `started`, `progress`, `message`). `--json` flag emits JSON array. Empty store prints "no running zkm processes" — 2026-05-08
+- [x] **S5.** Updated `docs/plugin-spec.md` cancellation section: SIGUSR1 reserved by core; plugins must not install their own SIGUSR1 handler — 2026-05-08
+- [x] **S6.** TODO.md updated with verification checklist (see below) — 2026-05-08
+- [x] **S7+S8.** Updated `docs/meeting-notes/meeting-style.md` "Past meetings" index: added mbsync-hook + sigusr1-status entries — 2026-05-08
+
+**Verification checklist** (313 tests passing, 2026-05-08):
+1. `zkm convert zkm-eml` in terminal A → `zkm status` in terminal B shows one row with fresh `last_updated`.
+2. `kill -USR1 <pid>` directly → dd-style line on convert's stderr.
+3. `zkm index` → `phase` toggles `bm25` → `embed`; `zkm index --no-embed` stays at `bm25`.
+4. SIGKILL the process → next `zkm status` drops stale file with stderr notice.
+5. `zkm status --json | jq` → valid JSON array.
 
 ## Encoding / text quality (backlog)
 

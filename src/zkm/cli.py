@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import signal
 import subprocess
 import sys
 from pathlib import Path
@@ -419,6 +420,7 @@ def cmd_convert(
 
     from zkm.cancel import CancelController, PluginInterrupt
     from zkm.convert import run_convert, run_reprocess
+    from zkm.runstate import RunSession
 
     sdir = Path(store_override) if store_override else store_path()
     if not (sdir / ".git").exists():
@@ -448,44 +450,46 @@ def cmd_convert(
     cancelled = False
     created: list[Path] = []
 
-    with CancelController(on_status=update_status) as cancel:
-        def progress_cb(current: int, total: int | None, message: str = "") -> None:
-            nonlocal bar
-            cancel.check()  # raises PluginInterrupt on soft cancel
-            if bar is None:
-                bar = tqdm(
-                    total=total, unit="item", leave=False, file=sys.stderr, bar_format=_BAR_FORMAT
-                )
-                if cancel_status:
-                    bar.set_description(cancel_status)
-            elif total is not None and bar.total != total:
-                bar.total = total
-                bar.refresh()
-            delta = current - bar.n
-            if delta > 0:
-                bar.update(delta)
-            if message:
-                bar.set_postfix_str(message[:60])
+    with RunSession(sdir, "convert", args=[plugin]) as session:
+        with CancelController(on_status=update_status) as cancel:
+            def progress_cb(current: int, total: int | None, message: str = "") -> None:
+                nonlocal bar
+                cancel.check()  # raises PluginInterrupt on soft cancel
+                session.tick(current, total, phase="convert", message=message)
+                if not show_progress:
+                    return
+                if bar is None:
+                    bar = tqdm(
+                        total=total, unit="item", leave=False, file=sys.stderr, bar_format=_BAR_FORMAT
+                    )
+                    if cancel_status:
+                        bar.set_description(cancel_status)
+                elif total is not None and bar.total != total:
+                    bar.total = total
+                    bar.refresh()
+                delta = current - bar.n
+                if delta > 0:
+                    bar.update(delta)
+                if message:
+                    bar.set_postfix_str(message[:60])
 
-        progress = progress_cb if show_progress else None
-
-        try:
-            if reprocess_mode:
-                created = run_reprocess(plugin, sdir, mode=reprocess_mode, progress=progress)
-            else:
-                created = run_convert(plugin, sdir, progress=progress)
-        except (LookupError, ValueError, FileNotFoundError) as e:
-            if bar is not None:
-                bar.close()
-            click.echo(f"Error: {e}", err=True)
-            sys.exit(1)
-        except PluginInterrupt:
-            cancelled = True
-        except KeyboardInterrupt:
-            cancelled = True
-        finally:
-            if bar is not None:
-                bar.close()
+            try:
+                if reprocess_mode:
+                    created = run_reprocess(plugin, sdir, mode=reprocess_mode, progress=progress_cb)
+                else:
+                    created = run_convert(plugin, sdir, progress=progress_cb)
+            except (LookupError, ValueError, FileNotFoundError) as e:
+                if bar is not None:
+                    bar.close()
+                click.echo(f"Error: {e}", err=True)
+                sys.exit(1)
+            except PluginInterrupt:
+                cancelled = True
+            except KeyboardInterrupt:
+                cancelled = True
+            finally:
+                if bar is not None:
+                    bar.close()
 
     if cancelled:
         click.echo("", err=True)  # ensure newline after any in-place status
@@ -582,85 +586,179 @@ def cmd_index(store_override: str | None, no_progress: bool, no_embed: bool, ful
             file=sys.stderr, bar_format=_BAR_FORMAT,
         )
 
-    def progress_cb(current: int, total: int | None, message: str = "") -> None:
-        nonlocal bar
-        if not show_progress:
-            return
-        if bar is None:
-            bar = _make_bar("BM25", total)
-        if total is not None and bar.total != total:
-            bar.total = total
-            bar.refresh()
-        delta = current - bar.n
-        if delta > 0:
-            bar.update(delta)
-        if message:
-            bar.set_postfix_str(message[:60])
+    from zkm.runstate import RunSession
 
     t0 = time.monotonic()
-    idx = build_index(sdir, progress=progress_cb if show_progress else None, full=full)
-    if bar is not None:
-        bar.close()
-        bar = None
-    save_index(sdir, idx)
-    if _head_sha:
-        write_watermark(sdir, _head_sha)
+    with RunSession(sdir, "index") as session:
+        def progress_cb(current: int, total: int | None, message: str = "") -> None:
+            nonlocal bar
+            session.tick(current, total, phase="bm25", message=message)
+            if not show_progress:
+                return
+            if bar is None:
+                bar = _make_bar("BM25", total)
+            if total is not None and bar.total != total:
+                bar.total = total
+                bar.refresh()
+            delta = current - bar.n
+            if delta > 0:
+                bar.update(delta)
+            if message:
+                bar.set_postfix_str(message[:60])
 
-    # Dense embedding pass
-    if not no_embed:
-        from zkm.embed import (
-            EmbedUnavailable,
-            build_embed_store,
-            load_embed_store,
-            resolve_embed_config,
-            save_embed_store,
-        )
+        idx = build_index(sdir, progress=progress_cb, full=full)
+        if bar is not None:
+            bar.close()
+            bar = None
+        save_index(sdir, idx)
+        if _head_sha:
+            write_watermark(sdir, _head_sha)
 
-        ep, mdl, key = resolve_embed_config(sdir)
-        if not ep:
-            click.echo(
-                "Dense index skipped (set ZKM_EMBED_ENDPOINT to enable).", err=True
+        # Dense embedding pass
+        if not no_embed:
+            from zkm.embed import (
+                EmbedUnavailable,
+                build_embed_store,
+                load_embed_store,
+                resolve_embed_config,
+                save_embed_store,
             )
-        else:
-            embed_bar: tqdm | None = None
 
-            def embed_progress(current: int, total: int | None, message: str = "") -> None:
-                nonlocal embed_bar
-                if not show_progress:
-                    return
-                if embed_bar is None:
-                    embed_bar = _make_bar("Embedding", total)
-                if total is not None and embed_bar.total != total:
-                    embed_bar.total = total
-                    embed_bar.refresh()
-                delta = current - embed_bar.n
-                if delta > 0:
-                    embed_bar.update(delta)
-                if message:
-                    embed_bar.set_postfix_str(message[:60])
-
-            try:
-                prev_es = load_embed_store(sdir)
-                es = build_embed_store(
-                    sdir,
-                    idx.docs,
-                    prev_es=prev_es,
-                    endpoint=ep,
-                    model=mdl,
-                    api_key=key,
-                    progress=embed_progress if show_progress else None,
+            ep, mdl, key = resolve_embed_config(sdir)
+            if not ep:
+                click.echo(
+                    "Dense index skipped (set ZKM_EMBED_ENDPOINT to enable).", err=True
                 )
-                if embed_bar is not None:
-                    embed_bar.close()
-                save_embed_store(sdir, es)
-                click.echo(f"Embedded {len(es.paths)} document(s) with {mdl}.")
-            except EmbedUnavailable as exc:
-                if embed_bar is not None:
-                    embed_bar.close()
-                click.echo(f"Dense index failed: {exc}", err=True)
+            else:
+                embed_bar: tqdm | None = None
+                session.set_phase("embed")
+
+                def embed_progress(current: int, total: int | None, message: str = "") -> None:
+                    nonlocal embed_bar
+                    session.tick(current, total, phase="embed", message=message)
+                    if not show_progress:
+                        return
+                    if embed_bar is None:
+                        embed_bar = _make_bar("Embedding", total)
+                    if total is not None and embed_bar.total != total:
+                        embed_bar.total = total
+                        embed_bar.refresh()
+                    delta = current - embed_bar.n
+                    if delta > 0:
+                        embed_bar.update(delta)
+                    if message:
+                        embed_bar.set_postfix_str(message[:60])
+
+                try:
+                    prev_es = load_embed_store(sdir)
+                    es = build_embed_store(
+                        sdir,
+                        idx.docs,
+                        prev_es=prev_es,
+                        endpoint=ep,
+                        model=mdl,
+                        api_key=key,
+                        progress=embed_progress,
+                    )
+                    if embed_bar is not None:
+                        embed_bar.close()
+                    save_embed_store(sdir, es)
+                    click.echo(f"Embedded {len(es.paths)} document(s) with {mdl}.")
+                except EmbedUnavailable as exc:
+                    if embed_bar is not None:
+                        embed_bar.close()
+                    click.echo(f"Dense index failed: {exc}", err=True)
 
     elapsed = time.monotonic() - t0
     click.echo(f"Indexed {len(idx.docs)} document(s) in {elapsed:.1f}s")
+
+
+# ---------------------------------------------------------------------------
+# zkm status
+# ---------------------------------------------------------------------------
+
+
+@main.command("status")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON array")
+@click.option(
+    "--store",
+    "store_override",
+    default=None,
+    metavar="PATH",
+    help="Store path (default: $ZKM_STORE or ~/knowledge)",
+)
+def cmd_status(as_json: bool, store_override: str | None) -> None:
+    """Show running zkm processes and their progress."""
+    import json as _json
+    import time as _time
+
+    sdir = Path(store_override) if store_override else store_path()
+    running_dir = sdir / ".zkm-state" / "running"
+
+    if not running_dir.exists() or not list(running_dir.glob("*.json")):
+        if as_json:
+            click.echo("[]")
+        else:
+            click.echo("no running zkm processes")
+        return
+
+    # Check liveness; signal live PIDs to force a fresh write.
+    live_pids: set[int] = set()
+    for pid_file in list(running_dir.glob("*.json")):
+        try:
+            pid = int(pid_file.stem)
+        except ValueError:
+            continue
+        try:
+            import os as _os
+            _os.kill(pid, 0)
+            live_pids.add(pid)
+            _os.kill(pid, signal.SIGUSR1)
+        except ProcessLookupError:
+            try:
+                pid_file.unlink(missing_ok=True)
+            except OSError:
+                pass
+            click.echo(f"zkm: removed stale PID file for pid {pid}", err=True)
+        except PermissionError:
+            live_pids.add(pid)
+
+    if live_pids:
+        _time.sleep(0.05)
+
+    # Re-read updated files.
+    rows = []
+    for pid_file in sorted(running_dir.glob("*.json")):
+        try:
+            data = _json.loads(pid_file.read_text(encoding="utf-8"))
+        except (OSError, _json.JSONDecodeError):
+            continue
+        rows.append(data)
+
+    if not rows:
+        if as_json:
+            click.echo("[]")
+        else:
+            click.echo("no running zkm processes")
+        return
+
+    if as_json:
+        click.echo(_json.dumps(rows, ensure_ascii=False))
+        return
+
+    header = f"{'PID':<8} {'CMD':<10} {'PHASE':<8} {'STARTED':<21} {'PROGRESS':<14} MESSAGE"
+    click.echo(header)
+    click.echo("-" * len(header))
+    for row in rows:
+        pid_s = str(row.get("pid", "?"))
+        cmd = str(row.get("command", "?"))[:9]
+        phase = str(row.get("phase", "?"))[:7]
+        started = str(row.get("started_at", ""))[:19].replace("T", " ")
+        current = row.get("current", 0)
+        total = row.get("total")
+        progress = f"{current}/{total}" if total else str(current)
+        message = str(row.get("message", ""))[:40]
+        click.echo(f"{pid_s:<8} {cmd:<10} {phase:<8} {started:<21} {progress:<14} {message}")
 
 
 # ---------------------------------------------------------------------------
