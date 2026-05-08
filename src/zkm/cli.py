@@ -9,6 +9,7 @@ from pathlib import Path
 import click
 
 from zkm import __version__
+from zkm.devcheck import assert_clean
 from zkm.store import (
     clone_store,
     init_store,
@@ -222,6 +223,7 @@ def cmd_rm(path: str, do_apply: bool, no_commit: bool, store_override: str | Non
 
     sdir = Path(store_override) if store_override else store_path()
     _require_store(sdir)
+    assert_clean()
     try:
         md_relpath = _normalise_relpath(sdir, path)
     except ValueError as e:
@@ -266,6 +268,7 @@ def cmd_gc(do_apply: bool, no_commit: bool, store_override: str | None) -> None:
 
     sdir = Path(store_override) if store_override else store_path()
     _require_store(sdir)
+    assert_clean()
     actions = plan_gc(sdir)
 
     click.echo(format_gc_plan(actions))
@@ -421,6 +424,7 @@ def cmd_convert(
     if not (sdir / ".git").exists():
         click.echo(f"Error: {sdir} is not an initialized store. Run: zkm init", err=True)
         sys.exit(1)
+    assert_clean(plugin_name=plugin)
 
     _BAR_FORMAT = (
         "{desc:<14}{percentage:3.0f}%|{bar:30}| "
@@ -552,6 +556,7 @@ def cmd_index(store_override: str | None, no_progress: bool, no_embed: bool, ful
     if not (sdir / ".git").exists():
         click.echo(f"Error: {sdir} is not an initialized store. Run: zkm init", err=True)
         sys.exit(1)
+    assert_clean()
 
     # Snapshot the current HEAD before indexing; written as watermark after success.
     try:

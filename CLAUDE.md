@@ -45,6 +45,8 @@ uv run zkm --help
 ZKM_STORE=/tmp/my-kb uv run zkm init
 ```
 
+See `docs/install.md` for global PATH install (required for the mbsync auto-trigger hook).
+
 ## Plugin system
 
 Each converter is a separate repo, installed via `zkm plugin add <git-url>`.

@@ -114,7 +114,13 @@ Design note: these commands read `.zkm-config` to know the backend and dispatch 
 
 ## Incremental processing (backlog)
 
-- [ ] **mbsync post-commit hook** — mbsync writes to a git repo; a post-commit hook there could trigger `zkm convert zkm-eml` automatically after each sync, removing the need for manual or cron-based invocation.
+## Phase 2 — mbsync auto-trigger (decided 2026-05-08-mbsync-hook.md)
+
+- [x] A1: `src/zkm/devcheck.py` + `cli.py` integration; `tests/test_devcheck.py` — dirty-tree guard (core + invoked plugin), `ZKM_BYPASS_DIRTY_CHECK=1` opts out, non-editable install no-ops. 13 tests passing — 2026-05-08
+- [x] A2: `docs/install.md` — documents `uv tool install --editable ~/src/zkm` for `zkm` on PATH; pointer added to `CLAUDE.md` Quick start. 2026-05-08
+- [x] A3: `plugins/zkm-eml/hooks/post-commit` + `Makefile` (`install-hook`/`uninstall-hook`); README "Auto-trigger from mbsync" section. 2026-05-08
+- [ ] A5 (deferred): separate systemd timer for `zkm embed` + `zkm doctor`.
+- [ ] from 2026-06-05: review journald evidence for convert-overlap; decide on lock if observed.
 - [x] **zkm-eml: git-commit watermark** — state file `<store>/.zkm-state/zkm-eml.json` keyed by source repo path; `iter_messages_since` fast-enumerates via `git diff`; full-scan fallback when watermark absent/unreachable or source not a git repo — covered by tests (111 zkm-eml tests passing) on 2026-05-07
 - [x] **zkm index: git-commit watermark** — watermark at `<store>/.zkm-index/last-commit`; `build_index` fast path via `git diff --name-status`; `--full` flag for forced rescan; `write_watermark` called from `cmd_index` after `save_index` — covered by tests (193 zkm tests passing) on 2026-05-07
 
