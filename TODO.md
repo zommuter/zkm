@@ -167,7 +167,7 @@ Convention: bump-and-tag + loose-0.x + plain `vX.Y.Z` per repo. See `CLAUDE.md` 
 - [x] `plugins/zkm-photo/`: tagged HEAD as `v0.1.0`. Pushed to fievel — 2026-05-08
 - [x] `plugins/zkm-pdf/`: tagged HEAD as `v0.1.0`. Pushed to fievel — 2026-05-08
 - [x] `plugins/zkm-scan/`: tagged HEAD as `v0.1.0`. Pushed to fievel — 2026-05-08
-- [ ] `plugins/zkm-notmuch/`: tag HEAD as `v0.1.0`. No fievel remote yet — add remote first.
+- [x] `plugins/zkm-notmuch/`: added fievel remote `fievel:src/zkm-plugins/zkm-notmuch.git`; pushed main + v0.1.0 tag — 2026-05-09
 - [ ] Backfill `zkm>=X,<Y` requires-clauses in all plugin pyprojects (loose coupling). Separate session.
 
 ## Plugin dependency loading (backlog)
