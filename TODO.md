@@ -157,3 +157,8 @@ Scope: `convert` and `index` (BM25 + embed phases) only. `query`, `clone`, `push
 ## Encoding / text quality (backlog)
 
 - [ ] **Text file encoding issues** — emails and other plugin outputs can carry mis-decoded bodies (Latin-1 read as UTF-8, mojibake umlauts, BOM headers, mixed encodings within a single message). Audit `zkm-eml` decode paths and add a normalization pass (detect-and-transcode or at minimum chardet fallback). Add test fixtures with known-bad encodings. Surfaces downstream as broken stemming and tokenization for accented characters.
+
+## Plugin dependency loading (backlog)
+
+- [ ] **Plugin-specific deps when loaded via importlib** — when `zkm convert` loads a plugin via `importlib.util.spec_from_file_location` into the main process, the plugin runs in the main zkm venv which lacks plugin-only deps (e.g. `ftfy`, `charset-normalizer` in zkm-eml). Current workaround: `convert.py` injects `.venv/lib/python*/site-packages` into `sys.path` at import time. Explore proper solutions: (a) subprocess isolation per plugin, (b) uv-run-in-plugin-venv wrapper, (c) declare plugin deps as optional extras in core and install them together. Warrants a scoping meeting before changing the plugin loading model.
+- [ ] **Broken `uv.sources` paths after repo reorg** — all plugin `pyproject.toml` files still have `zkm = { path = "../zkm" }` which resolved correctly when plugins lived at `~/src/zkm-*/` but now resolves to `~/src/zkm/plugins/zkm` (non-existent) after the reorg to `~/src/zkm/plugins/zkm-*/`. Fixed for zkm-eml (`../../`); the other plugins (zkm-pdf, zkm-photo, zkm-scan, zkm-notmuch) need the same fix before `uv sync` will work in their individual dirs.

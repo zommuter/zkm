@@ -89,6 +89,15 @@ def convert(store_path: Path, config: dict, *, progress: ProgressCallback | None
 
 The `progress` kwarg is **mandatory** in new plugins. zkm core passes it only when the plugin declares the parameter (checked via `inspect.signature`), so third-party plugins that omit it still load cleanly.
 
+### Encoding contract
+
+Plugins **MUST emit UTF-8 markdown**. The store, BM25 index, and dense embedder all assume UTF-8 throughout — mis-encoded text degrades stemming and retrieval quality for accented characters. When decoding external bytes (emails, PDF text, OCR output), plugins **SHOULD**:
+
+1. Try the declared/detected charset first, but **skip permissive codecs** (`latin-1`, `cp1252`) in the primary attempt — they accept all byte sequences and mask wrong-charset declarations.
+2. Fall back to a detection library (e.g. `charset-normalizer`) when the strict candidates fail.
+3. Run a mojibake repair pass (e.g. `ftfy.fix_text`) to catch text that was already mis-decoded upstream before reaching the plugin.
+4. Strip any leading BOM (`﻿`) from decoded text before writing to markdown.
+
 Minimal example of a progress-aware loop:
 
 ```python
