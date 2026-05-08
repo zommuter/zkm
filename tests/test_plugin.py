@@ -71,6 +71,18 @@ def test_add_local_plugin(isolated_plugins: Path, notes_plugin_dir: Path) -> Non
     assert dest.resolve() == notes_plugin_dir.resolve()
 
 
+def test_add_local_plugin_zkm_prefixed_name(isolated_plugins: Path, tmp_path: Path) -> None:
+    """Plugin whose manifest name already starts with 'zkm-' must not get double-prefixed."""
+    src = tmp_path / "zkm-eml-fixture"
+    src.mkdir()
+    (src / "plugin.yaml").write_text("name: zkm-eml\nversion: 0.1.0\ncreates_dirs: []\n")
+    (src / "convert.py").write_text("def convert(store_path, config, *, progress=None): return []\n")
+    plugin = add_plugin(str(src))
+    assert plugin.name == "zkm-eml"
+    assert (isolated_plugins / "zkm-eml").exists()
+    assert not (isolated_plugins / "zkm-zkm-eml").exists()
+
+
 def test_add_duplicate_raises(isolated_plugins: Path, notes_plugin_dir: Path) -> None:
     add_plugin(str(notes_plugin_dir))
     with pytest.raises(FileExistsError):

@@ -53,7 +53,7 @@ Pre-flight sessions (9a–9d) must land before any plugin session starts.
 ## Phase 2 housekeeping — repo reorg (decided 2026-05-08-repo-reorg.md)
 
 - [x] **Reorg**: `mv ~/src/zkm-{eml,pdf,photo,scan} ~/src/zkm/plugins/`; deleted dangling symlinks `plugins/zkm-zkm-{eml,photo}`; fievel: `mkdir ~/src/zkm-plugins && mv ~/src/zkm-{eml,photo}.git ~/src/zkm-plugins/` + `git init --bare` for pdf + scan; updated local remote URLs; pushed to verify. 285 tests passing — completed 2026-05-08
-- [ ] **`add_plugin()` double-prefix** (`src/zkm/convert.py:119`): drop the `f"zkm-{name}"` prefix when the manifest name already starts with `zkm-`. Contract: `zkm plugin add ./examples/zkm-notes` produces `plugins/zkm-notes` (name `notes`); adding a plugin with name `zkm-eml` produces `plugins/zkm-eml`, not `plugins/zkm-zkm-eml`.
+- [x] **`add_plugin()` double-prefix** (`src/zkm/convert.py:119`): use `dir_name = name if name.startswith("zkm-") else f"zkm-{name}"`. Covered by `test_add_local_plugin_zkm_prefixed_name` (24 plugin tests passing) — 2026-05-08
 - [ ] **`add_plugin()` self-link guard** (`src/zkm/convert.py:119`): when the resolved source path is already inside `plugins_dir()`, return a friendly "already installed in place" message instead of creating a symlink. Contract: `zkm plugin add ./plugins/zkm-eml` prints "Plugin 'zkm-eml' is already in the plugins directory" and exits 0 without creating `plugins/zkm-zkm-eml → ./plugins/zkm-eml`.
 
 ## Phase 2 session 8 — doc chunking (core)

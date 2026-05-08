@@ -116,7 +116,8 @@ def add_plugin(source: str) -> Plugin:
         if not manifest.exists():
             raise FileNotFoundError(f"No plugin.yaml in {src_path}")
         name = yaml.safe_load(manifest.read_text())["name"]
-        dest = pdir / f"zkm-{name}"
+        dir_name = name if name.startswith("zkm-") else f"zkm-{name}"
+        dest = pdir / dir_name
         if dest.exists() or dest.is_symlink():
             raise FileExistsError(f"Plugin '{name}' already installed at {dest}")
         dest.symlink_to(src_path, target_is_directory=True)
