@@ -156,7 +156,8 @@ Scope: `convert` and `index` (BM25 + embed phases) only. `query`, `clone`, `push
 
 ## Encoding / text quality (backlog)
 
-- [ ] **Text file encoding issues** — emails and other plugin outputs can carry mis-decoded bodies (Latin-1 read as UTF-8, mojibake umlauts, BOM headers, mixed encodings within a single message). Audit `zkm-eml` decode paths and add a normalization pass (detect-and-transcode or at minimum chardet fallback). Add test fixtures with known-bad encodings. Surfaces downstream as broken stemming and tokenization for accented characters.
+- [x] **Text file encoding issues — implementation** — refactored `_decode_part` and `_decode_header_str` in `plugins/zkm-eml/src/zkm_eml/parse.py`; added `charset-normalizer` detection + `ftfy` mojibake repair; 6 new fixtures + 6 tests; 21 zkm-eml + 315 core tests passing — 2026-05-08
+- [ ] **Text file encoding issues — live reprocess** — run `ZKM_BYPASS_DIRTY_CHECK=1 ZKM_STORE=~/knowledge zkm convert zkm-eml --reprocess-all` to fix 29 known mojibake messages in ~/knowledge; then `zkm index` to refresh BM25; verify mojibake grep count drops to 0.
 
 ## Plugin dependency loading (backlog)
 
