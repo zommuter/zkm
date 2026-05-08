@@ -32,17 +32,23 @@ Completed Phase 1 tasks archived in `docs/phase1-done.md`.
 - [x] **`zkm query` sources list is unordered** — numbered Sources block `[1] path…` matches LLM's inline `[N]` citations; system prompt updated to request `[N]` style consistently — covered by tests/test_query_recall.py on 2026-05-07
 - [ ] Doc chunking (any long .md, not just emails/threads) — see `docs/meeting-notes/2026-05-08-doc-chunking.md`; decision: core feature, embed-side char-window chunker, file-level RRF
 
-## Phase 2.5 — next plugins (decided 2026-05-08-next-plugins.md)
+## Phase 2.5 — next plugins (decided 2026-05-08-next-plugins.md, 2026-05-08-information-flow.md)
 
-Order: photo → pdf (text-only) → scan (OCR) → (scoping meeting) → whatsapp.
-WhatsApp requires three core additions before its own session; see session 13.
+Order: pre-flight specs → zkm.amendments lib → photo → pdf → scan → notmuch → (scoping) → whatsapp.
+WhatsApp requires three core additions before its own session; see session 15.
+
+Pre-flight sessions (9a–9d) must land before any plugin session starts.
 
 - [ ] Session 9a (pre-flight): add "MUST be no-op on unowned inbox items" rule to `docs/plugin-spec.md` (~1 paragraph); contract: plugin run against foreign-only inbox returns `[]` exit 0
 - [ ] Session 9b (pre-flight): add paragraph to `docs/object-storage.md` confirming multi-producer-plugin sidecars are normal (e.g. photo + scan against same CAS object)
-- [ ] Session 10: `zkm-photo` repo (`~/src/zkm-photo/`) — EXIF → md, CAS binary, sidecar, inbox; uses only `zkm.atomic|cas|sidecar|inbox|hashing`; `creates_dirs: [photos, originals/photos]`; idempotent (second run → 0 new files)
-- [ ] Session 11: `zkm-pdf` (text-only) — emit md when text extraction ≥ N chars; silently skip scanned-only PDFs (leaves them for zkm-scan); test confirms skip
-- [ ] Session 12: `zkm-scan` (OCR, tesseract) — per-doc md; `progress` reporter; cancellable per plugin-spec cancellation contract
-- [ ] Session 13 (scoping, not implementation): meeting on zkm-whatsapp core gaps — (a) non-git source state / `zkm.state` helper, (b) per-store YAML config replacing long env-var lists, (c) stable-ID synthesis contract; deliverable: `docs/meeting-notes/YYYY-MM-DD-whatsapp-scope.md`
+- [ ] Session 9c (pre-flight): write the amendment contract section in `docs/plugin-spec.md`. Per-field merge rules: `tags` set-union; `entities` set-union with role-tagged dedup; scalars last-write-wins-with-`emitted_by`-attribution; structured lists need explicit merge keys. Amendment record schema: `{key: {message_id|sha256|path: ...}, fields: {...}, emitted_by: <plugin-name>, emitted_at: <iso8601>}`. Round-trip test: zkm-eml writes md with `tags:[]`; amendment with `tags:[bill]` lands; merged md shows `tags:[bill]` with attribution sidecar entry.
+- [ ] Session 9d (pre-flight): design note for extraction-cache in `docs/object-storage.md`. Cache shape (per-CAS-object, multi-stage, per-extractor), planned merge with `producers[]` sidecar. **No implementation** — deferred until first content-plugin (zkm-receipt) lands in Phase 3 and N=2 evidence is concrete.
+- [ ] Session 10 (core lib): `src/zkm/amendments.py` — read amendment records, key-resolve against md tree by `message_id`/`sha256`/path, merge per field rules, write back, track attribution sidecar. ~200 LOC + tests. Must land before session 14.
+- [ ] Session 11: `zkm-photo` repo (`~/src/zkm-photo/`) — scope: EXIF date→`date`; EXIF GPS string→`location` (no reverse-geocode); EXIF camera-model→`tags:[<slug>]`; sha256+CAS dedup; thumbnail link in body. Uses only `zkm.atomic|cas|sidecar|inbox|hashing`. `creates_dirs: [photos, originals/photos]`. Idempotent (second run → 0 new files). No classifier, no faces.
+- [ ] Session 12: `zkm-pdf` (text-only) — emit md when text extraction ≥ N chars; silently skip scanned-only PDFs (leaves them for zkm-scan); test confirms skip
+- [ ] Session 13: `zkm-scan` (OCR, tesseract) — per-doc md; `progress` reporter; cancellable per plugin-spec cancellation contract
+- [ ] Session 14: `zkm-notmuch` repo (`~/src/zkm-notmuch/`) — first amender. Reads `~/mail/.notmuch` xapian DB (via `notmuch` Python binding or `notmuch dump --format=batch-tag` subprocess fallback). Looks up md in `mail/messages/` by `message_id`. Emits amendment records via `zkm.amendments` (set-union merge into `tags`). Idempotent on re-run; round-trip test against a fixture xapian DB. Closes the gap where `zkm-eml` initialises `tags: []` empty and xapian tags never reach the md.
+- [ ] Session 15 (scoping, not implementation): meeting on zkm-whatsapp core gaps — (a) non-git source state / `zkm.state` helper, (b) per-store YAML config replacing long env-var lists, (c) stable-ID synthesis contract; deliverable: `docs/meeting-notes/YYYY-MM-DD-whatsapp-scope.md`
 
 ## Phase 2 session 8 — doc chunking (core)
 
