@@ -9,3 +9,4 @@ This file contains only zkm-specific augmentations, appended to the global forma
 - [2026-05-08 — Doc chunking scope](2026-05-08-doc-chunking.md) — embed-side chunking as core feature; char-window MVP; file-level RRF aggregation
 - [2026-05-08 — Next plugins](2026-05-08-next-plugins.md) — photo→pdf→scan order; fan-out overlap policy; whatsapp deferred to scoping meeting
 - [2026-05-08 — Information flow](2026-05-08-information-flow.md) — drop A/B/C; extraction-cache + frontmatter-amendment replace pipeline; zkm-notmuch as first amender; meeting now interactive
+- [2026-05-08 — Repo reorg](2026-05-08-repo-reorg.md) — plugin repos nest in ~/src/zkm/plugins/; fievel mirrors at zkm-plugins/; no core subdir; no rename to zkm-core

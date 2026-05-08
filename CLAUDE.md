@@ -60,6 +60,8 @@ Plugins declare which subdirs they create (e.g., `mail/`) and what config they n
 
 **Local install** (during development): `zkm plugin add ./examples/zkm-notes` creates a symlink in `plugins/`. Git URL install uses `git clone`. The installed plugins directory can be overridden with `$ZKM_PLUGINS_DIR`.
 
+**Dev plugin repos** (e.g., `zkm-eml`, `zkm-photo`) live directly under `plugins/<repo-name>/` as full independent git repos. They are gitignored from the parent repo. Discovery finds them via `plugin.yaml` with no symlink needed — don't run `zkm plugin add` against a path already inside `plugins/` (creates a redundant `zkm-<name> → ./plugins/<name>` self-link).
+
 See `docs/plugin-spec.md` for the full interface contract. See `examples/zkm-notes/` for a working reference implementation.
 
 ## Store layout (minimal skeleton)

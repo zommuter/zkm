@@ -50,6 +50,12 @@ Pre-flight sessions (9a–9d) must land before any plugin session starts.
 - [ ] Session 14: `zkm-notmuch` repo (`~/src/zkm-notmuch/`) — first amender. Reads `~/mail/.notmuch` xapian DB (via `notmuch` Python binding or `notmuch dump --format=batch-tag` subprocess fallback). Looks up md in `mail/messages/` by `message_id`. Emits amendment records via `zkm.amendments` (set-union merge into `tags`). Idempotent on re-run; round-trip test against a fixture xapian DB. Closes the gap where `zkm-eml` initialises `tags: []` empty and xapian tags never reach the md.
 - [ ] Session 15 (scoping, not implementation): meeting on zkm-whatsapp core gaps — (a) non-git source state / `zkm.state` helper, (b) per-store YAML config replacing long env-var lists, (c) stable-ID synthesis contract; deliverable: `docs/meeting-notes/YYYY-MM-DD-whatsapp-scope.md`
 
+## Phase 2 housekeeping — repo reorg (decided 2026-05-08-repo-reorg.md)
+
+- [ ] **Reorg**: `mv ~/src/zkm-{eml,pdf,photo,scan} ~/src/zkm/plugins/`; delete dangling symlinks `plugins/zkm-zkm-{eml,photo}`; fievel: `mkdir ~/src/zkm-plugins && mv ~/src/zkm-{eml,photo}.git ~/src/zkm-plugins/` + `git init --bare` for pdf + scan; update local remote URLs; push to verify. Full action list in `docs/meeting-notes/2026-05-08-repo-reorg.md`.
+- [ ] **`add_plugin()` double-prefix** (`src/zkm/convert.py:119`): drop the `f"zkm-{name}"` prefix when the manifest name already starts with `zkm-`. Contract: `zkm plugin add ./examples/zkm-notes` produces `plugins/zkm-notes` (name `notes`); adding a plugin with name `zkm-eml` produces `plugins/zkm-eml`, not `plugins/zkm-zkm-eml`.
+- [ ] **`add_plugin()` self-link guard** (`src/zkm/convert.py:119`): when the resolved source path is already inside `plugins_dir()`, return a friendly "already installed in place" message instead of creating a symlink. Contract: `zkm plugin add ./plugins/zkm-eml` prints "Plugin 'zkm-eml' is already in the plugins directory" and exits 0 without creating `plugins/zkm-zkm-eml → ./plugins/zkm-eml`.
+
 ## Phase 2 session 8 — doc chunking (core)
 
 - [x] Session 8a: `embed.py` — char-window chunker replacing single truncation; `chunk_index` column in `EmbedStore`; store version bump (`_STORE_SCHEMA_VERSION=2`) with rebuild-on-mismatch; env knobs `ZKM_EMBED_CHUNK_CHARS` (default 2000), `ZKM_EMBED_CHUNK_OVERLAP` (default 200); `ZKM_EMBED_MAX_CHARS` deprecated — covered by tests/test_embed.py (31 tests) on 2026-05-08
