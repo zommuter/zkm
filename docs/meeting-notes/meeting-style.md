@@ -17,3 +17,4 @@ This file contains only zkm-specific augmentations, appended to the global forma
 - [2026-05-08 — Tagging cadence](2026-05-08-2318-tagging-cadence.md) — bump-and-tag rule; loose-0.x; 6 retroactive tags; plain vX.Y.Z per repo; coupling deferred
 - [2026-05-10 — Entity extraction scoping](2026-05-10-1148-entity-extraction.md) — NER before whatsapp; zkm-ner amender plugin; extraction-cache lands with it; spaCy+patterns+GLiNER-opt-in; name-not-UID constraint
 - [2026-05-10 — TODO audit + N9a](2026-05-10-1628-n9a-value-normalization.md) — Class 1 dispatch; Entity.__post_init__ strips value whitespace; 3 regression tests
+- [2026-05-10 — N9b email-header stoplist](2026-05-10-1640-n9b-email-header-stoplist.md) — class 1+2+3 scope; two-stage textfilter (pre-strip + 14-word stoplist); model_version bump for cache invalidation; pilot re-run before 2026-06-05

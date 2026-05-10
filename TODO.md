@@ -62,7 +62,13 @@ NER lands before whatsapp. `zkm convert <plugin>` runs amenders default-on (`--n
 - [x] **N8.** spaCy backend tests: German fixture, English fixture, mixed-language fallback (accept doc-level routing limitation). `plugins/zkm-ner/tests/test_spacy_backend.py` — covered by N2 session, 2026-05-10.
 - [x] **N9.** Pilot script `plugins/zkm-ner/scripts/pilot.sh` + `scripts/pilot.py`: histogram (760k mentions, 13 types), top-N per type, suspicious-value dump (138k flagged); review file at `<store>/.zkm-state/ner-pilot-review.jsonl`. Key finding: "Subject"/"Thread"/"Re"/"Betreff" top person list — email header artifacts. Two-week pilot window starts 2026-05-10.
 - [x] **N9a.** (pilot finding) Entity value normalization: strip leading/trailing whitespace and newlines from `value` strings before storing — pilot surfaced values like `'…\n \n'` and `'sam\n\n'` in the person list. Fixed via `Entity.__post_init__` in `_types.py` (covers all extractors); 3 regression tests added — 39 zkm-ner + 336 core tests passing 2026-05-10.
-- [ ] **N9b.** (pilot finding) Email-header stoplist: "Subject", "Thread", "Re", "Betreff", "Date", "From", "To" dominate person/org/misc lists with >8k occurrences each — these are markdown-rendered email headers leaking into spaCy NER. Options: (a) strip markdown frontmatter/header block before NER, (b) postprocessing stoplist, (c) both. Warrants a quick design decision before N9 pilot window closes.
+- [ ] **N9b.** (pilot finding) Email-header stoplist + markdown-syntax pre-strip. Design decided 2026-05-10 (see `docs/meeting-notes/2026-05-10-1640-n9b-email-header-stoplist.md`). Scope: 3 pollution classes (markdown-syntax fragments, header column names, subject-line prefixes). Two-stage fix in new `plugins/zkm-ner/src/zkm_ner/textfilter.py`.
+  - [ ] N9b-1. `textfilter.py` — `strip_markdown_artefacts` + `_STOPLIST` (14 words) + `drop_stoplist`.
+  - [ ] N9b-2. Wire into `extract.py` (pre-strip body; post-filter before dedup).
+  - [ ] N9b-3. Bump `model_version` in `version.py` (e.g. `+textfilter-v1`) to force extraction-cache rebuild.
+  - [ ] N9b-4. 6 tests in `tests/test_textfilter.py`.
+  - [ ] N9b-5. Re-run `scripts/pilot.sh`; compare top-N before/after; document delta.
+- [ ] **N9c.** spaCy common-noun false-positive gating — POS-filter or German-word denylist for `Du`, `wünschen`, `Zeit`, `EUR`, `CHF`, `UTC`, `MESZ`, `CEST`, `Internet`, `CV`, `AGB`, `HRB`. Out of scope for N9b per 2026-05-10-1640 meeting (different root cause: spaCy model-quality, not markdown rendering).
 - [ ] **N10.** Docs: new `docs/ner.md` (pattern categories, amender-not-producer rationale, cache shape, scope boundary, name-is-not-UID assertion). Update `docs/entity-model.md` Phase 2.5 section + PII design note. Update `CLAUDE.md` Phase 2.5 sequencing.
 - [ ] **N11.** PII redaction: TODO item above + one-paragraph design note in `docs/entity-model.md` (config-driven entity-type denylist for export? defer until first sharing scenario).
 - [x] **N13.** Update `docs/meeting-notes/meeting-style.md` "Past meetings" index — already done (entity-extraction entry present).
@@ -153,6 +159,7 @@ Design note: these commands read `.zkm-config` to know the backend and dispatch 
 - [x] Hook fix: `zkm index` → `zkm index --no-embed` — bare index was hitting GPU on every sync; embed belongs on separate timer (A5) — verified by user on 2026-05-08
 - [x] A5: `contrib/systemd/zkm-embed.{service,timer}` — 30-min user timer running `zkm embed && zkm doctor`; `docs/install.md` "Periodic embed + doctor timer" section with install/drop-in/log instructions — 2026-05-08
 - [ ] from 2026-06-05: review journald evidence for convert-overlap; decide on lock if observed.
+- [ ] **zkm-eml signature stripping** — heuristic detection of email signature blocks (`-- ` line, `Mit freundlichen Grüßen`, `Best regards`, `Sent from my…`) before markdown render; addresses popularity skew of personal contact details (e.g. own phone number ×3852 in NER pilot). Raised as amendment in 2026-05-10-1640-n9b meeting.
 
 ## Phase 2 — SIGUSR1 progress + `zkm status` (decided 2026-05-08-1913-sigusr1-status.md)
 
