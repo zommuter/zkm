@@ -67,7 +67,7 @@ NER lands before whatsapp. `zkm convert <plugin>` runs amenders default-on (`--n
   - [x] N9b-2. Wire into `extract.py` (pre-strip body; post-filter before dedup) — covered by tests/test_textfilter.py 2026-05-10.
   - [x] N9b-3. Bump `model_version` in `version.py` (`+textfilter-v1`) to force extraction-cache rebuild — covered by tests/test_textfilter.py 2026-05-10.
   - [x] N9b-4. 19 tests in `tests/test_textfilter.py` (separator rows, pure-pipe, data-row preservation, all 14 stoplist words parametrised, case-insensitive, no-substring FP) — 58 zkm-ner + 336 core tests passing 2026-05-10.
-  - [ ] N9b-5. Re-run `scripts/pilot.sh`; compare top-N before/after; document delta. (Pending full `zkm convert zkm-ner` re-run — deferred per 2026-06-05 deadline.)
+  - [ ] N9b-5. Run `zkm convert zkm-ner`, re-run `scripts/pilot.sh`, compare top-N before/after, document delta. Prerequisite for N9c — confirms classes 1–3 are clean before tackling class 4.
 - [ ] **N9c.** spaCy common-noun false-positive gating — POS-filter or German-word denylist for `Du`, `wünschen`, `Zeit`, `EUR`, `CHF`, `UTC`, `MESZ`, `CEST`, `Internet`, `CV`, `AGB`, `HRB`. Out of scope for N9b per 2026-05-10-1640 meeting (different root cause: spaCy model-quality, not markdown rendering).
 - [ ] **N10.** Docs: new `docs/ner.md` (pattern categories, amender-not-producer rationale, cache shape, scope boundary, name-is-not-UID assertion). Update `docs/entity-model.md` Phase 2.5 section + PII design note. Update `CLAUDE.md` Phase 2.5 sequencing.
 - [ ] **N11.** PII redaction: TODO item above + one-paragraph design note in `docs/entity-model.md` (config-driven entity-type denylist for export? defer until first sharing scenario).
