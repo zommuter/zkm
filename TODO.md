@@ -48,6 +48,29 @@ Pre-flight sessions (9a–9d) must land before any plugin session starts.
 - [x] Session 12: `zkm-pdf` (text-only) — emit md when text extraction ≥ N chars; silently skip scanned-only PDFs (leaves them for zkm-scan); test confirms skip. `PDF_MIN_TEXT_CHARS=100` default (flagged as provisional heuristic; to revisit at Session 13 design with `.zkm-state/zkm-pdf-skipped.jsonl` data). Two input paths: inbox/ PDFs (from zkm-eml, reuses existing CAS) + optional `PDF_SOURCE_DIR`. 12 tests passing — 2026-05-08
 - [x] Session 13: `zkm-scan` (OCR, tesseract) — per-doc md; `progress` reporter; cancellable per plugin-spec cancellation contract. Processes images (JPEG, PNG, TIFF, BMP, GIF, WEBP) and scanned PDFs via pytesseract + pdf2image; SCAN_SOURCE_DIR + inbox fan-out; owned-by check for eml/photo/scan; per-doc md in scans/; sha256 dedup; SCAN_LANG + SCAN_MIN_TEXT_CHARS config knobs. 13 tests passing — 2026-05-08
 - [x] Session 14: `zkm-notmuch` plugin (`plugins/zkm-notmuch/`) — first amender. Reads tags via `notmuch dump --format=batch-tag` (subprocess; no Python binding required). Normalises message IDs to `<id>` form to match zkm-eml `raw_message_id` frontmatter. Emits amendment records via `zkm.amendments` (set-union merge into `tags`). Applies queue immediately; pending records left for re-run after `zkm-eml`. `NOTMUCH_CONFIG` and `NOTMUCH_TAGS_EXCLUDE` config knobs. 16 tests passing — 2026-05-08
+## Phase 2.5 — NER (decided 2026-05-10-1148-entity-extraction.md)
+
+NER lands before whatsapp. `zkm convert <plugin>` runs amenders default-on (`--no-amenders` to skip). Session 9d extraction-cache transitions from design-only to implementation alongside zkm-ner.
+
+- [ ] **N1.** New plugin repo `plugins/zkm-ner/` (mirrors zkm-notmuch layout). `plugin.yaml`: `kind: amender`, `creates_dirs: []`. `pyproject.toml` `version = "0.1.0"`, `requires zkm>=0.2.0,<0.3.0`. Contract: `convert(store, config) -> []`; emits amendment records via `zkm.amendments`.
+- [ ] **N2.** Extractor pipeline `plugins/zkm-ner/src/zkm_ner/extract.py`: `extract(body, lang) -> list[Entity]`. Pattern overlay first (email, phone/CH, url, domain→org_hint, social_handle.{discord,telegram,steam,...}, linkedin_profile, github_profile, org_gazetteer). spaCy NER second (de+en small models, doc-level langdetect routing). Patterns win on overlap. GLiNER backend behind `zkm-ner[gliner]` optional extra + `ZKM_NER_MODEL=gliner`.
+- [ ] **N3.** Extraction-cache core lib `src/zkm/extraction_cache.py`. Per-store at `<store>/.zkm-state/extraction-cache/`. Key: `(sha256_of_body, extractor_name, model_name, model_version)`. Atomic write, schema version. Cache hit short-circuits extractor. Tests: hit/miss/version-bump invalidation.
+- [ ] **N4.** zkm-ner amendment writer `plugins/zkm-ner/src/zkm_ner/convert.py`. Per-doc: check cache → run extractor on miss → `zkm.amendments.merge_records({entities: [...]}, emitted_by="zkm-ner")`. Set-union dedup on `(type, value)`. Re-run → 0 new amendments on warm cache.
+- [ ] **N5.** Default-on amender chain in `src/zkm/convert.py:cmd_convert`. `--no-amenders` flag opts out. Discovers amender plugins via `kind: amender` in `plugin.yaml`. Tests cover default-on and opt-out.
+- [ ] **N6.** Verify mbsync hook (`plugins/zkm-eml/hooks/post-commit`) inherits default-on — no change needed; confirm in journald that zkm-ner runs after convert.
+- [ ] **N7.** Pattern overlay tests: email, phone (DE/CH formats), URL, domain→org_hint, all social handle subtypes, linkedin_profile, github_profile, gazetteer canonicalisation. (~20 cases in `plugins/zkm-ner/tests/test_patterns.py`)
+- [ ] **N8.** spaCy backend tests: German fixture, English fixture, mixed-language fallback (accept doc-level routing limitation). (`plugins/zkm-ner/tests/test_spacy_backend.py`)
+- [ ] **N9.** Pilot script `plugins/zkm-ner/scripts/pilot.sh`: run against ~/knowledge, print entity-type histogram + top-N, dump low-confidence spans for review. Two-week pilot window.
+- [ ] **N10.** Docs: new `docs/ner.md` (pattern categories, amender-not-producer rationale, cache shape, scope boundary, name-is-not-UID assertion). Update `docs/entity-model.md` Phase 2.5 section + PII design note. Update `CLAUDE.md` Phase 2.5 sequencing.
+- [ ] **N11.** PII redaction: TODO item above + one-paragraph design note in `docs/entity-model.md` (config-driven entity-type denylist for export? defer until first sharing scenario).
+- [ ] **N13.** Update `docs/meeting-notes/meeting-style.md` "Past meetings" index.
+
+**Scope constraints (from meeting):**
+- `value:` strings are *mention strings*, never UIDs. No `id:`, `same_as:`, cross-doc clustering.
+- Name alone is NOT a UID — manual-merge tooling deferred to Phase 4.
+- Co-reference within doc deferred to v2; intra-doc pronoun coref not in scope.
+- GLiNER is opt-in only; sentence-level language routing out of scope.
+
 - [ ] Session 15 (scoping, not implementation): meeting on zkm-whatsapp core gaps — (a) non-git source state / `zkm.state` helper, (b) per-store YAML config replacing long env-var lists, (c) stable-ID synthesis contract; deliverable: `docs/meeting-notes/YYYY-MM-DD-whatsapp-scope.md`
 
 ## Phase 2 housekeeping — repo reorg (decided 2026-05-08-repo-reorg.md)
