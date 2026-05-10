@@ -122,7 +122,7 @@ def merge_fields(existing: dict, incoming: dict) -> dict:
     """Apply per-field merge rules; returns a new frontmatter dict.
 
     - 'tags':     set-union, sorted
-    - 'entities': set-union with role-tagged dedup on (name, role);
+    - 'entities': set-union with dedup on (type, value);
                   existing entries take precedence to keep order stable
     - other:      last-write-wins (scalar overwrite)
     """
@@ -133,10 +133,10 @@ def merge_fields(existing: dict, incoming: dict) -> dict:
             result["tags"] = sorted(set(existing_tags) | set(value or []))
         elif field == "entities":
             existing_ents: list = result.get("entities") or []
-            seen = {(e["name"], e.get("role")) for e in existing_ents}
+            seen = {(e["type"], e["value"]) for e in existing_ents}
             merged = list(existing_ents)
             for ent in value or []:
-                key = (ent["name"], ent.get("role"))
+                key = (ent["type"], ent["value"])
                 if key not in seen:
                     merged.append(ent)
                     seen.add(key)

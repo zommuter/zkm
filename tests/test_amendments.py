@@ -247,24 +247,24 @@ def test_merge_fields_tags_empty_existing() -> None:
     assert result["tags"] == ["bill"]
 
 
-def test_merge_fields_entities_role_tagged_dedup() -> None:
-    alice_sender = {"name": "Alice", "role": "sender"}
-    alice_recip = {"name": "Alice", "role": "recipient"}
-    bob = {"name": "Bob", "role": "sender"}
+def test_merge_fields_entities_type_value_dedup() -> None:
+    alice = {"type": "person", "value": "Alice"}
+    alice_email = {"type": "email_address", "value": "alice@example.com"}
+    bob = {"type": "person", "value": "Bob"}
     result = merge_fields(
-        {"entities": [alice_sender]},
-        {"entities": [alice_sender, alice_recip, bob]},
+        {"entities": [alice]},
+        {"entities": [alice, alice_email, bob]},
     )
     ents = result["entities"]
-    # alice_sender already present → not duplicated; alice_recip + bob added
+    # alice already present → not duplicated; alice_email + bob added
     assert len(ents) == 3
-    assert alice_sender in ents
-    assert alice_recip in ents
+    assert alice in ents
+    assert alice_email in ents
     assert bob in ents
 
 
 def test_merge_fields_entities_existing_takes_precedence() -> None:
-    ent = {"name": "Alice", "role": "sender"}
+    ent = {"type": "person", "value": "Alice"}
     result = merge_fields({"entities": [ent]}, {"entities": [ent]})
     assert len(result["entities"]) == 1
 
