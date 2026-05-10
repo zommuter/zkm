@@ -63,11 +63,11 @@ NER lands before whatsapp. `zkm convert <plugin>` runs amenders default-on (`--n
 - [x] **N9.** Pilot script `plugins/zkm-ner/scripts/pilot.sh` + `scripts/pilot.py`: histogram (760k mentions, 13 types), top-N per type, suspicious-value dump (138k flagged); review file at `<store>/.zkm-state/ner-pilot-review.jsonl`. Key finding: "Subject"/"Thread"/"Re"/"Betreff" top person list — email header artifacts. Two-week pilot window starts 2026-05-10.
 - [x] **N9a.** (pilot finding) Entity value normalization: strip leading/trailing whitespace and newlines from `value` strings before storing — pilot surfaced values like `'…\n \n'` and `'sam\n\n'` in the person list. Fixed via `Entity.__post_init__` in `_types.py` (covers all extractors); 3 regression tests added — 39 zkm-ner + 336 core tests passing 2026-05-10.
 - [ ] **N9b.** (pilot finding) Email-header stoplist + markdown-syntax pre-strip. Design decided 2026-05-10 (see `docs/meeting-notes/2026-05-10-1640-n9b-email-header-stoplist.md`). Scope: 3 pollution classes (markdown-syntax fragments, header column names, subject-line prefixes). Two-stage fix in new `plugins/zkm-ner/src/zkm_ner/textfilter.py`.
-  - [ ] N9b-1. `textfilter.py` — `strip_markdown_artefacts` + `_STOPLIST` (14 words) + `drop_stoplist`.
-  - [ ] N9b-2. Wire into `extract.py` (pre-strip body; post-filter before dedup).
-  - [ ] N9b-3. Bump `model_version` in `version.py` (e.g. `+textfilter-v1`) to force extraction-cache rebuild.
-  - [ ] N9b-4. 6 tests in `tests/test_textfilter.py`.
-  - [ ] N9b-5. Re-run `scripts/pilot.sh`; compare top-N before/after; document delta.
+  - [x] N9b-1. `textfilter.py` — `strip_markdown_artefacts` + `_STOPLIST` (14 words) + `drop_stoplist` — covered by tests/test_textfilter.py (58 zkm-ner tests passing) 2026-05-10.
+  - [x] N9b-2. Wire into `extract.py` (pre-strip body; post-filter before dedup) — covered by tests/test_textfilter.py 2026-05-10.
+  - [x] N9b-3. Bump `model_version` in `version.py` (`+textfilter-v1`) to force extraction-cache rebuild — covered by tests/test_textfilter.py 2026-05-10.
+  - [x] N9b-4. 19 tests in `tests/test_textfilter.py` (separator rows, pure-pipe, data-row preservation, all 14 stoplist words parametrised, case-insensitive, no-substring FP) — 58 zkm-ner + 336 core tests passing 2026-05-10.
+  - [ ] N9b-5. Re-run `scripts/pilot.sh`; compare top-N before/after; document delta. (Pending full `zkm convert zkm-ner` re-run — deferred per 2026-06-05 deadline.)
 - [ ] **N9c.** spaCy common-noun false-positive gating — POS-filter or German-word denylist for `Du`, `wünschen`, `Zeit`, `EUR`, `CHF`, `UTC`, `MESZ`, `CEST`, `Internet`, `CV`, `AGB`, `HRB`. Out of scope for N9b per 2026-05-10-1640 meeting (different root cause: spaCy model-quality, not markdown rendering).
 - [ ] **N10.** Docs: new `docs/ner.md` (pattern categories, amender-not-producer rationale, cache shape, scope boundary, name-is-not-UID assertion). Update `docs/entity-model.md` Phase 2.5 section + PII design note. Update `CLAUDE.md` Phase 2.5 sequencing.
 - [ ] **N11.** PII redaction: TODO item above + one-paragraph design note in `docs/entity-model.md` (config-driven entity-type denylist for export? defer until first sharing scenario).
