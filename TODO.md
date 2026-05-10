@@ -67,7 +67,7 @@ NER lands before whatsapp. `zkm convert <plugin>` runs amenders default-on (`--n
   - [x] N9b-2. Wire into `extract.py` (pre-strip body; post-filter before dedup) — covered by tests/test_textfilter.py 2026-05-10.
   - [x] N9b-3. Bump `model_version` in `version.py` (`+textfilter-v1`) to force extraction-cache rebuild — covered by tests/test_textfilter.py 2026-05-10.
   - [x] N9b-4. 19 tests in `tests/test_textfilter.py` (separator rows, pure-pipe, data-row preservation, all 14 stoplist words parametrised, case-insensitive, no-substring FP) — 58 zkm-ner + 336 core tests passing 2026-05-10.
-  - [ ] N9b-5. Run `zkm convert zkm-ner`, re-run `scripts/pilot.sh`, compare top-N before/after, document delta. Prerequisite for N9c — confirms classes 1–3 are clean before tackling class 4.
+  - [x] N9b-5. Run `zkm convert zkm-ner`, re-run `scripts/pilot.sh`, compare top-N before/after, document delta. Prerequisite for N9c — confirms classes 1–3 are clean before tackling class 4. **Delta:** textfilter-v1 blocked new stoplist emissions but set-union merge preserved 52,334 historical dirty entities. `zkm scrub ner --apply` (new core CLI) removed them. Before: Subject ×16k, Thread ×12k, Re ×2.9k, Betreff ×2k at top of person list. After: Tobias Kienzler ×11k leads; Subject/Thread/Re/Betreff absent. Total mentions: 771,831 → 719,504. Classes 2+3 confirmed clean — 2026-05-10.
 - [ ] **N9c.** spaCy common-noun false-positive gating — POS-filter or German-word denylist for `Du`, `wünschen`, `Zeit`, `EUR`, `CHF`, `UTC`, `MESZ`, `CEST`, `Internet`, `CV`, `AGB`, `HRB`. Out of scope for N9b per 2026-05-10-1640 meeting (different root cause: spaCy model-quality, not markdown rendering).
 - [ ] **N10.** Docs: new `docs/ner.md` (pattern categories, amender-not-producer rationale, cache shape, scope boundary, name-is-not-UID assertion). Update `docs/entity-model.md` Phase 2.5 section + PII design note. Update `CLAUDE.md` Phase 2.5 sequencing.
 - [ ] **N11.** PII redaction: TODO item above + one-paragraph design note in `docs/entity-model.md` (config-driven entity-type denylist for export? defer until first sharing scenario).
@@ -201,6 +201,10 @@ Convention: bump-and-tag + loose-0.x + plain `vX.Y.Z` per repo. See `CLAUDE.md` 
 - [x] `plugins/zkm-scan/`: tagged HEAD as `v0.1.0`. Pushed to fievel — 2026-05-08
 - [x] `plugins/zkm-notmuch/`: added fievel remote `fievel:src/zkm-plugins/zkm-notmuch.git`; pushed main + v0.1.0 tag — 2026-05-09
 - [x] Backfill `zkm>=X,<Y` requires-clauses in all plugin pyprojects — `zkm>=0.2.0,<0.3.0` added to zkm-eml, zkm-photo, zkm-pdf, zkm-scan, zkm-notmuch; `uv sync` verified in all five — 2026-05-10.
+
+## Amendment contract backlog
+
+- [ ] **Meeting: amendment replace-mode** — set-union merge (current) is correct for additive enrichment but cannot remove stale entities when extractor quality improves. `zkm scrub <plugin>` is the current workaround (N9b + future N9c). Trigger for meeting: a third amender wants single-producer-per-field semantics, OR N9c surfaces a need not solvable by scrub. See `docs/meeting-notes/2026-05-10-2142-n9b-scrub-cli.md` for design context.
 
 ## Plugin dependency loading (backlog)
 
