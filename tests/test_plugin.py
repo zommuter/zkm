@@ -10,6 +10,7 @@ from zkm.convert import (
     add_plugin,
     append_env,
     find_plugin,
+    list_amenders,
     list_plugins,
     load_env,
     prompt_required_config,
@@ -460,3 +461,139 @@ def test_prompt_non_tty_silent(
     missing = prompt_required_config(plugin, store, interactive=interactive)
 
     assert sorted(missing) == ["API_TOKEN", "SOURCE_DIR"]
+
+
+# ---------------------------------------------------------------------------
+# N5: kind field + list_amenders + default-on amender chain (CLI level)
+# ---------------------------------------------------------------------------
+
+
+def test_plugin_kind_defaults_to_converter(isolated_plugins: Path, tmp_path: Path) -> None:
+    src = tmp_path / "zkm-myplugin"
+    src.mkdir()
+    (src / "plugin.yaml").write_text("name: myplugin\nversion: 0.1.0\ncreates_dirs: []\n")
+    (src / "convert.py").write_text("def convert(store_path, config): return []\n")
+    plugin = add_plugin(str(src))
+    assert plugin.kind == "converter"
+
+
+def test_plugin_kind_amender_loaded(isolated_plugins: Path, tmp_path: Path) -> None:
+    src = tmp_path / "zkm-myamender"
+    src.mkdir()
+    (src / "plugin.yaml").write_text("name: myamender\nversion: 0.1.0\nkind: amender\ncreates_dirs: []\n")
+    (src / "convert.py").write_text("def convert(store_path, config): return []\n")
+    plugin = add_plugin(str(src))
+    assert plugin.kind == "amender"
+
+
+def test_list_amenders_returns_only_amenders(isolated_plugins: Path, tmp_path: Path) -> None:
+    conv_src = tmp_path / "zkm-conv"
+    conv_src.mkdir()
+    (conv_src / "plugin.yaml").write_text("name: conv\nversion: 0.1.0\ncreates_dirs: []\n")
+    (conv_src / "convert.py").write_text("def convert(store_path, config): return []\n")
+    add_plugin(str(conv_src))
+
+    amend_src = tmp_path / "zkm-amend"
+    amend_src.mkdir()
+    (amend_src / "plugin.yaml").write_text("name: amend\nversion: 0.1.0\nkind: amender\ncreates_dirs: []\n")
+    (amend_src / "convert.py").write_text("def convert(store_path, config): return []\n")
+    add_plugin(str(amend_src))
+
+    amenders = list_amenders()
+    assert len(amenders) == 1
+    assert amenders[0].name == "amend"
+    assert amenders[0].kind == "amender"
+
+
+def test_cmd_convert_runs_amenders_by_default(
+    isolated_plugins: Path, store: Path, tmp_path: Path, notes_plugin_dir: Path
+) -> None:
+    """Amender plugins run automatically after a body-producer convert (default-on)."""
+    from click.testing import CliRunner
+    from zkm.cli import main
+
+    src = tmp_path / "src_notes"
+    src.mkdir()
+    (src / "note.txt").write_text("Test note")
+    add_plugin(str(notes_plugin_dir))
+
+    amend_dir = isolated_plugins / "zkm-amend"
+    amend_dir.mkdir()
+    (amend_dir / "plugin.yaml").write_text("name: amend\nversion: 0.1.0\nkind: amender\ncreates_dirs: []\n")
+    sentinel = tmp_path / "amender_ran"
+    (amend_dir / "convert.py").write_text(
+        f"def convert(store_path, config):\n"
+        f"    open({str(sentinel)!r}, 'w').close()\n"
+        f"    return []\n"
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        ["convert", "notes", "--store", str(store), "--no-commit"],
+        env={"NOTES_SOURCE_DIR": str(src), "ZKM_PLUGINS_DIR": str(isolated_plugins)},
+    )
+    assert result.exit_code == 0, result.output
+    assert sentinel.exists(), "amender did not run"
+    assert "Amended via 'amend'" in result.output
+
+
+def test_cmd_convert_no_amenders_flag_skips_amenders(
+    isolated_plugins: Path, store: Path, tmp_path: Path, notes_plugin_dir: Path
+) -> None:
+    """--no-amenders suppresses the amender chain."""
+    from click.testing import CliRunner
+    from zkm.cli import main
+
+    src = tmp_path / "src_notes"
+    src.mkdir()
+    (src / "note.txt").write_text("Test note")
+    add_plugin(str(notes_plugin_dir))
+
+    amend_dir = isolated_plugins / "zkm-amend"
+    amend_dir.mkdir()
+    (amend_dir / "plugin.yaml").write_text("name: amend\nversion: 0.1.0\nkind: amender\ncreates_dirs: []\n")
+    sentinel = tmp_path / "amender_ran"
+    (amend_dir / "convert.py").write_text(
+        f"def convert(store_path, config):\n"
+        f"    open({str(sentinel)!r}, 'w').close()\n"
+        f"    return []\n"
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        ["convert", "notes", "--store", str(store), "--no-commit", "--no-amenders"],
+        env={"NOTES_SOURCE_DIR": str(src), "ZKM_PLUGINS_DIR": str(isolated_plugins)},
+    )
+    assert result.exit_code == 0, result.output
+    assert not sentinel.exists(), "amender should not have run with --no-amenders"
+
+
+def test_cmd_convert_amender_plugin_does_not_trigger_amender_chain(
+    isolated_plugins: Path, store: Path, tmp_path: Path
+) -> None:
+    """Calling zkm convert on an amender plugin directly does not re-run amenders."""
+    from click.testing import CliRunner
+    from zkm.cli import main
+
+    amend_dir = isolated_plugins / "zkm-amend"
+    amend_dir.mkdir()
+    (amend_dir / "plugin.yaml").write_text("name: amend\nversion: 0.1.0\nkind: amender\ncreates_dirs: []\n")
+    sentinel = tmp_path / "amender_ran_count"
+    sentinel.write_text("0")
+    (amend_dir / "convert.py").write_text(
+        f"def convert(store_path, config):\n"
+        f"    import pathlib; p = pathlib.Path({str(sentinel)!r})\n"
+        f"    p.write_text(str(int(p.read_text()) + 1))\n"
+        f"    return []\n"
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        ["convert", "amend", "--store", str(store), "--no-commit"],
+        env={"ZKM_PLUGINS_DIR": str(isolated_plugins)},
+    )
+    assert result.exit_code == 0, result.output
+    assert sentinel.read_text() == "1", "amender should have run exactly once (not recursively)"

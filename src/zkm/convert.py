@@ -51,6 +51,7 @@ class Plugin:
     version: str
     description: str
     path: Path
+    kind: str = "converter"
     config_keys: dict[str, dict] = field(default_factory=dict)
     creates_dirs: list[str] = field(default_factory=list)
 
@@ -65,6 +66,7 @@ def load_plugin_manifest(plugin_path: Path) -> Plugin:
         version=data.get("version", "0.0.0"),
         description=data.get("description", ""),
         path=plugin_path,
+        kind=data.get("kind", "converter"),
         config_keys=data.get("config") or {},
         creates_dirs=data.get("creates_dirs") or [],
     )
@@ -95,6 +97,11 @@ def list_plugins() -> list[Plugin]:
 
 def find_plugin(name: str) -> Plugin | None:
     return next((p for p in list_plugins() if p.name == name), None)
+
+
+def list_amenders() -> list[Plugin]:
+    """Return all installed plugins with kind == 'amender', sorted by name."""
+    return [p for p in list_plugins() if p.kind == "amender"]
 
 
 def add_plugin(source: str) -> Plugin:

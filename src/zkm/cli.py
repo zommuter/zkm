@@ -408,18 +408,20 @@ def cmd_plugin_remove(name: str) -> None:
     help="Re-process all files managed by this plugin",
 )
 @click.option("--no-progress", is_flag=True, help="Suppress progress bar")
+@click.option("--no-amenders", is_flag=True, help="Skip auto-running amender plugins after conversion")
 def cmd_convert(
     plugin: str,
     store_override: str | None,
     no_commit: bool,
     reprocess_mode: str | None,
     no_progress: bool,
+    no_amenders: bool,
 ) -> None:
     """Run a plugin's converter against the store."""
     from tqdm import tqdm
 
     from zkm.cancel import CancelController, PluginInterrupt
-    from zkm.convert import run_convert, run_reprocess
+    from zkm.convert import find_plugin, list_amenders, run_convert, run_reprocess
     from zkm.runstate import RunSession
 
     sdir = Path(store_override) if store_override else store_path()
@@ -505,7 +507,18 @@ def cmd_convert(
     for p in created:
         click.echo(f"  + {p.relative_to(sdir)}")
 
-    if n > 0 and not no_commit:
+    # Run amenders after a body-producer plugin (default-on, skipped with --no-amenders).
+    plugin_obj = find_plugin(plugin)
+    is_amender = plugin_obj is not None and plugin_obj.kind == "amender"
+    if not cancelled and not no_amenders and not is_amender:
+        for amender in list_amenders():
+            try:
+                run_convert(amender.name, sdir)
+                click.echo(f"Amended via '{amender.name}'")
+            except Exception as e:
+                click.echo(f"WARN: amender '{amender.name}' failed: {e}", err=True)
+
+    if not no_commit:
         subprocess.run(["git", "add", "-A"], cwd=sdir, check=True)
         result = subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=sdir)
         if result.returncode != 0:
