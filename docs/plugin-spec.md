@@ -273,6 +273,40 @@ Once `zkm.sidecar`, `zkm.cas`, `zkm.inbox`, `zkm.atomic`, and `zkm.hashing` land
 
 The inbox is a shared zone — multiple producer plugins may deposit items there, and multiple consumer plugins may read from it. A plugin MUST NOT process, rewrite, or delete inbox items it did not produce. Ownership is determined by the `.origin.json` sidecar: an item belongs to plugin `X` if `X` appears in `producers[].plugin`. Plugins that scan `inbox/` for downstream processing (e.g. `zkm-pdf` picking up attachments) MUST check the sidecar and skip items not produced by a plugin they are designed to consume. This prevents `zkm-photo` from accidentally re-processing a PDF that `zkm-eml` deposited for `zkm-pdf`.
 
+## Scrub
+
+`zkm scrub <plugin>` calls the plugin's optional `scrub()` function to retroactively clean up stale frontmatter field values. This is the correct mechanism when an extraction quality improvement (e.g., a new stoplist or POS-filter) means previously-written entities are now incorrect — the set-union amendment merge cannot remove them, so an explicit scrub pass is needed.
+
+### Contract
+
+```python
+def scrub(
+    store_path: Path,
+    config: dict,
+    *,
+    dry_run: bool = True,
+    verbose: bool = False,
+    progress=None,
+) -> dict[str, int]:
+    ...
+```
+
+Return shape: `{"files_scanned": int, "files_changed": int, "entities_removed": int}`.
+
+If a plugin does not define `scrub`, `zkm scrub <plugin>` exits 2 with a clear message.
+
+### Requirements
+
+- **Idempotent.** A second `--apply` run MUST report `files_changed=0` and `entities_removed=0`. The caller verifies this.
+- **Frontmatter-only.** `scrub()` MUST NOT read or write `<md>.amendments.json` attribution sidecars. Those sidecars record which amendment records were applied; scrub is a direct frontmatter mutation, not a record application.
+- **Atomic writes.** Use `zkm.atomic.write_atomic` when writing modified files.
+- **Skip hidden dirs.** Exclude paths where any parent component starts with `.` (e.g., `.git`, `.zkm-state`, `.zkm-index`).
+- **Dirty-tree guard.** Core enforces this before dispatch — no plugin-side check needed.
+
+### Scrub is not a replacement for extraction quality
+
+Scrub is a one-time migration tool, not a production code path. The right fix is always to improve the extractor so it never emits the undesired value. Scrub cleans up the historical backlog; the improved extractor prevents recurrence.
+
 ## Secret management
 
 Secrets live in `$ZKM_STORE/.env`, which is gitignored. Format:

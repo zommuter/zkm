@@ -536,6 +536,58 @@ def cmd_convert(
 
 
 # ---------------------------------------------------------------------------
+# zkm scrub
+# ---------------------------------------------------------------------------
+
+
+@main.command("scrub")
+@click.argument("plugin")
+@click.option("--apply", "do_apply", is_flag=True, help="Write changes (default: dry-run)")
+@click.option("--verbose", is_flag=True, help="Print each modified file path")
+@click.option(
+    "--store",
+    "store_override",
+    default=None,
+    metavar="PATH",
+    help="Store path (default: $ZKM_STORE or ~/knowledge)",
+)
+def cmd_scrub(plugin: str, do_apply: bool, verbose: bool, store_override: str | None) -> None:
+    """Retroactively remove stale frontmatter entries via a plugin's scrub() function."""
+    from zkm.runstate import RunSession
+    from zkm.scrub import run_scrub
+
+    sdir = Path(store_override) if store_override else store_path()
+    _require_store(sdir)
+    assert_clean(plugin_name=plugin)
+
+    dry_run = not do_apply
+
+    with RunSession(sdir, "scrub", args=[plugin]):
+        try:
+            stats = run_scrub(plugin, sdir, dry_run=dry_run, verbose=verbose)
+        except LookupError as e:
+            click.echo(f"Error: {e}", err=True)
+            sys.exit(1)
+        except AttributeError as e:
+            click.echo(f"Error: {e}", err=True)
+            sys.exit(2)
+        except FileNotFoundError as e:
+            click.echo(f"Error: {e}", err=True)
+            sys.exit(1)
+
+    scanned = stats.get("files_scanned", 0)
+    changed = stats.get("files_changed", 0)
+    removed = stats.get("entities_removed", 0)
+
+    click.echo(
+        f"Scrubbed {removed} entities across {changed}/{scanned} files"
+        f" ({'dry run' if dry_run else 'applied'})."
+    )
+    if dry_run and changed:
+        click.echo("Re-run with --apply to write changes.")
+
+
+# ---------------------------------------------------------------------------
 # zkm index
 # ---------------------------------------------------------------------------
 
