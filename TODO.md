@@ -189,7 +189,7 @@ Design note: these commands read `.zkm-config` to know the backend and dispatch 
 - [x] Hook fix: `zkm index` → `zkm index --no-embed` — bare index was hitting GPU on every sync; embed belongs on separate timer (A5) — verified by user on 2026-05-08
 - [x] A5: `contrib/systemd/zkm-embed.{service,timer}` — 30-min user timer running `zkm embed && zkm doctor`; `docs/install.md` "Periodic embed + doctor timer" section with install/drop-in/log instructions — 2026-05-08
 - [ ] from 2026-06-05: review journald evidence for convert-overlap; decide on lock if observed.
-- [ ] **Status observability (n=1 unconfirmed 2026-05-11):** next standalone `zkm convert zkm-ner` run — open second terminal and run `zkm status` + `ls -la <store>/.zkm-state/running/` mid-run to confirm PID file visibility. If empty, investigate ZKM_STORE mismatch vs. PID file lifecycle bug.
+- [x] **Status observability:** PID file visibility confirmed by user 2026-05-11.
 - [ ] **zkm-eml signature stripping** — heuristic detection of email signature blocks (`-- ` line, `Mit freundlichen Grüßen`, `Best regards`, `Sent from my…`) before markdown render; addresses popularity skew of personal contact details (e.g. own phone number ×3852 in NER pilot). Raised as amendment in 2026-05-10-1640-n9b meeting.
 
 ## Phase 2 — SIGUSR1 progress + `zkm status` (decided 2026-05-08-1913-sigusr1-status.md)
