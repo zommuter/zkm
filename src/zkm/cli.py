@@ -501,15 +501,16 @@ def cmd_convert(
             err=True,
         )
 
-    n = len(created)
-    verb = "Reprocessed" if reprocess_mode else "Converted"
-    click.echo(f"{verb} {n} file(s) via plugin '{plugin}'")
-    for p in created:
-        click.echo(f"  + {p.relative_to(sdir)}")
-
     # Run amenders after a body-producer plugin (default-on, skipped with --no-amenders).
     plugin_obj = find_plugin(plugin)
     is_amender = plugin_obj is not None and plugin_obj.kind == "amender"
+
+    n = len(created)
+    if not is_amender:
+        verb = "Reprocessed" if reprocess_mode else "Converted"
+        click.echo(f"{verb} {n} file(s) via plugin '{plugin}'")
+        for p in created:
+            click.echo(f"  + {p.relative_to(sdir)}")
     if not cancelled and not no_amenders and not is_amender:
         for amender in list_amenders():
             try:
@@ -544,6 +545,7 @@ def cmd_convert(
 @click.argument("plugin")
 @click.option("--apply", "do_apply", is_flag=True, help="Write changes (default: dry-run)")
 @click.option("--verbose", is_flag=True, help="Print each modified file path")
+@click.option("--no-progress", is_flag=True, help="Suppress progress bar")
 @click.option(
     "--store",
     "store_override",
@@ -551,8 +553,12 @@ def cmd_convert(
     metavar="PATH",
     help="Store path (default: $ZKM_STORE or ~/knowledge)",
 )
-def cmd_scrub(plugin: str, do_apply: bool, verbose: bool, store_override: str | None) -> None:
+def cmd_scrub(
+    plugin: str, do_apply: bool, verbose: bool, no_progress: bool, store_override: str | None
+) -> None:
     """Retroactively remove stale frontmatter entries via a plugin's scrub() function."""
+    from tqdm import tqdm
+
     from zkm.runstate import RunSession
     from zkm.scrub import run_scrub
 
@@ -561,10 +567,28 @@ def cmd_scrub(plugin: str, do_apply: bool, verbose: bool, store_override: str | 
     assert_clean(plugin_name=plugin)
 
     dry_run = not do_apply
+    show_progress = not no_progress and sys.stdout.isatty()
+    bar: tqdm | None = None
 
-    with RunSession(sdir, "scrub", args=[plugin]):
+    with RunSession(sdir, "scrub", args=[plugin]) as session:
+        def progress_cb(current: int, total: int | None, message: str = "") -> None:
+            nonlocal bar
+            session.tick(current, total, phase="scrub", message=message)
+            if not show_progress:
+                return
+            if bar is None:
+                bar = tqdm(total=total, unit="file", leave=False, file=sys.stderr)
+            elif total is not None and bar.total != total:
+                bar.total = total
+                bar.refresh()
+            delta = current - bar.n
+            if delta > 0:
+                bar.update(delta)
+            if message:
+                bar.set_postfix_str(message[:60])
+
         try:
-            stats = run_scrub(plugin, sdir, dry_run=dry_run, verbose=verbose)
+            stats = run_scrub(plugin, sdir, dry_run=dry_run, verbose=verbose, progress=progress_cb)
         except LookupError as e:
             click.echo(f"Error: {e}", err=True)
             sys.exit(1)
@@ -574,6 +598,9 @@ def cmd_scrub(plugin: str, do_apply: bool, verbose: bool, store_override: str | 
         except FileNotFoundError as e:
             click.echo(f"Error: {e}", err=True)
             sys.exit(1)
+        finally:
+            if bar is not None:
+                bar.close()
 
     scanned = stats.get("files_scanned", 0)
     changed = stats.get("files_changed", 0)
@@ -816,7 +843,9 @@ def cmd_status(as_json: bool, store_override: str | None) -> None:
     click.echo("-" * len(header))
     for row in rows:
         pid_s = str(row.get("pid", "?"))
-        cmd = str(row.get("command", "?"))[:9]
+        args = row.get("args") or []
+        cmd_base = str(row.get("command", "?"))
+        cmd = (f"{cmd_base}({args[0]})" if args else cmd_base)[:9]
         phase = str(row.get("phase", "?"))[:7]
         started = str(row.get("started_at", ""))[:19].replace("T", " ")
         current = row.get("current", 0)
