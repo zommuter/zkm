@@ -86,18 +86,13 @@ NER lands before whatsapp. `zkm convert <plugin>` runs amenders default-on (`--n
 - [x] **N9c-8.** Pipe-cell artifact filter — `drop_structural_artefacts()` in `textfilter.py` (`^[\s|]+$`); wired into `extract.py` post-filter chain; `textfilter-v1` → `textfilter-v2` cache invalidation; `scrub()` extended; 9 new tests (95 total). `zkm scrub ner --apply` removed 3938 entities across 2843 files. **Post-scrub pilot: 467,956 total mentions** (was 471,894 post-N9c). `| |`/`| | |`/`|  |` gone from top-N. Remaining: `| €` ×317 (partial cell with real content, not pure-pipe — deferred) — 2026-05-11.
 - [x] **N9c-9 (backlog).** Bilingual isolated-POS in scrub — `_isolated_pos` now checks `en_core_web_sm` when DE returns PROPN/X; catches 'Learn' (VERB, ×1032) and 'Link' (NOUN, ×679); 'Actions'/'Download' remain PROPN in EN — accepted limitation. zkm-ner bumped 0.2.0→0.3.0, tagged v0.3.0 — covered by `test_scrub_bilingual_pos_drops_english_common_words` (96 tests) 2026-05-11.
 - [ ] **N9d-α.** GLiNER A/B — two-stage smoke-gate protocol (decided 2026-05-11-1531-ner-tangible-results.md). Measurement only; never touches frontmatter.
-  - [ ] **N9d-α-1.** Patch `pilot.py` (~10 LOC) to dump top-30 multi-word (≥2-token) PERSON values; run once to capture salutation closed set.
-  - [ ] **N9d-α-2.** Pre-flight: verify `zkm-ner[gliner]` installed; `uv sync --extra gliner` if not.
-  - [ ] **N9d-α-3.** `plugins/zkm-ner/scripts/gliner_ab.py` (~50 LOC): file list → both backends → delta JSONL at `.zkm-state/gliner-ab-<ISO8601>.jsonl`. No amendments.
+  - [x] **N9d-α-1.** Patch `pilot.py` (~10 LOC) to dump top-30 multi-word (≥2-token) PERSON values; run once to capture salutation closed set — done 2026-05-11.
+  - [x] **N9d-α-2.** Pre-flight: verify `zkm-ner[gliner]` installed; `uv sync --extra gliner` if not — done 2026-05-11.
+  - [x] **N9d-α-3.** `plugins/zkm-ner/scripts/gliner_ab.py` (~50 LOC): file list → both backends → delta JSONL at `.zkm-state/gliner-ab-<ISO8601>.jsonl`. No amendments — done 2026-05-11.
   - [ ] **N9d-α-4.** Smoke gate: 5-file run (one per top-4 FP + control); verify each FP dropped by GLiNER.
   - [ ] **N9d-α-5.** Stage 2 (if smoke passes): `git grep -l` FP-file list → `gliner_ab.py` → check success bar (≤10% retention each top-4 FP + no new top-20 cluster).
 - [ ] **N9e (backlog).** Closed-loop heuristic ⇄ LLM verifier feedback — per-entity provenance state at `.zkm-state/ner-denylist-learned.jsonl` (`{value, verdict, source, confirmed_by, timestamp}`). Bidirectional: LLM confirms heuristic denials; LLM overrides grow the denylist. Requires N9d. Needs conflict-resolution design for allow+deny overlap. Hold design meeting before implementation.
-- [ ] **N9f (gated: impl only if N9d-α smoke OR Stage 2 fails).** Salutation phrase blocklist — Class 6 pollution (multi-word greeting/sign-off FPs: `Hallo Tobias`, `Best Regards`, `Hello Tobias`, `Guten Tag Herr Kienzler`, etc. — full list from N9d-α-1 audit).
-  - Add `_SALUTATION_BLOCKLIST: frozenset[str]` + `drop_salutation_blocklist()` to `textfilter.py`.
-  - Wire into `extract()` after `drop_structural_artefacts`; bump `version.py` to `+textfilter-v3+posfilter-v1`.
-  - Extend `scrub()` in `convert.py` to include the new predicate.
-  - Tests in `test_textfilter.py` — parametrised per phrase + case-insensitivity.
-  - Run `zkm convert ner` (cache bust) then `zkm scrub ner --apply`; commit; re-run `pilot.sh`; document delta here.
+- [x] **N9f.** Salutation phrase blocklist — Class 6 pollution (multi-word greeting/sign-off FPs). zkm-ner v0.4.0→0.4.1. Scrub: 153730 entities removed across 36723 files (two passes: textfilter-v3 + textfilter-v4 for 3 missed variants). **Post-scrub pilot: 340,431 total mentions** (was 467,956 post-N9c-8 = **-127,525, -27.3%**). Salutation phrases gone from top-N; top-20 now leads with legitimate entities (`Tobias Kienzler` ×11279 = own-name/signature, Class C deferred) — 2026-05-11.
 - [ ] **N9d (backlog — LLM verifier path).** LLM verifier on residuals after N9d-α and N9f (if triggered). Design meeting required before implementation.
 - [x] **N10.** Docs: new `docs/ner.md` (pattern categories, amender-not-producer rationale, cache shape, scope boundary, name-is-not-UID assertion). Update `docs/entity-model.md` Phase 2.5 section + PII design note. Update `CLAUDE.md` Phase 2.5 sequencing — 2026-05-11.
 - [x] **N11.** PII redaction: one-paragraph design note in `docs/entity-model.md` (config-driven entity-type denylist for export, deferred until first sharing scenario) — 2026-05-11.
