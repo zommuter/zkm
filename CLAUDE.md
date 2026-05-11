@@ -30,7 +30,8 @@ docs/
 ├── phase1-design.md    # Library choices and open questions for Phase 1
 ├── temporal-queries.md # Git-as-temporal-index pattern (DiffMem-inspired)
 ├── plugin-spec.md      # How to write a converter plugin
-└── entity-model.md     # NER, entity pages, WebUI design (Phase 3+)
+├── entity-model.md     # NER, entity pages, WebUI design (Phase 3+)
+└── ner.md              # NER pipeline, quality controls, cache, scope
 tests/
 pyproject.toml          # uv + hatchling, entry point: zkm = "zkm.cli:main"
 TODO.md                 # Phase 1 progress checklist
@@ -112,10 +113,10 @@ sha256: abc123...
 
 Follows the global bump-and-tag + loose-0.x rule (see `~/.claude/CLAUDE.md`).
 
-Repos in this polyrepo:
-- `~/src/zkm/` — core (currently `0.2.0`); tag `vX.Y.Z` here
-- `plugins/zkm-eml/` — currently `0.6.0`; own git repo, own `vX.Y.Z` tags
-- `plugins/zkm-photo/`, `zkm-pdf/`, `zkm-scan/`, `zkm-notmuch/` — currently `0.1.0` each; own repos
+Repos in this polyrepo (each tags `vX.Y.Z` independently):
+- `~/src/zkm/` — core
+- `plugins/zkm-eml/` — own git repo
+- `plugins/zkm-photo/`, `zkm-pdf/`, `zkm-scan/`, `zkm-notmuch/`, `zkm-ner/` — own repos
 - `examples/zkm-notes/` — not independently versioned; follows core tags
 
 **Bump trigger:** every pyproject `version` change → tag in same commit. Never bump silently.
@@ -140,7 +141,7 @@ See `docs/phase2-plan.md` for full scope and sequencing.
 - **Store hygiene commands**: `zkm rm` (decrement producers, remove orphaned symlink + CAS object), `zkm gc` (sweep unreferenced CAS objects)
 - [x] **Hybrid BM25 + dense embeddings** — `embed.py`, `docs/hybrid-search.md`; OpenAI-compatible `/v1/embeddings`, numpy EmbedStore, RRF fusion, `--no-dense` flag, graceful fallback — 2026-05-06
 - **Store management** (`zkm remote`, `zkm clone`, `zkm push`, `zkm pull`) — git-like commands that dispatch correctly for annex/lfs/none backends. Reads `.zkm-config` to know which backend to use. See TODO.md for full spec.
-- Entity extraction (NER → frontmatter `entities`, written back to md) — Phase 3
+- Entity extraction (NER amender plugin, Phase 2.5) — see `docs/ner.md`
 - More plugins: whatsapp, threema, signal, scan/OCR, photo-sidecar
 
 ### Phase 3: Integration + WebUI

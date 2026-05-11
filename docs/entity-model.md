@@ -22,17 +22,11 @@ Live aggregation is simpler: no cache invalidation, no rebuild pipeline, always 
 
 **Exception:** Phase 4 memory compaction *does* write entity summary files — but those are for archival/compression, not for the WebUI's live view.
 
-## NER → frontmatter flow (Phase 2)
+## NER → frontmatter flow (Phase 2.5)
 
-When a converter writes a new markdown file, an optional post-processing step runs NER:
+NER is implemented in `plugins/zkm-ner/` as an amender plugin that runs default-on after every `zkm convert`. See `docs/ner.md` for the full pipeline (pattern categories, quality controls, cache shape, scope boundary). The section below describes the WebUI's use of the resulting frontmatter; extraction details live in `docs/ner.md`.
 
-```python
-# Pseudocode — actual implementation TBD
-entities = ner_extract(text)  # spaCy de_core_news_sm or pattern-based
-# → [{"type": "person", "value": "Frank"}, {"type": "org", "value": "Stadtwerke Konstanz"}]
-```
-
-Results are written back into the file's frontmatter:
+Results are written back into the file's frontmatter via `zkm.amendments`:
 
 ```yaml
 ---
@@ -46,7 +40,7 @@ entities:
 ---
 ```
 
-The `entities` field is always derived — NER can be re-run and the field overwritten. The `tags` field remains manually curated. This distinction matters: tags are *your* categorization, entities are *extracted* facts.
+The `entities` field is always derived — NER can be re-run and the field overwritten. `zkm scrub ner` removes stale entities when extractor quality improves. The `tags` field remains manually curated. This distinction matters: tags are *your* categorization, entities are *extracted* facts.
 
 ## WebUI sketch (Phase 3)
 
@@ -59,3 +53,9 @@ Minimal FastAPI app:
 - `/doc/<path>` — rendered markdown with entity names linked
 
 Entity names in rendered documents are auto-linked to `/entity/<name>`. This creates a navigable knowledge graph without maintaining an explicit graph database.
+
+## PII redaction (design note, deferred)
+
+Entity extraction surfaces personal data — phone numbers, email addresses, person names — that may need to be withheld in certain sharing scenarios. The redaction strategy is deliberately deferred until the first concrete sharing scenario arises, because the right mechanism depends on the context: a full entity-type denylist for a structured export differs from on-the-fly masking in the WebUI, which differs from summary-level filtering when building LLM context. A premature general solution would constrain all three.
+
+When a sharing scenario is concrete (export pipeline, public WebUI, or sync to a non-local LLM endpoint), the implementation target is a **config-driven entity-type denylist**: a list of `entity.type` values whose `value` strings are replaced with `[REDACTED]` at the rendering/export stage. Source markdown is never modified. Default is empty (no redaction). See `docs/entity-model.md` Issue N11 in `TODO.md` for tracking.
