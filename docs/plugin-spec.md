@@ -16,6 +16,8 @@ zkm-imap/
 
 ## plugin.yaml
 
+**Naming convention:** The manifest `name:` field is the plugin's bare CLI handle — no `zkm-` prefix. The directory name (`plugins/zkm-*`) carries the namespace at the repo level; `name:` must not repeat it. For example, a plugin in `plugins/zkm-eml/` must declare `name: eml`. `find_plugin()` strips a leading `zkm-` from CLI input for backwards compatibility with older invocations.
+
 ```yaml
 name: imap
 version: 0.1.0

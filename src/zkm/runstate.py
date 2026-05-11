@@ -30,7 +30,7 @@ class RunSession:
 
     Usage::
 
-        with RunSession(store, "convert", args=["zkm-eml"]) as session:
+        with RunSession(store, "convert", args=["eml"]) as session:
             for i, item in enumerate(items):
                 session.tick(i + 1, len(items), phase="convert", message=item.name)
                 process(item)

@@ -42,12 +42,12 @@ def test_should_write_not_at_non_fibonacci() -> None:
 
 
 def test_pid_file_created_on_enter(tmp_path: Path) -> None:
-    with RunSession(tmp_path, "convert", args=["zkm-eml"]) as session:
+    with RunSession(tmp_path, "convert", args=["eml"]) as session:
         assert session._pid_file is not None
         assert session._pid_file.exists()
         data = json.loads(session._pid_file.read_text())
         assert data["command"] == "convert"
-        assert data["args"] == ["zkm-eml"]
+        assert data["args"] == ["eml"]
         assert data["pid"] == os.getpid()
 
 

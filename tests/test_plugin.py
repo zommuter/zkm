@@ -116,6 +116,11 @@ def test_find_plugin(isolated_plugins: Path, notes_plugin_dir: Path) -> None:
     assert find_plugin("nonexistent") is None
 
 
+def test_find_plugin_accepts_zkm_prefix(isolated_plugins: Path, notes_plugin_dir: Path) -> None:
+    add_plugin(str(notes_plugin_dir))
+    assert find_plugin("zkm-notes") == find_plugin("notes")
+
+
 def test_remove_plugin(isolated_plugins: Path, notes_plugin_dir: Path) -> None:
     add_plugin(str(notes_plugin_dir))
     remove_plugin("notes")

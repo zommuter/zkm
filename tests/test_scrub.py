@@ -40,7 +40,7 @@ def _make_plugin(plugins_dir: Path, name: str, has_scrub: bool = True) -> Path:
     plugin_dir = plugins_dir / f"zkm-{name}"
     plugin_dir.mkdir(parents=True)
     (plugin_dir / "plugin.yaml").write_text(
-        f"name: zkm-{name}\nversion: 0.1.0\ndescription: test\n"
+        f"name: {name}\nversion: 0.1.0\ndescription: test\n"
     )
     if has_scrub:
         (plugin_dir / "convert.py").write_text(

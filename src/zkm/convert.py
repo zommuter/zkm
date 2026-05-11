@@ -96,6 +96,7 @@ def list_plugins() -> list[Plugin]:
 
 
 def find_plugin(name: str) -> Plugin | None:
+    name = name.removeprefix("zkm-")
     return next((p for p in list_plugins() if p.name == name), None)
 
 

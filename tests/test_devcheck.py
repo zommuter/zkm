@@ -41,7 +41,7 @@ def make_plugin_dir(plugins_root: Path, name: str, *, with_git: bool = True) -> 
     else:
         plugin_dir.mkdir(parents=True, exist_ok=True)
     (plugin_dir / "plugin.yaml").write_text(
-        f"name: zkm-{name}\nversion: 0.1.0\ndescription: test\n"
+        f"name: {name}\nversion: 0.1.0\ndescription: test\n"
     )
     return plugin_dir
 
