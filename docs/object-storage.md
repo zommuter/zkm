@@ -57,9 +57,19 @@ The `producers[]` list may contain entries from **distinct plugins** for the sam
 
 When the same attachment content (by sha256) is referenced by more than one source item, only one inbox symlink is created. Additional producers are recorded in the sidecar. The symlink's date path corresponds to the earliest producer by `message` path (ascending sort), which for date-sharded paths is the chronologically earliest message.
 
-## Extraction cache (design only — Phase 3+)
+## Extraction caches — two distinct designs
 
-Content plugins (pdf/photo/scan) run expensive extraction on every invocation (text layer parsing, OCR, VLM captioning). A per-CAS-object extraction cache will make re-runs cheap by skipping completed stages.
+There are two separate extraction caches in zkm. They share a similar key structure but address different extraction problems and live in different locations.
+
+### 1. Per-document NER cache (`src/zkm/extraction_cache.py`) — shipped Phase 2.5
+
+Caches the output of text-level extractors (NER, future OCR text post-processing) keyed by the **body content hash** of the rendered markdown, not the CAS object. Lives at `<store>/.zkm-state/extraction-cache/<extractor>/<aa>/<rest>.json`. Key tuple: `(sha256_of_body, extractor_name, model_name, model_version)`. An extractor upgrade (e.g. bumping `model_version` in `version.py`) automatically misses old entries.
+
+This cache is **implemented** and in production use by `zkm-ner`. See `docs/ner.md` for the full design, cache invalidation rules, and the `model_version` bump convention.
+
+### 2. Per-CAS-object content cache — design only, Phase 3+
+
+Content plugins (pdf/photo/scan) run expensive binary extraction on every invocation (text layer parsing, OCR, VLM captioning). A per-CAS-object cache will make re-runs cheap by skipping completed stages.
 
 **Cache shape** — per CAS object, multi-stage, per-extractor. Suggested location: `<aa>/<rest>.extract.json` alongside the object file:
 
