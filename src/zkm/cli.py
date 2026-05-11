@@ -847,7 +847,11 @@ def cmd_status(as_json: bool, store_override: str | None) -> None:
         cmd_base = str(row.get("command", "?"))
         cmd = (f"{cmd_base}({args[0]})" if args else cmd_base)[:9]
         phase = str(row.get("phase", "?"))[:7]
-        started = str(row.get("started_at", ""))[:19].replace("T", " ")
+        try:
+            from datetime import datetime as _dt
+            started = _dt.fromisoformat(str(row.get("started_at", ""))).astimezone().strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            started = str(row.get("started_at", ""))[:19].replace("T", " ")
         current = row.get("current", 0)
         total = row.get("total")
         progress = f"{current}/{total}" if total else str(current)

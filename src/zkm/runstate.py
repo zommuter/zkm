@@ -146,6 +146,6 @@ class RunSession:
         pct = f"{self._current}/{self._total}" if self._total else str(self._current)
         sys.stderr.write(
             f"{self._command} phase={self._phase} {pct} "
-            f"{datetime.now(timezone.utc).strftime('%H:%M:%S')}\n"
+            f"{datetime.now(timezone.utc).astimezone().strftime('%H:%M:%S')}\n"
         )
         sys.stderr.flush()
