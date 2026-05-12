@@ -267,7 +267,10 @@ def test_tokenize_doc_includes_participant_address(store: Path) -> None:
         "participants:\n  - {address: 'bob@example.org', role: 'from'}",
     )
     idx = build_index(store)
-    assert "bob@example.org" in idx.docs[0].tokens
+    # address is tokenized (not stored as a raw string) so query tokens align with index tokens
+    from zkm.index import tokenize
+    addr_tokens = tokenize("bob@example.org")
+    assert all(t in idx.docs[0].tokens for t in addr_tokens)
 
 
 def test_tokenize_doc_includes_participant_name(store: Path) -> None:

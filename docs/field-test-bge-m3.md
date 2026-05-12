@@ -342,6 +342,29 @@ ls -lh "$ZKM_STORE/.zkm-index/bm25.pkl" \
 - Negative controls confirm the value is absent from the markdown body.
 - Any surprise regression: a query that worked in steps 1–5 now returns different ranking → note in findings.
 
-### Step 7 live results — DATE
+### Step 7 live results — 2026-05-12
 
-*(fill in after running)*
+**7a — Rebuild:** BM25 rebuilt to version 4 (219.0 MB, was 194.5 MB at v2 / 217.4 MB at v3 with the bug).
+Dense still at schema_version 2 — embed rebuild pending (separate timer).
+
+**Bug found and fixed during step 7b:** `index.py:78` used `tokens.append(address.lower())` instead
+of `tokens += tokenize(address)`. The full address string (e.g. `ludwig-deluxe@gmx.de`) was stored
+as a single token, but queries go through `tokenize()` which splits on `@`/`.` — so query tokens
+never matched the index token. Fixed: use `tokenize()` on both sides. `_PICKLE_VERSION` bumped to 4;
+test updated. All 390 tests pass.
+
+**7b — Participant address search (post-fix):**
+- `zkm search "ludwig-deluxe@gmx.de" -k 20 --no-dense` → 20 hits including
+  `mail/messages/2004/12/2004-12-17-0857-ef365f50-klassentreffen-die-2te.md` at rank 20 (score 19.61).
+- That message has `ludwig-deluxe@gmx.de` in `participants[]` but **NOT** in body — confirmed pre-fix
+  by `in body: False / in participants[]: True`.
+- Pre-fix: rank 2341 / score 3.445 (only `gmx` + `de` matched — useless); post-fix: rank 20 / score 19.61
+  (all four tokens matched including `ludwig-deluxe`).
+
+**7c — Typed-value queries:** IBAN and amount entities are not yet present in the mail corpus
+`entities[]` frontmatter (the amount/IBAN extractors in zkm-ner v0.12.0 were added but `zkm convert ner`
+hasn't re-run since γ E6-E7 landed). Body-text IBAN/amount searches work via normal BM25 body indexing.
+This probe is deferred until the next `zkm convert ner` run re-populates `entities[]`.
+
+**7d — Index size:** BM25 v2→v4: 194.5 MB → 219.0 MB (+24.5 MB, +12.6% from entity + participant tokens).
+Dense NPZ unchanged at 308.4 MB (embed rebuild pending).
