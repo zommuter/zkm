@@ -138,6 +138,23 @@ Plugins (source → md)  →  Store (md + git)  →  Index (BM25)  →  Query (C
 
 See `docs/` for design notes, plugin spec, and future-phase plans.
 
+## Plugins
+
+| Plugin | Description |
+|--------|-------------|
+| [zkm-eml](https://github.com/zommuter/zkm-eml) | Convert Maildir / `.eml` files to markdown with thread modeling and attachment extraction |
+| [zkm-ner](https://github.com/zommuter/zkm-ner) | Amender: extract named entities (persons, orgs, locations, contacts) into frontmatter |
+| [zkm-notmuch](https://github.com/zommuter/zkm-notmuch) | Amender: merge notmuch Xapian tags into mail-message frontmatter |
+| [zkm-pdf](https://github.com/zommuter/zkm-pdf) | Import text-extractable PDFs into the knowledge store |
+| [zkm-photo](https://github.com/zommuter/zkm-photo) | Import JPEG photos with EXIF metadata into the knowledge store |
+| [zkm-scan](https://github.com/zommuter/zkm-scan) | OCR scanned images and PDFs (tesseract) into the knowledge store |
+
+To install a plugin, clone it into `plugins/` inside your zkm checkout (it is auto-discovered):
+
+```bash
+git clone https://github.com/zommuter/zkm-eml.git plugins/zkm-eml
+```
+
 ## Plugin development
 
 See [`docs/plugin-spec.md`](docs/plugin-spec.md) and the reference
@@ -178,3 +195,7 @@ Plugins create additional directories on first run (e.g. `mail/`, `messages/`).
 | 2 — Richer search | planned | embeddings, NER, store management commands |
 | 3 — Integration | planned | FastAPI WebUI, entity pages, Zelegator integration |
 | 4 — Temporal | planned | git-history queries, memory compaction |
+
+## License
+
+MIT — see [LICENSE](LICENSE)
