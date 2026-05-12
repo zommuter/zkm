@@ -3,6 +3,10 @@
 See `CLAUDE.md` for architecture overview. See `docs/phase2-plan.md` for sequencing.
 Completed Phase 1 tasks archived in `docs/phase1-done.md`.
 
+## Infrastructure / cross-project
+
+- [ ] Evaluate replacing llama-3.2-3b with Gemma 4 E4B for zkm LLM calls — `gemma4-e4b` in workload group on zomni llama-swap since 2026-05-12; benchmark text-only quality (via zelegator or ai-codebench); if Gemma ≥ llama at comparable speed, promote to always-on and retire llama-3.2-3b workload slot — cross-link: ~/src/helferli/docs/meeting-notes/2026-05-12-2036-asr-language-detection.md
+
 ## Phase 2 session 6 — hybrid search quality
 
 - [x] Widen dense candidate pool from `top_k*3` to `max(top_k*20, 200)` — clears literal-match saturation so cross-lingual hits enter RRF fusion — covered by tests/test_query_recall.py on 2026-05-07
