@@ -145,7 +145,7 @@ Sequencing: E1+E2+E3 (schema + amendments + normaliser lib) → E4 (suspicious d
 - [x] **E10.** Redactor scope expansion — design note in `docs/entity-model.md` PII section: redactor operates on BM25/dense input stream too; `zkm.canonical.<type>` is the integration point — 2026-05-12.
 - [x] **E11.** Docs contract tables — `docs/entity-model.md`: (a) valid types table (`type`, canonical yes/no, `standard:` value, expected `scope:` values, PII sensitivity); (b) provenance scopes table (per-plugin, `plugin.yaml`-declared, open-vocabulary). Update `docs/ner.md` with per-type extractor contract — 2026-05-12.
 - [ ] **E12.** N9g-pre under γ — signature + salutation block extraction emitting `scope: signature/salutation` typed entries. Sequenced after E1+E2+E3. Owner: `plugins/zkm-eml/src/zkm_eml/render.py`. Quoted-reply stripping separate TODO if valuable.
-- [ ] **E13.** N9g re-evaluation — after γ + per-type extractors + P2 land, re-audit residual body-NER FPs. Expected: close as moot (value-types captured upstream; residuals reduce to N9c-addressed name-type errors). If residuals significant, open new ticket.
+- [x] **E13.** N9g re-evaluation — after γ + per-type extractors + P2 land, re-audit residual body-NER FPs. **Confirmed moot for value-type FPs** (2026-05-12): 20-file invoice sample shows old ORG-with-digits 6→~2 (residuals are legitimate org names). New typed entities added: ~2.25 amounts + ~0.85 emails per invoice-type file; overlap suppression confirmed. **Requires `zkm convert ner`** (cache busted by new model_version key) to apply E6–E7 extractors corpus-wide (~20 min). N9g item also resolved — see below.
 
 **Named deferrals (with triggers):**
 - P3 typed query language — defer until γ + P2 live ≥1 month AND ≥1 concrete typed-query request.
@@ -157,7 +157,7 @@ Sequencing: E1+E2+E3 (schema + amendments + normaliser lib) → E4 (suspicious d
 
 - [ ] **N9g-pre. zkm-eml signature + salutation block extraction** *(unblocked — γ E1–E3 done 2026-05-12)*. Goal: emit typed entries with `scope: signature/salutation` per γ schema. Owner: `plugins/zkm-eml/src/zkm_eml/render.py`. See E12.
 
-- [ ] **N9g. General body-NER cleanup follow-up** *(blocked on: γ + per-type extractors E6–E7, re-audit thereafter)*. Under γ, value-type spaCy mislabels (e.g. `'14,98 EUR'` as ORG) are caught upstream by typed extractors; N9g expected to close as moot. Re-evaluate after E6–E7 land. See E13.
+- [x] **N9g. General body-NER cleanup follow-up** *(closed 2026-05-12 — E13 verdict: moot)*. Value-type spaCy mislabels (amounts as ORG, IBANs as ORG, emails as PERSON) suppressed by γ typed extractors via overlap. Residual ORG-with-digit cases (~10%) are legitimate org names. Run `zkm convert ner` to apply enrichment corpus-wide. See E13.
 
 - [x] **Methodology rider: future pilot gates need ≥1 paragraph context per item** — documented in `docs/ner.md` § "Quality pilot methodology": ≥500 chars centred on entity span (or full body), concrete `context` field spec. Recorded as decision in `docs/meeting-notes/2026-05-12-1242-n9d-gate-c.md` — 2026-05-12.
 
