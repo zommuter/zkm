@@ -553,8 +553,27 @@ def cmd_convert(
     metavar="PATH",
     help="Store path (default: $ZKM_STORE or ~/knowledge)",
 )
+@click.option(
+    "--with-verifier",
+    is_flag=True,
+    default=False,
+    help="Pass suspicious entities through an LLM verifier (plugin must support it).",
+)
+@click.option(
+    "--with-verifier-control-pct",
+    default=1.5,
+    type=float,
+    metavar="PCT",
+    help="Percentage of non-suspicious entities to sample as a blind-spot tripwire (default: 1.5).",
+)
 def cmd_scrub(
-    plugin: str, do_apply: bool, verbose: bool, no_progress: bool, store_override: str | None
+    plugin: str,
+    do_apply: bool,
+    verbose: bool,
+    no_progress: bool,
+    store_override: str | None,
+    with_verifier: bool,
+    with_verifier_control_pct: float,
 ) -> None:
     """Retroactively remove stale frontmatter entries via a plugin's scrub() function."""
     from tqdm import tqdm
@@ -588,7 +607,12 @@ def cmd_scrub(
                 bar.set_postfix_str(message[:60])
 
         try:
-            stats = run_scrub(plugin, sdir, dry_run=dry_run, verbose=verbose, progress=progress_cb)
+            stats = run_scrub(
+                plugin, sdir,
+                dry_run=dry_run, verbose=verbose, progress=progress_cb,
+                with_verifier=with_verifier,
+                with_verifier_control_pct=with_verifier_control_pct,
+            )
         except LookupError as e:
             click.echo(f"Error: {e}", err=True)
             sys.exit(1)
@@ -606,10 +630,20 @@ def cmd_scrub(
     changed = stats.get("files_changed", 0)
     removed = stats.get("entities_removed", 0)
 
+    verifier_dropped = stats.get("entities_dropped_by_verifier", 0)
+    verifier_note = f" ({verifier_dropped} via verifier)" if with_verifier and verifier_dropped else ""
     click.echo(
-        f"Scrubbed {removed} entities across {changed}/{scanned} files"
+        f"Scrubbed {removed}{verifier_note} entities across {changed}/{scanned} files"
         f" ({'dry run' if dry_run else 'applied'})."
     )
+    if with_verifier:
+        control_sampled = stats.get("control_sampled", 0)
+        control_alerts = stats.get("control_alerts", 0)
+        click.echo(
+            f"Verifier: {verifier_dropped} dropped; "
+            f"{control_sampled} control-sample checks, {control_alerts} alert(s).",
+            err=True,
+        )
     if dry_run and changed:
         click.echo("Re-run with --apply to write changes.")
 
