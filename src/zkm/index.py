@@ -17,7 +17,7 @@ from rank_bm25 import BM25Okapi
 from zkm.atomic import write_atomic
 
 # Bumped when tokenization schema changes — forces index rebuild on load mismatch.
-_PICKLE_VERSION = 2
+_PICKLE_VERSION = 3
 _INDEX_FILE = ".zkm-index/bm25.pkl"
 _WATERMARK_FILE = ".zkm-index/last-commit"
 
@@ -65,6 +65,19 @@ def _tokenize_doc(post: frontmatter.Post) -> list[str]:
     tokens += tokenize(post.metadata.get("title", ""))
     for tag in post.metadata.get("tags", []):
         tokens.append(str(tag).lower())
+    for ent in post.metadata.get("entities", []):
+        if isinstance(ent, dict):
+            if ent.get("valid", True) is False:
+                continue
+            tokens += tokenize(str(ent.get("value", "")))
+            if ent.get("canonical"):
+                tokens += tokenize(str(ent["canonical"]))
+    for p in post.metadata.get("participants", []):
+        if isinstance(p, dict):
+            if p.get("address"):
+                tokens.append(str(p["address"]).lower())
+            if p.get("name"):
+                tokens += tokenize(str(p["name"]))
     return tokens
 
 

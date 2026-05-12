@@ -425,6 +425,52 @@ def test_chunk_texts_legacy_max_chars_deprecation(
     assert "ZKM_EMBED_MAX_CHARS is deprecated" in captured.err
 
 
+def test_chunk_texts_includes_entity_value_and_canonical(tmp_path: Path) -> None:
+    store = tmp_path / "store"
+    init_store(store, backend="none")
+    path = store / "mail/msg.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "---\nentities:\n"
+        "  - {scope: body, type: email, value: 'alice@example.com', canonical: 'alice@example.com'}\n"
+        "---\nhello world\n"
+    )
+    doc = Doc(rel_path="mail/msg.md", mtime_ns=1000, metadata={}, tokens=[])
+    chunks = _chunk_texts(store, doc)
+    assert any("alice@example.com" in c for c in chunks)
+
+
+def test_chunk_texts_skips_invalid_entities(tmp_path: Path) -> None:
+    store = tmp_path / "store"
+    init_store(store, backend="none")
+    path = store / "mail/msg.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "---\nentities:\n"
+        "  - {scope: body, type: person, value: 'garbage', valid: false}\n"
+        "---\nhello\n"
+    )
+    doc = Doc(rel_path="mail/msg.md", mtime_ns=1000, metadata={}, tokens=[])
+    chunks = _chunk_texts(store, doc)
+    assert all("garbage" not in c for c in chunks)
+
+
+def test_chunk_texts_includes_participant_address_and_name(tmp_path: Path) -> None:
+    store = tmp_path / "store"
+    init_store(store, backend="none")
+    path = store / "mail/msg.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "---\nparticipants:\n"
+        "  - {address: 'bob@example.org', name: 'Bob Builder', role: 'from'}\n"
+        "---\nsome email body\n"
+    )
+    doc = Doc(rel_path="mail/msg.md", mtime_ns=1000, metadata={}, tokens=[])
+    chunks = _chunk_texts(store, doc)
+    assert any("bob@example.org" in c for c in chunks)
+    assert any("Bob Builder" in c for c in chunks)
+
+
 # ---------------------------------------------------------------------------
 # EmbedStore schema versioning
 # ---------------------------------------------------------------------------

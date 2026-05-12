@@ -28,7 +28,7 @@ _DEFAULT_CHUNK_CHARS = 2000
 _DEFAULT_CHUNK_OVERLAP = 200
 _NPZ_FILE = ".zkm-index/embeddings.npz"
 _META_FILE = ".zkm-index/embeddings-meta.json"
-_STORE_SCHEMA_VERSION = 2
+_STORE_SCHEMA_VERSION = 3
 
 
 class EmbedUnavailable(Exception):
@@ -377,11 +377,30 @@ def _chunk_texts(store: Path, doc) -> list[str]:  # doc: Doc
         tags = post.metadata.get("tags", [])
         tag_str = " ".join(str(t) for t in tags) if tags else ""
         body = post.content
+
+        entity_parts: list[str] = []
+        for ent in post.metadata.get("entities", []):
+            if isinstance(ent, dict) and ent.get("valid", True) is not False:
+                val = str(ent.get("value", ""))
+                if val:
+                    entity_parts.append(val)
+                if ent.get("canonical"):
+                    entity_parts.append(str(ent["canonical"]))
+        entity_str = " ".join(entity_parts)
+
+        participant_parts: list[str] = []
+        for p in post.metadata.get("participants", []):
+            if isinstance(p, dict):
+                if p.get("address"):
+                    participant_parts.append(str(p["address"]))
+                if p.get("name"):
+                    participant_parts.append(str(p["name"]))
+        participant_str = " ".join(participant_parts)
     except Exception:
         return [" ".join(doc.tokens[:200])]
 
     if not body:
-        text = "\n".join(p for p in [title, tag_str] if p)
+        text = "\n".join(p for p in [title, tag_str, entity_str, participant_str] if p)
         return [text or " ".join(doc.tokens[:200])]
 
     stride = max(1, chunk_chars - chunk_overlap)
@@ -389,7 +408,7 @@ def _chunk_texts(store: Path, doc) -> list[str]:  # doc: Doc
     start = 0
     while start < len(body):
         window = body[start : start + chunk_chars]
-        text = "\n".join(p for p in [title, tag_str, window] if p)
+        text = "\n".join(p for p in [title, tag_str, entity_str, participant_str, window] if p)
         chunks.append(text)
         if start + chunk_chars >= len(body):
             break

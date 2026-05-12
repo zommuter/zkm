@@ -221,6 +221,68 @@ def test_build_index_reads_frontmatter(store: Path) -> None:
     assert "electricity" in doc.tokens
 
 
+def test_tokenize_doc_includes_entity_values(store: Path) -> None:
+    _write_note(
+        store,
+        "notes/ner.md",
+        "call me",
+        "entities:\n  - {scope: body, type: email, value: 'alice@example.com', canonical: 'alice@example.com'}",
+    )
+    idx = build_index(store)
+    # tokenize splits "alice@example.com" → ["alice", "example", "com"]
+    tokens = idx.docs[0].tokens
+    assert "alice" in tokens
+    assert "example" in tokens
+
+
+def test_tokenize_doc_includes_entity_canonical(store: Path) -> None:
+    _write_note(
+        store,
+        "notes/ner2.md",
+        "send money",
+        "entities:\n  - {scope: body, type: iban, value: 'DE44 5001 0517 5407 3249 31', canonical: 'DE44500105175407324931', standard: 'ISO 13616'}",
+    )
+    idx = build_index(store)
+    tokens = idx.docs[0].tokens
+    # canonical is all word-chars so tokenize keeps it as one token (lowercased)
+    assert "de44500105175407324931" in tokens
+
+
+def test_tokenize_doc_skips_invalid_entities(store: Path) -> None:
+    _write_note(
+        store,
+        "notes/ner3.md",
+        "body text",
+        "entities:\n  - {scope: body, type: person, value: 'garbage', valid: false}",
+    )
+    idx = build_index(store)
+    assert "garbage" not in idx.docs[0].tokens
+
+
+def test_tokenize_doc_includes_participant_address(store: Path) -> None:
+    _write_note(
+        store,
+        "mail/msg.md",
+        "hi",
+        "participants:\n  - {address: 'bob@example.org', role: 'from'}",
+    )
+    idx = build_index(store)
+    assert "bob@example.org" in idx.docs[0].tokens
+
+
+def test_tokenize_doc_includes_participant_name(store: Path) -> None:
+    _write_note(
+        store,
+        "mail/msg2.md",
+        "hi",
+        "participants:\n  - {address: 'carol@x.com', name: 'Carol Smith', role: 'to'}",
+    )
+    idx = build_index(store)
+    tokens = idx.docs[0].tokens
+    assert "carol" in tokens
+    assert "smith" in tokens
+
+
 def test_progress_callback_invoked(store: Path) -> None:
     _write_note(store, "notes/a.md", "alpha")
     _write_note(store, "notes/b.md", "beta")
