@@ -606,12 +606,19 @@ def cmd_scrub(
             if message:
                 bar.set_postfix_str(message[:60])
 
+        pilot_dump_path = None
+        if with_verifier and dry_run:
+            from datetime import datetime
+            ts = datetime.now().strftime("%Y%m%d-%H%M")
+            pilot_dump_path = sdir / ".zkm-state" / f"ner-verifier-pilot-{ts}.jsonl"
+
         try:
             stats = run_scrub(
                 plugin, sdir,
                 dry_run=dry_run, verbose=verbose, progress=progress_cb,
                 with_verifier=with_verifier,
                 with_verifier_control_pct=with_verifier_control_pct,
+                pilot_dump_path=pilot_dump_path,
             )
         except LookupError as e:
             click.echo(f"Error: {e}", err=True)
@@ -644,6 +651,12 @@ def cmd_scrub(
             f"{control_sampled} control-sample checks, {control_alerts} alert(s).",
             err=True,
         )
+    if pilot_dump_path is not None:
+        pilot_records = stats.get("pilot_records", 0)
+        if pilot_records:
+            click.echo(f"Pilot dump: {pilot_dump_path} ({pilot_records} records)")
+        else:
+            click.echo("Pilot dump: no verifier calls made (all cache hits or no suspicious entities).")
     if dry_run and changed:
         click.echo("Re-run with --apply to write changes.")
 
