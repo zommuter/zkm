@@ -817,31 +817,14 @@ def cmd_index(store_override: str | None, no_progress: bool, no_embed: bool, ful
 # ---------------------------------------------------------------------------
 
 
-@main.command("status")
-@click.option("--json", "as_json", is_flag=True, help="Output as JSON array")
-@click.option(
-    "--store",
-    "store_override",
-    default=None,
-    metavar="PATH",
-    help="Store path (default: $ZKM_STORE or ~/knowledge)",
-)
-def cmd_status(as_json: bool, store_override: str | None) -> None:
-    """Show running zkm processes and their progress."""
+def _take_status_snapshot(running_dir: Path) -> list[dict]:
     import json as _json
+    import os as _os
     import time as _time
 
-    sdir = Path(store_override) if store_override else store_path()
-    running_dir = sdir / ".zkm-state" / "running"
+    if not running_dir.exists():
+        return []
 
-    if not running_dir.exists() or not list(running_dir.glob("*.json")):
-        if as_json:
-            click.echo("[]")
-        else:
-            click.echo("no running zkm processes")
-        return
-
-    # Check liveness; signal live PIDs to force a fresh write.
     live_pids: set[int] = set()
     for pid_file in list(running_dir.glob("*.json")):
         try:
@@ -849,7 +832,6 @@ def cmd_status(as_json: bool, store_override: str | None) -> None:
         except ValueError:
             continue
         try:
-            import os as _os
             _os.kill(pid, 0)
             live_pids.add(pid)
             _os.kill(pid, signal.SIGUSR1)
@@ -865,7 +847,6 @@ def cmd_status(as_json: bool, store_override: str | None) -> None:
     if live_pids:
         _time.sleep(0.05)
 
-    # Re-read updated files.
     rows = []
     for pid_file in sorted(running_dir.glob("*.json")):
         try:
@@ -873,21 +854,14 @@ def cmd_status(as_json: bool, store_override: str | None) -> None:
         except (OSError, _json.JSONDecodeError):
             continue
         rows.append(data)
+    return rows
 
-    if not rows:
-        if as_json:
-            click.echo("[]")
-        else:
-            click.echo("no running zkm processes")
-        return
 
-    if as_json:
-        click.echo(_json.dumps(rows, ensure_ascii=False))
-        return
+def _format_status_lines(rows: list[dict]) -> list[str]:
+    from datetime import datetime as _dt
 
     header = f"{'PID':<8} {'CMD':<10} {'PHASE':<8} {'STARTED':<21} {'PROGRESS':<14} {'ETA':<8} MESSAGE"
-    click.echo(header)
-    click.echo("-" * len(header))
+    lines: list[str] = [header, "-" * len(header)]
     for row in rows:
         pid_s = str(row.get("pid", "?"))
         args = row.get("args") or []
@@ -895,7 +869,6 @@ def cmd_status(as_json: bool, store_override: str | None) -> None:
         cmd = (f"{cmd_base}({args[0]})" if args else cmd_base)[:9]
         phase = str(row.get("phase", "?"))[:7]
         try:
-            from datetime import datetime as _dt
             started = _dt.fromisoformat(str(row.get("started_at", ""))).astimezone().strftime("%Y-%m-%d %H:%M:%S")
         except Exception:
             started = str(row.get("started_at", ""))[:19].replace("T", " ")
@@ -909,7 +882,79 @@ def cmd_status(as_json: bool, store_override: str | None) -> None:
         else:
             eta_str = ""
         message = str(row.get("message", ""))[:40]
-        click.echo(f"{pid_s:<8} {cmd:<10} {phase:<8} {started:<21} {progress:<14} {eta_str:<8} {message}")
+        lines.append(f"{pid_s:<8} {cmd:<10} {phase:<8} {started:<21} {progress:<14} {eta_str:<8} {message}")
+    return lines
+
+
+@main.command("status")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON array")
+@click.option("--follow", is_flag=True, help="Watch mode: redraw table every 2 s (Ctrl+C to stop)")
+@click.option(
+    "--leave-if-done",
+    "leave_if_done",
+    is_flag=True,
+    help="With --follow: exit when no processes remain",
+)
+@click.option(
+    "--store",
+    "store_override",
+    default=None,
+    metavar="PATH",
+    help="Store path (default: $ZKM_STORE or ~/knowledge)",
+)
+def cmd_status(as_json: bool, follow: bool, leave_if_done: bool, store_override: str | None) -> None:
+    """Show running zkm processes and their progress."""
+    import json as _json
+    import sys as _sys
+    import time as _time
+
+    sdir = Path(store_override) if store_override else store_path()
+    running_dir = sdir / ".zkm-state" / "running"
+    use_ansi = follow and not as_json and _sys.stdout.isatty()
+    prev_n = 0  # lines currently occupying the terminal block
+
+    def _render(rows: list[dict]) -> int:
+        nonlocal prev_n
+        if as_json:
+            click.echo(_json.dumps(rows, ensure_ascii=False))
+            return len(rows)
+
+        lines = _format_status_lines(rows) if rows else ["no running zkm processes"]
+
+        if use_ansi and prev_n > 0:
+            _sys.stdout.write(f"\033[{prev_n}A")
+        for line in lines:
+            if use_ansi:
+                _sys.stdout.write(f"\r{line}\033[K\n")
+            else:
+                click.echo(line)
+        # Erase leftover lines from a taller previous render
+        for _ in range(max(0, prev_n - len(lines))):
+            _sys.stdout.write(f"\r\033[K\n")
+        if use_ansi:
+            _sys.stdout.flush()
+        # Track how many lines occupy the terminal block (always grows to max seen)
+        prev_n = max(len(lines), prev_n)
+        return len(rows)
+
+    n_live = _render(_take_status_snapshot(running_dir))
+
+    if not follow:
+        return
+
+    if leave_if_done and n_live == 0:
+        return
+
+    try:
+        while True:
+            _time.sleep(2.0)
+            n_live = _render(_take_status_snapshot(running_dir))
+            if leave_if_done and n_live == 0:
+                break
+    except KeyboardInterrupt:
+        if use_ansi:
+            _sys.stdout.write("\n")
+            _sys.stdout.flush()
 
 
 # ---------------------------------------------------------------------------

@@ -9,7 +9,9 @@ import time
 from pathlib import Path
 
 import pytest
+from click.testing import CliRunner
 
+from zkm.cli import main
 from zkm.runstate import RunSession, _should_write
 
 
@@ -303,3 +305,106 @@ def test_sigusr1_handler_restored_on_exit(tmp_path: Path) -> None:
         pass
     restored = signal.getsignal(signal.SIGUSR1)
     assert restored == old_handler
+
+
+# ---------------------------------------------------------------------------
+# zkm status --follow / --leave-if-done
+# ---------------------------------------------------------------------------
+
+
+def _make_pid_file(running_dir: Path, pid: int, command: str = "convert", args: list | None = None) -> Path:
+    running_dir.mkdir(parents=True, exist_ok=True)
+    data = {
+        "pid": pid,
+        "command": command,
+        "args": args or [],
+        "phase": "bm25",
+        "current": 5,
+        "total": 100,
+        "started_at": "2026-01-01T12:00:00+00:00",
+        "last_updated": "2026-01-01T12:00:01+00:00",
+        "message": "test",
+    }
+    p = running_dir / f"{pid}.json"
+    p.write_text(json.dumps(data))
+    return p
+
+
+def test_status_no_follow_one_shot(tmp_path: Path) -> None:
+    """Without --follow, status exits after a single snapshot."""
+    running_dir = tmp_path / ".zkm-state" / "running"
+    _make_pid_file(running_dir, os.getpid())
+
+    # Guard: install a no-op SIGUSR1 handler so _take_status_snapshot's signal
+    # doesn't terminate the test process (default action for unhandled SIGUSR1).
+    old_handler = signal.signal(signal.SIGUSR1, lambda *_: None)
+    try:
+        runner = CliRunner()
+        result = runner.invoke(main, ["status", "--store", str(tmp_path)])
+    finally:
+        signal.signal(signal.SIGUSR1, old_handler)
+
+    assert result.exit_code == 0
+    assert "convert" in result.output
+
+
+def test_status_no_processes_no_follow(tmp_path: Path) -> None:
+    runner = CliRunner()
+    result = runner.invoke(main, ["status", "--store", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "no running zkm processes" in result.output
+
+
+def test_status_leave_if_done_exits_immediately_when_empty(tmp_path: Path) -> None:
+    """`--follow --leave-if-done` exits immediately when no processes are present."""
+    runner = CliRunner()
+    result = runner.invoke(main, ["status", "--follow", "--leave-if-done", "--store", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "no running" in result.output
+
+
+def test_status_leave_if_done_exits_after_process_gone(tmp_path: Path) -> None:
+    """`--follow --leave-if-done` exits on the iteration where the PID file disappears."""
+    running_dir = tmp_path / ".zkm-state" / "running"
+    pid_file = _make_pid_file(running_dir, os.getpid())
+
+    call_count = 0
+
+    def _fake_snapshot(_rd: Path) -> list[dict]:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return [json.loads(pid_file.read_text())]
+        # Second call: file is gone
+        return []
+
+    from zkm import cli as _cli_mod
+    import unittest.mock as _mock
+
+    with _mock.patch.object(_cli_mod, "_take_status_snapshot", _fake_snapshot):
+        with _mock.patch("time.sleep"):
+            runner = CliRunner()
+            result = runner.invoke(main, ["status", "--follow", "--leave-if-done", "--store", str(tmp_path)])
+    assert result.exit_code == 0
+    assert call_count == 2
+
+
+def test_status_json_follow_leave_if_done(tmp_path: Path) -> None:
+    """`--json --follow --leave-if-done` emits JSON and exits when empty."""
+    import unittest.mock as _mock
+
+    call_count = 0
+
+    def _fake_snapshot(_rd: Path) -> list[dict]:
+        nonlocal call_count
+        call_count += 1
+        return []
+
+    from zkm import cli as _cli_mod
+
+    with _mock.patch.object(_cli_mod, "_take_status_snapshot", _fake_snapshot):
+        with _mock.patch("time.sleep"):
+            runner = CliRunner()
+            result = runner.invoke(main, ["status", "--json", "--follow", "--leave-if-done", "--store", str(tmp_path)])
+    assert result.exit_code == 0
+    assert result.output.strip() == "[]"
