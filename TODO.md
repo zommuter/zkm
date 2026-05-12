@@ -123,6 +123,7 @@ NER lands before whatsapp. `zkm convert <plugin>` runs amenders default-on (`--n
 - GLiNER is opt-in only; sentence-level language routing out of scope.
 
 - [x] **Meeting: NER scope vs. data-mining vs. search index** — held 2026-05-12. γ schema adopted: typed-slot list-of-records `entities[{scope,type,value,canonical?,standard?,unit?,valid?}]`. See `docs/meeting-notes/2026-05-12-1500-entity-vs-datamining.md`. E1–E14 action items below.
+- [x] **E14.** TODO.md updates — meeting item resolved [x] above; E1–E13 promoted into Phase 2.5/3 sequencing; N9g-pre and N9g blocked annotations updated. (Orphan from 2026-05-12 meeting — tracked retroactively 2026-05-12.)
 
 ## Phase 2.5 — γ schema rollout (decided 2026-05-12-1500-entity-vs-datamining.md)
 
