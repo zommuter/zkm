@@ -269,6 +269,39 @@ def test_merge_fields_entities_existing_takes_precedence() -> None:
     assert len(result["entities"]) == 1
 
 
+def test_merge_fields_entities_scope_included_dedup() -> None:
+    """Same (type, value) in different scopes are distinct entries."""
+    body_ent = {"scope": "body", "type": "email", "value": "a@b.com"}
+    sig_ent = {"scope": "signature", "type": "email", "value": "a@b.com"}
+    result = merge_fields({"entities": [body_ent]}, {"entities": [sig_ent]})
+    assert len(result["entities"]) == 2
+
+
+def test_merge_fields_entities_graceful_read_missing_scope() -> None:
+    """Pre-γ entity without scope field is treated as scope='body'."""
+    pre_gamma = {"type": "person", "value": "Alice"}  # no scope key
+    body_ent = {"scope": "body", "type": "person", "value": "Alice"}
+    # pre-γ existing + incoming body-scoped → same dedup key, not added
+    result = merge_fields({"entities": [pre_gamma]}, {"entities": [body_ent]})
+    assert len(result["entities"]) == 1
+    # reverse direction: body-scoped existing + pre-γ incoming → same dedup key
+    result2 = merge_fields({"entities": [body_ent]}, {"entities": [pre_gamma]})
+    assert len(result2["entities"]) == 1
+
+
+def test_merge_fields_entities_cross_scope_coexistence() -> None:
+    """Same email appearing in signature AND body → two distinct records."""
+    sig_email = {"scope": "signature", "type": "email", "value": "alice@example.com"}
+    body_email = {"scope": "body", "type": "email", "value": "alice@example.com"}
+    result = merge_fields(
+        {"entities": [sig_email]},
+        {"entities": [body_email]},
+    )
+    assert len(result["entities"]) == 2
+    scopes = {e["scope"] for e in result["entities"]}
+    assert scopes == {"signature", "body"}
+
+
 def test_merge_fields_scalar_last_write_wins() -> None:
     result = merge_fields({"date": "2026-01-01", "title": "old"}, {"title": "new"})
     assert result["title"] == "new"

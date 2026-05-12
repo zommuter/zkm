@@ -122,7 +122,8 @@ def merge_fields(existing: dict, incoming: dict) -> dict:
     """Apply per-field merge rules; returns a new frontmatter dict.
 
     - 'tags':     set-union, sorted
-    - 'entities': set-union with dedup on (type, value);
+    - 'entities': set-union with dedup on (scope, type, value);
+                  missing scope treated as 'body' (graceful read for pre-γ entries);
                   existing entries take precedence to keep order stable
     - other:      last-write-wins (scalar overwrite)
     """
@@ -133,10 +134,10 @@ def merge_fields(existing: dict, incoming: dict) -> dict:
             result["tags"] = sorted(set(existing_tags) | set(value or []))
         elif field == "entities":
             existing_ents: list = result.get("entities") or []
-            seen = {(e["type"], e["value"]) for e in existing_ents}
+            seen = {(_ent_scope(e), e["type"], e["value"]) for e in existing_ents}
             merged = list(existing_ents)
             for ent in value or []:
-                key = (ent["type"], ent["value"])
+                key = (_ent_scope(ent), ent["type"], ent["value"])
                 if key not in seen:
                     merged.append(ent)
                     seen.add(key)
@@ -149,6 +150,11 @@ def merge_fields(existing: dict, incoming: dict) -> dict:
 # ---------------------------------------------------------------------------
 # Private helpers
 # ---------------------------------------------------------------------------
+
+
+def _ent_scope(ent: dict) -> str:
+    """Return the scope of an entity record, defaulting to 'body' for pre-γ entries."""
+    return ent.get("scope", "body")
 
 
 def _record_hash(record: dict) -> str:
