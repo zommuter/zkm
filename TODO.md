@@ -219,6 +219,8 @@ Scope: `convert` and `index` (BM25 + embed phases) only. `query`, `clone`, `push
 - [x] **S6.** TODO.md updated with verification checklist (see below) — 2026-05-08
 - [x] **S7+S8.** Updated `docs/meeting-notes/meeting-style.md` "Past meetings" index: added mbsync-hook + sigusr1-status entries — 2026-05-08
 
+- [ ] **Concurrent-run guard** — `zkm status` already tracks live PIDs via `.zkm-state/running/`; use that to refuse (exit 1 with clear message) a duplicate same-command+plugin launch, and refuse any other store-mutating command (convert/scrub/index) while one is running. Two dimensions: (a) same plugin twice = always refuse; (b) different plugins concurrently = refuse until a scheduling/queue model is in place. **Note:** this is a stepping-stone toward a daemon/supervisor model that aligns with Phase 3 WebUI plans — the daemon would own the run queue and the WebUI would replace manual `zkm status` polling. Design meeting before implementation (daemon scope is non-trivial).
+
 **Verification checklist** (313 tests passing, 2026-05-08):
 1. `zkm convert zkm-eml` in terminal A → `zkm status` in terminal B shows one row with fresh `last_updated`.
 2. `kill -USR1 <pid>` directly → dd-style line on convert's stderr.
