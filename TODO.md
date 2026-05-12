@@ -122,11 +122,37 @@ NER lands before whatsapp. `zkm convert <plugin>` runs amenders default-on (`--n
 - Co-reference within doc deferred to v2; intra-doc pronoun coref not in scope.
 - GLiNER is opt-in only; sentence-level language routing out of scope.
 
-- [ ] **Meeting: NER scope vs. data-mining vs. search index** *(next Class 3 candidate — promoted 2026-05-12 from N9d Gate C aftermath; blocks N9g)*. The boundary between "named entity worth storing" and "structured data value" (amounts, reference numbers, registration codes, standard IDs like DIN 12345) is blurry, and the right answer likely differs between the NER frontmatter layer, BM25, and BGE-M3 dense index. Raised during N9d-8 gate classification (2026-05-12). Questions: (a) should numeric/code entities be extracted at all, or filtered pre-store? (b) does the search index already cover these adequately without NER? (c) does the verifier's suspicion heuristic conflate value-type noise with name-type noise? (d) move toward typed slots (`signature.email`, `From.person`) vs. flat `entities[]`? Onboard Nora (IE/NER typology) as standing for this meeting. Design meeting before any further verifier/scrub implementation.
+- [x] **Meeting: NER scope vs. data-mining vs. search index** — held 2026-05-12. γ schema adopted: typed-slot list-of-records `entities[{scope,type,value,canonical?,standard?,unit?,valid?}]`. See `docs/meeting-notes/2026-05-12-1500-entity-vs-datamining.md`. E1–E14 action items below.
 
-- [ ] **N9g-pre. zkm-eml signature + salutation block extraction** *(unblocked 2026-05-12 — independent of entity-vs-data meeting)*. Position-based, near-100%-precision extraction of `Person`/`Phone`/`Email`/`URL` from signature blocks (separator `^--\s*$`; markers `Mit freundlichen Grüßen` / `Best regards` / `Sent from my…` / `Gesendet von`; ~10 lines below). Plus salutation handling (`Hallo X`, `Lieber X`) — pre-NER text-cleanup in the renderer so spaCy sees cleaner body. Owner: `plugins/zkm-eml/src/zkm_eml/render.py`. Promoted from prior backlog bullet "zkm-eml signature stripping" (originally 2026-05-10-1640-n9b). Goal: typed-extraction into structured frontmatter fields, not just stripping. Quoted-reply stripping (`>` lines, `On <date> X wrote:`) — separate TODO if confirmed valuable during N9g-pre design.
+## Phase 2.5 — γ schema rollout (decided 2026-05-12-1500-entity-vs-datamining.md)
 
-- [ ] **N9g. General body-NER cleanup follow-up** *(blocked on: entity-vs-data meeting)*. Successor question to N9d: after N9g-pre extracts signature/salutation entities upstream, are the residual body-NER FPs (currency amounts, reference numbers, single-token MISC, person-lowercase fragments) worth a dedicated cleanup mechanism, and if so what? Cannot be designed before the entity-vs-data meeting resolves scope — if currency amounts and reference numbers aren't entities, half the rationale moots.
+Sequencing: E1+E2+E3 (schema + amendments + normaliser lib) → E4 (suspicious dispatch) → E6 (`amount` pilot) → E7 (more value-types) → E8+E9 (P2 index integration + field-test). Each step rollback-able. ~6–8 sessions total.
+
+- [ ] **E1.** `plugins/zkm-ner/src/zkm_ner/_types.py` — `Entity` dataclass gains `scope: str = "body"`, `canonical: str | None = None`, `standard: str | None = None`, `unit: str | None = None`, `valid: bool = True`. Update `__post_init__` (canonical/value-must-differ guard). Existing tests still pass; graceful read: missing scope = `body`.
+- [ ] **E2.** `src/zkm/amendments.py` — dedup key for `entities[]` extends from `(type, value)` to `(scope, type, value)`. Graceful read: missing scope = `body`. New tests: scope-included dedup, graceful read of pre-γ entries, cross-scope coexistence (same `(type, value)` in `signature` + `body` → two entries).
+- [ ] **E3.** `src/zkm/canonical.py` (new) — `iban(s)->str`, `amount(s)->tuple[str,str]`, `email(s)->str` (domain lowercase), `phone(s)->str` (E.164 basic), `iso8601(s)->str`. Docstrings name the standard. Tests per function. Shared by extractors AND planned redactor.
+- [ ] **E4.** `plugins/zkm-ner/src/zkm_ner/suspicious.py` — `_PREDICATES[type]` dispatch table; existing rules wrapped in `_name_predicate` (default fallback); stub predicates for future value types. 5+ new tests.
+- [ ] **E5.** `plugins/zkm-ner/scripts/verify_gamma_migration.py` (new) — re-extract corpus sample from scratch, diff against graceful-read migration result. Hard-gate for v1.x release.
+- [ ] **E6.** `amount` extractor end-to-end pilot — `plugins/zkm-ner/src/zkm_ner/extract.py` gains `_extract_amounts(text) -> list[Entity]`. DE/CH/EN regex; canonical via `zkm.canonical.amount`; suspicious predicate co-located. Tests: `'CHF 1\'000.-'`, `'1.000,50 €'`, `'-0.01 USD'`. Run `zkm convert ner` on fixtures end-to-end.
+- [ ] **E7.** Second-round value-type extractors (one session each): `iban` (ISO 13616 + mod-97 checksum), `email` (γ-migration verify), `phone` (E.164 + national), `url` (RFC 3986 shape), `invoice_id` (common format regex), `tracking_id` (DHL/Post/UPS), `registration_code` (HRB, DIN, ISBN, EAN13).
+- [ ] **E8.** P2 index integration — `src/zkm/index.py:_tokenize_doc` and `src/zkm/embed.py:_chunk_texts` gain entity values + canonicals + participant addresses/names. Tests. Rebuild folds into γ `model_version` bump.
+- [ ] **E9.** P2 field-test pilot — re-run `docs/field-test-bge-m3.md` P2-on vs P2-off; measure recall delta + index size; new probe for typed-value query (partial IBAN, amount). Record as step 7.
+- [ ] **E10.** Redactor scope expansion — design note in `docs/entity-model.md` PII section: redactor operates on BM25/dense input stream too; `zkm.canonical.<type>` is the integration point.
+- [ ] **E11.** Docs contract tables — `docs/entity-model.md`: (a) valid types table (`type`, canonical yes/no, `standard:` value, expected `scope:` values, PII sensitivity); (b) provenance scopes table (per-plugin, `plugin.yaml`-declared, open-vocabulary). Update `docs/ner.md` with per-type extractor contract.
+- [ ] **E12.** N9g-pre under γ — signature + salutation block extraction emitting `scope: signature/salutation` typed entries. Sequenced after E1+E2+E3. Owner: `plugins/zkm-eml/src/zkm_eml/render.py`. Quoted-reply stripping separate TODO if valuable.
+- [ ] **E13.** N9g re-evaluation — after γ + per-type extractors + P2 land, re-audit residual body-NER FPs. Expected: close as moot (value-types captured upstream; residuals reduce to N9c-addressed name-type errors). If residuals significant, open new ticket.
+
+**Named deferrals (with triggers):**
+- P3 typed query language — defer until γ + P2 live ≥1 month AND ≥1 concrete typed-query request.
+- PII redaction implementation — defer until sharing scenario lands. Architectural design in E10.
+- Entity-DB checksum-fail "ignore / correct?" policy — defer until ≥50 `valid: false` entries accumulate.
+- `valid: false` forward-flag: re-evaluate dropping the per-type suspicious heuristic (Option 3) after ≥1 month observation.
+- Crypto/stock-ticker domain scope — defer; revisit if real use case lands.
+- WebUI typed-query hint UX — Phase 3 design concern.
+
+- [ ] **N9g-pre. zkm-eml signature + salutation block extraction** *(blocked on: γ schema E1–E3)*. Goal updated: emit typed entries with `scope: signature/salutation` per γ schema. Owner: `plugins/zkm-eml/src/zkm_eml/render.py`. See E12.
+
+- [ ] **N9g. General body-NER cleanup follow-up** *(blocked on: γ + per-type extractors E6–E7, re-audit thereafter)*. Under γ, value-type spaCy mislabels (e.g. `'14,98 EUR'` as ORG) are caught upstream by typed extractors; N9g expected to close as moot. Re-evaluate after E6–E7 land. See E13.
 
 - [ ] **Methodology rider: future pilot gates need ≥1 paragraph context per item** — the 120-char `context_snippet` in N9d-8's `gate_classify.py` made human judgement on short ambiguous strings unreliable. Any future gate that re-uses the JSONL+TSV+gate_classify pattern must surface the full document body (or ≥500 chars surrounding the entity) so the human reviewer has enough signal. Recorded as decision in `docs/meeting-notes/2026-05-12-1242-n9d-gate-c.md`.
 
