@@ -269,6 +269,8 @@ Convention: bump-and-tag + loose-0.x + plain `vX.Y.Z` per repo. See `CLAUDE.md` 
 
 ## Publishing / distribution (backlog — from 2026-05-12-0844-publish-plugins.md)
 
+- [ ] **zkm-eml: backfill missing semver tags** (cosmetic) — v0.2.0 through v0.5.x were never tagged; only v0.1.0 and v0.6.0 exist. Reconstruct from git log by finding the commits where `version` changed in pyproject.toml and tag each retroactively. Push to both fievel and GitHub.
+
 - [ ] **ASAP: PyPI publishing** — investigate publishing core `zkm` + 6 plugins to PyPI; issues: account + name-reservation, `uv build` / `uv publish` workflow, classifier metadata, version-bump-and-publish cadence. Coordinate with bump-and-tag rule: each pyproject version bump should trigger both a git tag and a PyPI release.
 - [ ] **Runtime user-identity config for zkm-ner** — spec a `ZKM_NER_USER_NAMES` env var (or per-store `.zkm-config` entry) so users can extend the greeting-salutation stoplist at runtime without editing source. Default: empty (no built-in personal names). See `gazetteers/orgs.yaml` for the config-file pattern.
 - [ ] **Meeting: per-plugin TODO topology** — decide where plugin-scoped TODOs live now that plugins have independent GitHub repos. Options: (1) keep central `TODO.md` in core, (2) each plugin gets its own `TODO.md` + central for cross-cutting, (3) GitHub Issues for larger items + central for tactical. Option 3 would require /meeting-skill modifications to emit GH issue refs as action items. Schedule a dedicated design meeting.
