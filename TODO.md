@@ -147,6 +147,8 @@ Sequencing: E1+E2+E3 (schema + amendments + normaliser lib) → E4 (suspicious d
 - [ ] **E12.** N9g-pre under γ — signature + salutation block extraction emitting `scope: signature/salutation` typed entries. Sequenced after E1+E2+E3. Owner: `plugins/zkm-eml/src/zkm_eml/render.py`. Quoted-reply stripping separate TODO if valuable.
 - [x] **E13.** N9g re-evaluation — after γ + per-type extractors + P2 land, re-audit residual body-NER FPs. **Confirmed moot for value-type FPs** (2026-05-12): 20-file invoice sample shows old ORG-with-digits 6→~2 (residuals are legitimate org names). New typed entities added: ~2.25 amounts + ~0.85 emails per invoice-type file; overlap suppression confirmed. **Requires `zkm convert ner`** (cache busted by new model_version key) to apply E6–E7 extractors corpus-wide (~20 min). N9g item also resolved — see below.
 
+- [ ] **E15. Apply E6–E7 extractors corpus-wide** — run `zkm convert ner` to bust cache (new model_version key: `+iban-v1+email-v1+phone-v1+...`) and enrich all 55k+ docs with typed γ entities (amounts, IBANs, email_address, phone, etc.). After run: (a) re-test E9 step 7c (search by IBAN/amount in entities[]); (b) re-run `plugins/zkm-ner/scripts/pilot.sh` to confirm value-type ORG mislabels are gone. Estimated ~20 min.
+
 **Named deferrals (with triggers):**
 - P3 typed query language — defer until γ + P2 live ≥1 month AND ≥1 concrete typed-query request.
 - PII redaction implementation — defer until sharing scenario lands. Architectural design in E10.
