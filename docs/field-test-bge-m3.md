@@ -231,3 +231,117 @@ zkm search "KEYWORD" --no-dense -k 5
 Expected: the long-thread file appears in hybrid results with `dense_hits > 0`.
 Before session 8, dense retrieval would see only the first 2000 chars of that file;
 the same query would show `dense_hits = 0` and the file would be a BM25-only hit.
+
+## Step 7 — entity + participant index integration (E8 validation)
+
+After running `zkm index` (both BM25 and embed phases), verify that entity values, canonicals,
+and participant addresses are searchable even when they appear only in frontmatter — not in the
+markdown body.
+
+E8 added `entities[].value`, `entities[].canonical`, and `participants[].address` /
+`participants[].name` to both the BM25 tokeniser (`index.py:68-75`) and the dense embedding
+text (`embed.py:381-403`). PICKLE_VERSION = 3, STORE_SCHEMA_VERSION = 3; both indexes rebuild
+automatically after upgrading.
+
+### 7a — Verify rebuild
+
+```bash
+# Confirm BM25 version is 3 (rebuilt with entity tokens)
+python3 -c "
+import pickle, pathlib, os
+store = pathlib.Path(os.environ['ZKM_STORE'])
+payload = pickle.loads((store / '.zkm-index/bm25.pkl').read_bytes())
+print('BM25 version:', payload.get('version'))  # expect 3
+"
+
+# Confirm dense schema version is 3
+python3 -c "
+import json, pathlib, os
+store = pathlib.Path(os.environ['ZKM_STORE'])
+meta = json.loads((store / '.zkm-index/embeddings-meta.json').read_text())
+print('Dense schema_version:', meta.get('schema_version'))  # expect 3
+"
+```
+
+### 7b — Participant address search
+
+Participants live in `participants[]` frontmatter (From/To/Cc) — they never appear in the
+markdown body (zkm-eml renders headers to frontmatter only). Before E8, searching for an
+email address returned 0 results unless the address happened to appear in a quoted reply.
+
+```bash
+# Pick a sender whose address is unlikely to appear in body text
+# (choose a contact you know by email rather than by quoted signature)
+SENDER="some.person@example.com"   # replace with a real address from your store
+
+# BM25-only: should now find their messages via participants[] indexing
+zkm search "$SENDER" --no-dense -k 5
+
+# Hybrid: same result set, possibly with better ranking
+zkm search "$SENDER" -k 5
+
+# Negative control: confirm the address is NOT in the body of a top hit
+TOP_HIT=$(zkm search "$SENDER" --no-dense -k 1 | grep "^  " | head -1 | awk '{print $1}')
+grep -c "$SENDER" "$ZKM_STORE/$TOP_HIT" && echo "address in body (control contaminated)" \
+  || echo "address NOT in body — participants[] indexing confirmed"
+```
+
+Expected: `zkm search` returns hits; negative control confirms the address is absent from the
+body (i.e. the hit is driven by `participants[]` indexing, not body text).
+
+### 7c — Typed-value query (IBAN / amount)
+
+Entity values extracted by zkm-ner live in `entities[]` frontmatter. Amounts and IBANs in
+particular are numeric and unlikely to appear elsewhere in the markdown prose.
+
+```bash
+# Probe 1: partial IBAN search
+# Find a doc that has an IBAN in entities[] but not as a raw string in the body
+IBAN_PREFIX="CH56"   # replace with a prefix that matches your corpus
+
+zkm search "$IBAN_PREFIX" --no-dense -k 5
+zkm search "$IBAN_PREFIX" -k 5  # hybrid
+
+# Verify the hit has the IBAN in entities[], not body
+TOP_IBAN=$(zkm search "$IBAN_PREFIX" --no-dense -k 1 | grep "^  " | head -1 | awk '{print $1}')
+python3 -c "
+import frontmatter, os, sys
+post = frontmatter.load('$ZKM_STORE/' + sys.argv[1])
+ibans = [e for e in post.metadata.get('entities', []) if 'iban' in e.get('type','')]
+body_hits = post.content.count('$IBAN_PREFIX')
+print(f'entities[iban]: {ibans}')
+print(f'IBAN prefix in body: {body_hits} occurrences')
+" "$TOP_IBAN"
+
+# Probe 2: amount search
+# Find a currency amount you know is in your store (e.g. from an O2 invoice)
+AMOUNT="14,98"   # replace with a real amount from your corpus
+
+zkm search "$AMOUNT" --no-dense -k 5
+```
+
+Expected: hits appear; the IBAN/amount values are in `entities[]` with the prefix found by
+BM25 tokenisation.
+
+### 7d — P2-on vs P2-off index size
+
+The BM25 index gains tokens proportional to the number of entity values per document; the
+dense NPZ grows only if the embedding text grew past the chunk boundary (usually not for
+short entity values). Record actual sizes for reference:
+
+```bash
+ls -lh "$ZKM_STORE/.zkm-index/bm25.pkl" \
+        "$ZKM_STORE/.zkm-index/embeddings.npz"
+# Record and compare against earlier snapshots (see steps 1–6 above).
+```
+
+### What to record
+
+- `zkm search <email>` returns hits → participant[] indexing working.
+- `zkm search <IBAN/amount>` returns hits where the value is frontmatter-only → entity indexing working.
+- Negative controls confirm the value is absent from the markdown body.
+- Any surprise regression: a query that worked in steps 1–5 now returns different ranking → note in findings.
+
+### Step 7 live results — DATE
+
+*(fill in after running)*
