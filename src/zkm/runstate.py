@@ -52,6 +52,8 @@ class RunSession:
         self._current = 0
         self._total: int | None = None
         self._message = ""
+        self._eta_seconds: float | None = None
+        self._phase_start_time: float = 0.0
         self._last_write_time = 0.0
         self._tick_count = 0
 
@@ -59,6 +61,7 @@ class RunSession:
         self._old_sigusr1: Any = None
 
     def __enter__(self) -> RunSession:
+        self._phase_start_time = time.monotonic()
         running_dir = self._store / ".zkm-state" / "running"
         running_dir.mkdir(parents=True, exist_ok=True)
         self._pid_file = running_dir / f"{self._pid}.json"
@@ -88,6 +91,7 @@ class RunSession:
         total: int | None,
         phase: str = "",
         message: str = "",
+        eta_seconds: float | None = None,
     ) -> None:
         """Update progress counters; write the PID file at fibonacci-spaced intervals."""
         self._tick_count += 1
@@ -99,6 +103,14 @@ class RunSession:
         if message:
             self._message = message
 
+        if eta_seconds is not None:
+            self._eta_seconds = eta_seconds
+        elif self._current > 0 and self._total is not None and self._total > 0:
+            elapsed = time.monotonic() - self._phase_start_time
+            self._eta_seconds = elapsed / self._current * (self._total - self._current)
+        else:
+            self._eta_seconds = None
+
         now = time.monotonic()
         if _should_write(self._tick_count) or (now - self._last_write_time >= 60.0):
             self._write_file()
@@ -109,6 +121,8 @@ class RunSession:
         self._current = 0
         self._total = None
         self._message = ""
+        self._eta_seconds = None
+        self._phase_start_time = time.monotonic()
         self._tick_count = 0
         self._write_file()
 
@@ -126,6 +140,7 @@ class RunSession:
             "current": self._current,
             "total": self._total,
             "message": self._message,
+            "eta_seconds": self._eta_seconds,
             "last_updated": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -144,8 +159,13 @@ class RunSession:
     def _on_sigusr1(self, signum: int, frame: FrameType | None) -> None:
         self._write_file()
         pct = f"{self._current}/{self._total}" if self._total else str(self._current)
+        eta_str = ""
+        if self._eta_seconds is not None:
+            mins, secs = divmod(int(self._eta_seconds), 60)
+            eta_str = f" ETA ~{mins}m{secs:02d}s" if mins else f" ETA ~{secs}s"
         sys.stderr.write(
             f"{self._command} phase={self._phase} {pct} "
-            f"{datetime.now(timezone.utc).astimezone().strftime('%H:%M:%S')}\n"
+            f"{datetime.now(timezone.utc).astimezone().strftime('%H:%M:%S')}"
+            f"{eta_str}\n"
         )
         sys.stderr.flush()

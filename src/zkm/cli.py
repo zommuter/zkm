@@ -885,7 +885,7 @@ def cmd_status(as_json: bool, store_override: str | None) -> None:
         click.echo(_json.dumps(rows, ensure_ascii=False))
         return
 
-    header = f"{'PID':<8} {'CMD':<10} {'PHASE':<8} {'STARTED':<21} {'PROGRESS':<14} MESSAGE"
+    header = f"{'PID':<8} {'CMD':<10} {'PHASE':<8} {'STARTED':<21} {'PROGRESS':<14} {'ETA':<8} MESSAGE"
     click.echo(header)
     click.echo("-" * len(header))
     for row in rows:
@@ -902,8 +902,14 @@ def cmd_status(as_json: bool, store_override: str | None) -> None:
         current = row.get("current", 0)
         total = row.get("total")
         progress = f"{current}/{total}" if total else str(current)
+        eta_seconds = row.get("eta_seconds")
+        if eta_seconds is not None and current > 0:
+            mins, secs = divmod(int(eta_seconds), 60)
+            eta_str = f"~{mins}m" if mins else f"~{secs}s"
+        else:
+            eta_str = ""
         message = str(row.get("message", ""))[:40]
-        click.echo(f"{pid_s:<8} {cmd:<10} {phase:<8} {started:<21} {progress:<14} {message}")
+        click.echo(f"{pid_s:<8} {cmd:<10} {phase:<8} {started:<21} {progress:<14} {eta_str:<8} {message}")
 
 
 # ---------------------------------------------------------------------------

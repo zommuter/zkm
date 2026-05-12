@@ -171,6 +171,44 @@ def test_tick_updates_progress_fields(tmp_path: Path) -> None:
         assert session._message == "processing foo.md"
 
 
+def test_tick_caller_eta_overrides_fallback(tmp_path: Path) -> None:
+    with RunSession(tmp_path, "convert") as session:
+        session.tick(5, 100, eta_seconds=42.0)
+        assert session._eta_seconds == 42.0
+        data = json.loads(session._pid_file.read_text())  # type: ignore[union-attr]
+        assert data["eta_seconds"] == 42.0
+
+
+def test_tick_computes_fallback_eta(tmp_path: Path) -> None:
+    with RunSession(tmp_path, "convert") as session:
+        time.sleep(0.05)
+        session.tick(1, 10)
+        assert session._eta_seconds is not None
+        assert session._eta_seconds > 0
+
+
+def test_tick_eta_none_when_current_zero(tmp_path: Path) -> None:
+    with RunSession(tmp_path, "convert") as session:
+        session.tick(0, 10)
+        assert session._eta_seconds is None
+
+
+def test_payload_includes_eta_seconds(tmp_path: Path) -> None:
+    with RunSession(tmp_path, "convert") as session:
+        session.tick(3, 10, eta_seconds=15.5)
+        data = json.loads(session._pid_file.read_text())  # type: ignore[union-attr]
+        assert "eta_seconds" in data
+        assert data["eta_seconds"] == 15.5
+
+
+def test_set_phase_clears_eta(tmp_path: Path) -> None:
+    with RunSession(tmp_path, "index") as session:
+        session.tick(50, 100, eta_seconds=30.0)
+        assert session._eta_seconds == 30.0
+        session.set_phase("embed")
+        assert session._eta_seconds is None
+
+
 # ---------------------------------------------------------------------------
 # set_phase()
 # ---------------------------------------------------------------------------
@@ -232,6 +270,31 @@ def test_sigusr1_forces_write_and_stderr(tmp_path: Path, capsys: pytest.CaptureF
     captured = capsys.readouterr()
     assert "convert" in captured.err
     assert "phase=convert" in captured.err
+
+
+def test_sigusr1_includes_eta_in_stderr(tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
+    with RunSession(tmp_path, "convert", args=["eml"]) as session:
+        session.tick(5, 50, phase="convert", eta_seconds=90.0)
+        session._last_write_time = time.monotonic()
+        session._tick_count = 10
+        os.kill(os.getpid(), signal.SIGUSR1)
+        time.sleep(0.01)
+
+    captured = capsys.readouterr()
+    assert "ETA" in captured.err
+    assert "1m" in captured.err  # 90s = 1m30s
+
+
+def test_sigusr1_no_eta_when_unknown(tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
+    with RunSession(tmp_path, "convert") as session:
+        session.tick(0, None, phase="convert")
+        session._last_write_time = time.monotonic()
+        session._tick_count = 10
+        os.kill(os.getpid(), signal.SIGUSR1)
+        time.sleep(0.01)
+
+    captured = capsys.readouterr()
+    assert "ETA" not in captured.err
 
 
 def test_sigusr1_handler_restored_on_exit(tmp_path: Path) -> None:
