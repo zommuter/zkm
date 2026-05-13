@@ -569,6 +569,13 @@ def cmd_convert(
     metavar="PCT",
     help="Percentage of non-suspicious entities to sample as a blind-spot tripwire (default: 1.5).",
 )
+@click.option(
+    "--resume",
+    "do_resume",
+    is_flag=True,
+    default=False,
+    help="Resume an interrupted run from the last-processed file watermark.",
+)
 def cmd_scrub(
     plugin: str,
     do_apply: bool,
@@ -577,6 +584,7 @@ def cmd_scrub(
     store_override: str | None,
     with_verifier: bool,
     with_verifier_control_pct: float,
+    do_resume: bool,
 ) -> None:
     """Retroactively remove stale frontmatter entries via a plugin's scrub() function."""
     from tqdm import tqdm
@@ -615,10 +623,18 @@ def cmd_scrub(
             ts = datetime.now().strftime("%Y%m%d-%H%M")
             pilot_dump_path = sdir / ".zkm-state" / f"ner-verifier-pilot-{ts}.jsonl"
 
+        if do_resume:
+            wm = sdir / ".zkm-state" / f"scrub-{plugin}-watermark.json"
+            if wm.exists():
+                click.echo(f"Resuming scrub from watermark: {wm}", err=True)
+            else:
+                click.echo("No watermark found — starting from scratch.", err=True)
+
         try:
             stats = run_scrub(
                 plugin, sdir,
                 dry_run=dry_run, verbose=verbose, progress=progress_cb,
+                resume=do_resume,
                 with_verifier=with_verifier,
                 with_verifier_control_pct=with_verifier_control_pct,
                 pilot_dump_path=pilot_dump_path,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import inspect
+import json
 import types
 from pathlib import Path
 
@@ -29,6 +30,7 @@ def run_scrub(
     dry_run: bool = True,
     verbose: bool = False,
     progress=None,
+    resume: bool = False,
     **extra_kwargs,
 ) -> dict[str, int]:
     """Dispatch to *plugin_name*'s ``scrub()`` function and return stats.
@@ -40,7 +42,14 @@ def run_scrub(
     Any *extra_kwargs* are forwarded to the plugin's ``scrub()`` unchanged, so
     plugin-specific flags (e.g. ``with_verifier``) can be threaded through
     without modifying the core dispatch layer.
+
+    When *resume* is True, the last-processed file is read from a watermark at
+    ``.zkm-state/scrub-<plugin>-watermark.json`` and forwarded to the plugin so
+    it can skip already-processed files.  The watermark is deleted on successful
+    completion; it is preserved on any exception so the run can be resumed.
     """
+    from zkm.atomic import write_atomic
+
     plugin = find_plugin(plugin_name)
     if plugin is None:
         raise LookupError(f"Plugin '{plugin_name}' is not installed")
@@ -53,11 +62,35 @@ def run_scrub(
         )
 
     config = load_env(store_path)
-    # Only forward extra_kwargs to plugins that declare **kwargs in their signature,
-    # so that existing plugins without the new flags continue to work unchanged.
+
+    # ---- watermark support ------------------------------------------------
+    watermark_path = store_path / ".zkm-state" / f"scrub-{plugin.name}-watermark.json"
+    resume_after_file: str | None = None
+
+    if resume and watermark_path.exists():
+        try:
+            wm = json.loads(watermark_path.read_text(encoding="utf-8"))
+            resume_after_file = wm.get("last_file") or None
+        except Exception:
+            pass  # corrupt watermark → start fresh
+
+    def on_file_done(rel_path: str) -> None:
+        watermark_path.parent.mkdir(parents=True, exist_ok=True)
+        write_atomic(watermark_path, json.dumps({"last_file": rel_path, "plugin": plugin.name}))
+
+    # ---- dispatch ---------------------------------------------------------
+    # Only forward extra_kwargs to plugins that declare **kwargs in their
+    # signature, so existing plugins without the new flags continue to work.
     sig = inspect.signature(mod.scrub)
     accepts_var_kwargs = any(
         p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
     )
     kwargs = {**extra_kwargs} if accepts_var_kwargs else {}
-    return mod.scrub(store_path, config, dry_run=dry_run, verbose=verbose, progress=progress, **kwargs)
+    if accepts_var_kwargs:
+        kwargs["resume_after_file"] = resume_after_file
+        kwargs["on_file_done"] = on_file_done
+
+    result = mod.scrub(store_path, config, dry_run=dry_run, verbose=verbose, progress=progress, **kwargs)
+    # Watermark is only deleted on clean completion; exceptions leave it intact.
+    watermark_path.unlink(missing_ok=True)
+    return result
