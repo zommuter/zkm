@@ -343,5 +343,18 @@ Convention: bump-and-tag + loose-0.x + plain `vX.Y.Z` per repo. See `CLAUDE.md` 
 - [ ] **Stage 2: OIDC Trusted Publisher + `.github/workflows/release.yml` in all 7 repos** — tokenless CI publish; closes auto-publish loop with the post-commit auto-tag TODO. Per-project tokens available (created after first publish).
 - [ ] **Test PyPI install on Python 3.11/3.12/3.13** — lower `requires-python` + broaden classifiers if green; separate verification task.
 - [ ] **Runtime user-identity config for zkm-ner** — spec a `ZKM_NER_USER_NAMES` env var (or per-store `.zkm-config` entry) so users can extend the greeting-salutation stoplist at runtime without editing source. Default: empty (no built-in personal names). See `gazetteers/orgs.yaml` for the config-file pattern.
-- [ ] **Meeting: per-plugin TODO topology** — decide where plugin-scoped TODOs live now that plugins have independent GitHub repos. Options: (1) keep central `TODO.md` in core, (2) each plugin gets its own `TODO.md` + central for cross-cutting, (3) GitHub Issues for larger items + central for tactical. Option 3 would require /meeting-skill modifications to emit GH issue refs as action items. Schedule a dedicated design meeting.
+- [x] **Meeting: per-plugin TODO topology** — decided 2026-05-13. Option 1+ adopted: central `TODO.md` as single ledger with formalised prefix routing; Option 3 (GH Issues) trigger defined (first outside PR or issue on any plugin). Orphan `plugins/zkm-eml/TODO.md` merged into central (M-prefix) and deleted. See `docs/meeting-notes/2026-05-13-1915-per-plugin-todo-topology.md`.
 - [x] **git post-commit hook: auto-tag on pyproject.toml version bump** — `contrib/hooks/post-commit-autotag.sh` (uses `git show --name-only`, works on root commits); `contrib/install-autotag-hooks.sh` installs symlinks in all 7 repos. Smoke-tested: root-commit tagging, idempotency, non-version-bump silence — 2026-05-13.
+
+## zkm-eml backlog (M-prefix) — migrated from plugins/zkm-eml/TODO.md 2026-05-13
+
+Items migrated from the orphan per-plugin TODO file (pre-polyrepo-split artefact). Prefix convention documented in `CLAUDE.md`.
+
+- [ ] **M1.** Decoration vs inline-photo classification — heuristics to distinguish logos/banners from informational inline images (size, repeated cid across senders, alt-text, tracking domains). Currently all attachments treated uniformly.
+- [ ] **M2.** Per-store YAML/JSON config shared by zkm core and all plugins — replaces long comma-separated env vars. Related: Session 15 whatsapp scoping also needs per-store config.
+- [ ] **M3.** Deleted-mail policy — detect removals from `~/mail` between runs; options: always-keep (default), purge, archive-only.
+- [ ] **M4.** Drafts — optional "follow draft updates" mode (Message-ID/content changes on each save). YAGNI for now.
+- [ ] **M5.** `_objects` GC — walk `mail/_objects/<aa>/<rest>.json` producer lists, prune CAS objects and sidecars whose producers all reference deleted messages. Complements `zkm gc` (which handles inbox symlinks / store-level CAS).
+- [ ] **M6.** SHA-256 git repo support — auto-detect via `git rev-parse --show-object-format`; fall back to subprocess for `source_blob`. Needed when target mail repo is on SHA-256 object format.
+- [ ] **M7.** Attachment MIME type refinement — use `python-magic` for more accurate typing of synthesized filenames.
+- [ ] **M8.** Run `zkm convert eml --reprocess` on `~/knowledge` to apply v0.7 quote stripping (user-triggered; deferred).

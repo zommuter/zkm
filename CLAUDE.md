@@ -121,6 +121,23 @@ Repos in this polyrepo (each tags `vX.Y.Z` independently):
 
 **Bump trigger:** every pyproject `version` change → tag in same commit. Never bump silently. After each bump-and-tag commit, run `uv publish` in the affected repo to release the wheel. Plugin PyPI releases are gated on Session B (entry-point discovery — plugin stubs are at 0.0.1 until then).
 
+## TODO prefix convention
+
+Central `TODO.md` is the single ledger for all plugin-scoped and cross-cutting work (decided 2026-05-13, see `docs/meeting-notes/2026-05-13-1915-per-plugin-todo-topology.md`). Plugin-scoped items use a single-letter prefix:
+
+| Prefix | Plugin / scope |
+|--------|---------------|
+| `N` | zkm-ner (NER pipeline) |
+| `A` | zkm-eml auto-trigger (mbsync hook) |
+| `E` | γ schema (cross-cutting core + zkm-ner) |
+| `S` | SIGUSR1/status (core runstate) |
+| `M` | zkm-eml backlog (general) |
+| — | core / cross-cutting (no prefix) |
+
+**Rule:** when a plugin accumulates ≥3 unchecked items at once that aren't already in a numbered series, assign a single-letter prefix and add it to this table.
+
+**Option 3 trigger (GH Issues):** if a first outside PR is merged OR a first public GH Issue is filed on any plugin repo, migrate the entire topology to "GH Issues for larger items + central TODO.md for tactical" — fires across *all* plugins simultaneously (no per-plugin split). Bundle the /meeting-skill changes into that future session.
+
 ## Phases
 
 ### Phase 1: MVP
