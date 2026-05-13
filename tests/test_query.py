@@ -69,7 +69,7 @@ def test_chat_url_trailing_slash() -> None:
 
 
 def test_defaults_used_when_no_config(indexed_store: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """No env vars set → falls back to localhost:8080 + qwen3.5-0.8b, no error."""
+    """No env vars set → falls back to localhost:8080 + gemma4-e4b, no error."""
     monkeypatch.delenv("ZKM_LLM_ENDPOINT", raising=False)
     monkeypatch.delenv("ZKM_LLM_MODEL", raising=False)
     monkeypatch.delenv("ZKM_LLM_KEY", raising=False)
@@ -101,7 +101,7 @@ def test_defaults_used_when_no_config(indexed_store: Path, monkeypatch: pytest.M
     list(llm_query(indexed_store, "electricity", expand=False))
 
     assert requests_made[0]["url"] == "http://localhost:8080/v1/chat/completions"
-    assert requests_made[0]["model"] == "qwen3.5-0.8b"
+    assert requests_made[0]["model"] == "gemma4-e4b"
 
 
 def test_config_from_dot_env(indexed_store: Path, monkeypatch: pytest.MonkeyPatch) -> None:
