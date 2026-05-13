@@ -431,3 +431,11 @@ def test_status_follow_does_not_send_sigusr1_in_loop(tmp_path: Path) -> None:
     assert len(sigusr1_flags) >= 1
     assert sigusr1_flags[0] is True
     assert all(f is False for f in sigusr1_flags[1:])
+
+
+def test_status_wait_implies_follow_leave_if_done(tmp_path: Path) -> None:
+    """`--wait` is a shorthand for `--follow --leave-if-done` and exits when table is empty."""
+    runner = CliRunner()
+    result = runner.invoke(main, ["status", "--wait", "--store", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "no running" in result.output

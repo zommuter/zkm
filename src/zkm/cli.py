@@ -899,6 +899,7 @@ def _format_status_lines(rows: list[dict]) -> list[str]:
     is_flag=True,
     help="With --follow: exit when no processes remain",
 )
+@click.option("--wait", "wait", is_flag=True, help="Wait until all processes finish (shorthand for --follow --leave-if-done)")
 @click.option(
     "--store",
     "store_override",
@@ -906,11 +907,15 @@ def _format_status_lines(rows: list[dict]) -> list[str]:
     metavar="PATH",
     help="Store path (default: $ZKM_STORE or ~/knowledge)",
 )
-def cmd_status(as_json: bool, follow: bool, leave_if_done: bool, store_override: str | None) -> None:
+def cmd_status(as_json: bool, follow: bool, leave_if_done: bool, wait: bool, store_override: str | None) -> None:
     """Show running zkm processes and their progress."""
     import json as _json
     import sys as _sys
     import time as _time
+
+    if wait:
+        follow = True
+        leave_if_done = True
 
     sdir = Path(store_override) if store_override else store_path()
     running_dir = sdir / ".zkm-state" / "running"
