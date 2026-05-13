@@ -28,6 +28,7 @@ _SNIPPET_WINDOW = 240
 _DENSE_POOL_MULT = 20      # WHY: 3× saturates on corpora with large literal-match clusters
 _DENSE_POOL_FLOOR = 200    # minimum to clear typical literal-match cluster
 _CHUNK_OVERSAMPLE = 3      # extra topk rows to fetch per pool slot to account for chunk multiplicity
+_EOS_TOKEN_RE = re.compile(r"<\|[A-Z_]+_TOKEN\|>")
 
 
 @dataclass
@@ -618,7 +619,9 @@ def llm_stream(
                 chunk = json.loads(data)
                 content = chunk["choices"][0]["delta"].get("content")
                 if content:
-                    yield content
+                    content = _EOS_TOKEN_RE.sub("", content)
+                    if content:
+                        yield content
             except (KeyError, json.JSONDecodeError):
                 continue
 

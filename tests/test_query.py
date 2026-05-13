@@ -561,3 +561,31 @@ def test_search_with_expansion_dense_temporal_filter(
     # (it may appear via BM25 if BM25 is also filtered, but here both docs match "payment"
     # BM25-wise — we just check that recent.md is present)
     assert "notes/recent.md" in paths
+
+
+def test_llm_stream_strips_eos_tokens(
+    store: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """llm_stream must strip <|..._TOKEN|> control tokens emitted by some models (e.g. aya-expanse-8b)."""
+    monkeypatch.setenv("ZKM_LLM_ENDPOINT", "http://localhost:11434")
+    monkeypatch.setenv("ZKM_LLM_MODEL", "test-model")
+    monkeypatch.setenv("ZKM_LLM_KEY", "")
+
+    class MockResponse:
+        status_code = 200
+
+        def iter_lines(self):
+            yield f"data: {json.dumps({'choices': [{'delta': {'content': 'Hello'}}]})}"
+            yield f"data: {json.dumps({'choices': [{'delta': {'content': '<|END_OF_TURN_TOKEN|>'}}]})}"
+            yield f"data: {json.dumps({'choices': [{'delta': {'content': ' world<|END_OF_TURN_TOKEN|>'}}]})}"
+            yield "data: [DONE]"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            pass
+
+    monkeypatch.setattr(httpx, "stream", lambda *a, **kw: MockResponse())
+    tokens = list(llm_stream(store, [], "test question?"))
+    assert tokens == ["Hello", " world"], f"EOS tokens not stripped: {tokens!r}"
