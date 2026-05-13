@@ -1,5 +1,28 @@
 # Installing zkm
 
+## Install from PyPI
+
+```bash
+uv tool install zkm    # or: pipx install zkm
+```
+
+Verify:
+
+```bash
+zkm --version
+```
+
+Plugins are **not yet installable via PyPI** — the plugin discovery mechanism is
+filesystem-based and is being extended to support pip-installed plugins in a future
+release (1.0+). Until then, install plugins via the git-clone path below.
+
+PyPI placeholder packages are reserved for each plugin (`pip install zkm-eml` etc.)
+but they ship stub wheels only and do not provide functional plugin code.
+
+---
+
+## Development install
+
 For development with auto-triggers (mbsync hook, Syncthing watchers, etc.) install
 the editable CLI so source changes are picked up live without reinstalling:
 

@@ -155,6 +155,11 @@ To install a plugin, clone it into `plugins/` inside your zkm checkout (it is au
 git clone https://github.com/zommuter/zkm-eml.git plugins/zkm-eml
 ```
 
+> **Note:** PyPI names are reserved (`pip install zkm-eml` etc.) but currently ship
+> 0.0.1 placeholder stubs only — functional plugin code requires the git-clone path
+> above. Entry-point–based plugin discovery (pip-installable plugins) is planned for
+> zkm 1.0.
+
 ## Plugin development
 
 See [`docs/plugin-spec.md`](docs/plugin-spec.md) and the reference
