@@ -6,7 +6,10 @@ Completed Phase 1 tasks archived in `docs/phase1-done.md`.
 ## Infrastructure / cross-project
 
 - [~] Evaluate replacing llama-3.2-3b with Gemma 4 E4B for zkm LLM calls — full 7-model benchmark run 2026-05-13 (`contrib/llm_benchmark.py`), proper load+ready wait, all llama-swap models. **Results:** llama-3.2-3b 4/4 quality / 0.37s avg TTFT (prev cross-lingual failure was GPU contention, not a model bug); gemma4-e4b 4/4 quality / 21.68s avg TTFT — thinking-mode latency confirmed (same pattern as deepseek-r1-7b). **Best interactive models: llama-3.2-3b (0.37s) ≥ aya-expanse-8b (0.99s), both 4/4.** qwen3.5-0.8b (always-on) is 3/4. **Verdict: keep llama-3.2-3b as default `ZKM_LLM_MODEL`; gemma4-e4b/deepseek-r1 not suitable for interactive use unless thinking disabled.** Cross-link: ~/src/helferli/docs/meeting-notes/2026-05-12-2036-asr-language-detection.md
-  - [ ] Retry Gemma 4 E4B with thinking disabled (`"thinking":{"type":"disabled"}` in chat/completions payload); add `--thinking-disabled` flag to `contrib/llm_benchmark.py`; if TTFT drops to <5s and quality holds, promote to always-on.
+  - [ ] **Gemma 4 E4B thinking-disabled retrial** — two-stage approach:
+    - **Stage 1 (API flag, no config change):** Add `--thinking-disabled` flag to `contrib/llm_benchmark.py` that injects `"thinking":{"type":"disabled"}` into the chat/completions payload. Run `uv run contrib/llm_benchmark.py --models gemma4-e4b --thinking-disabled`. If TTFT drops to <5s → Stage 2.
+    - **Stage 2 (llama-swap config, if API flag is ignored):** Add `--reasoning off` to the `gemma4-e4b` cmd in `/etc/llama-swap/config.yaml` (same flag qwen3.5-0.8b already uses). Restart llama-swap or wait for TTL. Re-run benchmark.
+    - **Success gate:** TTFT <5s AND quality still 4/4 → update `/etc/llama-swap/config.yaml` to move gemma4-e4b to `always-on` group, retire llama-3.2-3b slot, update `_DEFAULT_MODEL` in `src/zkm/query.py` if warranted.
   - [ ] `llm_stream` in `query.py` does not strip EOS tokens (`<|END_OF_TURN_TOKEN|>`) — aya-expanse-8b emits them in RAG answers; expand.py already has `_EOS_TOKEN_RE` for this. Apply same strip in `llm_stream`.
 
 ## Phase 2 session 6 — hybrid search quality
