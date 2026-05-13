@@ -9,7 +9,7 @@ import click
 import pytest
 
 from zkm import devcheck
-from zkm.devcheck import assert_clean, find_repo_root, is_dirty
+from zkm.devcheck import _stash_touches_scope, assert_clean, find_repo_root, is_dirty
 
 
 # ---------------------------------------------------------------------------
@@ -197,3 +197,84 @@ def test_assert_clean_plugin_without_git_repo(
 
     monkeypatch.setenv("ZKM_PLUGINS_DIR", str(plugins_root))
     assert_clean(plugin_name="zkm-notes")  # must not raise
+
+
+# ---------------------------------------------------------------------------
+# _stash_touches_scope
+# ---------------------------------------------------------------------------
+
+
+def test_stash_touches_scope_returns_none_when_no_stash(tmp_path: Path) -> None:
+    repo = make_git_repo(tmp_path / "repo")
+    assert _stash_touches_scope(repo) is None
+
+
+def test_stash_touches_scope_returns_ref_when_stash_exists(tmp_path: Path) -> None:
+    repo = make_git_repo(tmp_path / "repo")
+    (repo / "tracked.txt").write_text("wip\n")
+    _git(repo, "stash")
+    ref = _stash_touches_scope(repo)
+    assert ref == "stash@{0}"
+
+
+# ---------------------------------------------------------------------------
+# assert_clean — stash warning
+# ---------------------------------------------------------------------------
+
+
+def test_assert_clean_warns_to_stderr_on_stash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+) -> None:
+    """Clean tree + stash in core repo → guard passes, warning printed to stderr."""
+    core_repo = make_git_repo(tmp_path / "core")
+    _patch_core(monkeypatch, core_repo)
+    (core_repo / "src" / "zkm").mkdir(parents=True)
+    monkeypatch.delenv("ZKM_BYPASS_DIRTY_CHECK", raising=False)
+
+    # stash a change so refs/stash exists
+    (core_repo / "tracked.txt").write_text("wip\n")
+    _git(core_repo, "stash")
+
+    assert_clean()  # must not raise
+
+    captured = capsys.readouterr()
+    assert "stash@{0}" in captured.err
+    assert "WIP" in captured.err or "stashed" in captured.err.lower()
+
+
+def test_assert_clean_no_warning_when_no_stash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+) -> None:
+    """Clean tree + no stash → guard passes, no warning."""
+    core_repo = make_git_repo(tmp_path / "core")
+    _patch_core(monkeypatch, core_repo)
+    (core_repo / "src" / "zkm").mkdir(parents=True)
+    monkeypatch.delenv("ZKM_BYPASS_DIRTY_CHECK", raising=False)
+
+    assert_clean()
+
+    captured = capsys.readouterr()
+    assert "stash" not in captured.err
+
+
+def test_assert_clean_plugin_stash_warns(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+) -> None:
+    """Clean plugin repo + stash → warning printed to stderr."""
+    monkeypatch.delenv("ZKM_BYPASS_DIRTY_CHECK", raising=False)
+    core_repo = make_git_repo(tmp_path / "core")
+    _patch_core(monkeypatch, core_repo)
+    (core_repo / "src" / "zkm").mkdir(parents=True)
+
+    plugins_root = tmp_path / "plugins"
+    plugin_dir = make_plugin_dir(plugins_root, "eml")
+
+    # stash a change in the plugin repo
+    (plugin_dir / "tracked.txt").write_text("wip\n")
+    _git(plugin_dir, "stash")
+
+    monkeypatch.setenv("ZKM_PLUGINS_DIR", str(plugins_root))
+    assert_clean(plugin_name="zkm-eml")  # must not raise
+
+    captured = capsys.readouterr()
+    assert "stash@{0}" in captured.err

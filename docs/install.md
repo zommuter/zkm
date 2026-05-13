@@ -54,6 +54,13 @@ Do not set `ZKM_BYPASS_DIRTY_CHECK` in your shell profile. It is an explicit opt
 escape hatch, not a default. Non-editable installs (`uv tool install` without
 `--editable`) skip the guard automatically because there is no `.git/` ancestor to check.
 
+> **Footgun — `git stash` reverts your WIP:**
+> The guard's error message lists "git stash" as an option, but stashing reverts your
+> working tree to HEAD before the command runs. If you wanted to test your WIP code, use
+> `ZKM_BYPASS_DIRTY_CHECK=1` instead. Use `git stash` only when you explicitly want HEAD
+> behaviour. The guard will warn on stderr if a stash containing source changes exists
+> while the tree is otherwise clean.
+
 ## Periodic embed + doctor timer
 
 `zkm embed` runs dense embeddings (GPU-bound, slower) and `zkm doctor` checks
