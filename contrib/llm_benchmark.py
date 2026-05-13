@@ -2,7 +2,7 @@
 """Benchmark all llama-swap models on zkm-style RAG prompts.
 
 Usage:
-  uv run contrib/llm_benchmark.py [--endpoint URL] [--models A B ...] [--exclude A B ...]
+  uv run contrib/llm_benchmark.py [--endpoint URL] [--models A B ...] [--exclude A B ...] [--thinking-disabled]
 
 Defaults: zomni llama-swap (http://zomni.local:8080).
 Models: auto-discovered from /v1/models, minus known embedding-only models (bge-m3).
@@ -183,9 +183,9 @@ def _chat_url(endpoint: str) -> str:
     return endpoint + "/v1/chat/completions"
 
 
-def _stream(endpoint: str, model: str, system: str, user: str) -> Iterator[str]:
+def _stream(endpoint: str, model: str, system: str, user: str, *, thinking_disabled: bool = False) -> Iterator[str]:
     url = _chat_url(endpoint)
-    payload = {
+    payload: dict = {
         "model": model,
         "messages": [
             {"role": "system", "content": system},
@@ -193,6 +193,8 @@ def _stream(endpoint: str, model: str, system: str, user: str) -> Iterator[str]:
         ],
         "stream": True,
     }
+    if thinking_disabled:
+        payload["thinking"] = {"type": "disabled"}
     with httpx.stream("POST", url, json=payload, timeout=180.0) as resp:
         resp.raise_for_status()
         for line in resp.iter_lines():
@@ -210,7 +212,7 @@ def _stream(endpoint: str, model: str, system: str, user: str) -> Iterator[str]:
                 continue
 
 
-def load_model(endpoint: str, model: str) -> float:
+def load_model(endpoint: str, model: str, *, thinking_disabled: bool = False) -> float:
     """Trigger model load via a warmup request, then poll until state==ready.
 
     Returns elapsed seconds (load time). Prints progress inline.
@@ -226,12 +228,14 @@ def load_model(endpoint: str, model: str) -> float:
 
     # Send a minimal request to trigger the swap
     url = _chat_url(endpoint)
-    payload = {
+    payload: dict = {
         "model": model,
         "messages": [{"role": "user", "content": "Hi"}],
         "stream": True,
         "max_tokens": 4,
     }
+    if thinking_disabled:
+        payload["thinking"] = {"type": "disabled"}
     print(f"  load {model}: triggering swap ...", end=" ", flush=True)
     try:
         with httpx.stream("POST", url, json=payload, timeout=180.0) as resp:
@@ -274,7 +278,7 @@ def _check_quality(text: str, case: dict) -> tuple[bool, str]:
     return passed, "; ".join(notes) if notes else "no auto-check"
 
 
-def run_case(endpoint: str, model: str, case: dict) -> Result:
+def run_case(endpoint: str, model: str, case: dict, *, thinking_disabled: bool = False) -> Result:
     context = case["context"]
     question = case["question"]
     user_content = f"Sources:\n\n{context}\n\n---\n\nQuestion: {question}"
@@ -283,7 +287,7 @@ def run_case(endpoint: str, model: str, case: dict) -> Result:
     first_token = False
     try:
         chunks: list[str] = []
-        for chunk in _stream(endpoint, model, SYSTEM_PROMPT, user_content):
+        for chunk in _stream(endpoint, model, SYSTEM_PROMPT, user_content, thinking_disabled=thinking_disabled):
             if not first_token:
                 result.ttft_s = time.monotonic() - t0
                 first_token = True
@@ -404,9 +408,12 @@ def main() -> int:
                         help="Models to benchmark (default: auto-discover all chat models)")
     parser.add_argument("--exclude", nargs="+", default=[],
                         help="Model IDs to skip (added to built-in embedding skip list)")
+    parser.add_argument("--thinking-disabled", action="store_true",
+                        help="Inject {\"thinking\":{\"type\":\"disabled\"}} into all requests (for reasoning models)")
     args = parser.parse_args()
 
     endpoint = args.endpoint
+    thinking_disabled: bool = args.thinking_disabled
     skip = _SKIP_MODELS | set(args.exclude)
 
     if args.models:
@@ -421,6 +428,8 @@ def main() -> int:
     print(f"Endpoint: {endpoint}")
     print(f"Models ({len(models)}): {', '.join(models)}")
     print(f"Cases:  {len(CASES)}")
+    if thinking_disabled:
+        print("Thinking: disabled (injecting {\"thinking\":{\"type\":\"disabled\"}})")
     print()
 
     results: list[Result] = []
@@ -428,12 +437,12 @@ def main() -> int:
 
     for model in models:
         warn_contention(endpoint, model)
-        load_s = load_model(endpoint, model)
+        load_s = load_model(endpoint, model, thinking_disabled=thinking_disabled)
         load_times[model] = load_s
 
         for case in CASES:
             print(f"  run {model} / {case['id']} ...", end=" ", flush=True)
-            r = run_case(endpoint, model, case)
+            r = run_case(endpoint, model, case, thinking_disabled=thinking_disabled)
             r.load_s = load_s
             results.append(r)
             if r.ok:
