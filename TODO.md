@@ -5,7 +5,8 @@ Completed Phase 1 tasks archived in `docs/phase1-done.md`.
 
 ## Infrastructure / cross-project
 
-- [ ] Evaluate replacing llama-3.2-3b with Gemma 4 E4B for zkm LLM calls — `gemma4-e4b` in workload group on zomni llama-swap since 2026-05-12; benchmark text-only quality (via zelegator or ai-codebench); if Gemma ≥ llama at comparable speed, promote to always-on and retire llama-3.2-3b workload slot — cross-link: ~/src/helferli/docs/meeting-notes/2026-05-12-2036-asr-language-detection.md
+- [~] Evaluate replacing llama-3.2-3b with Gemma 4 E4B for zkm LLM calls — benchmark run 2026-05-13 (`contrib/llm_benchmark.py`). Result: **Gemma 4/4 quality checks, llama 3/4** (llama fails cross-lingual DE-question/EN-context); but **Gemma is 10-12x slower** (avg TTFT 22.9s vs 0.3s warm) — thinking-mode tokens are consumed before reply (llama-swap config: `max_tokens: 512, "thinking mode consumes tokens before reply"`). **Verdict: do NOT retire llama-3.2-3b yet.** Follow-up options: (a) retry with `"thinking":{"type":"disabled"}` in API call — may restore interactive latency; (b) keep both for different roles (llama interactive, gemma batch/offline). Cross-link: ~/src/helferli/docs/meeting-notes/2026-05-12-2036-asr-language-detection.md
+  - [ ] Retry Gemma 4 E4B with thinking disabled (`"thinking":{"type":"disabled"}` in chat/completions payload); re-run `contrib/llm_benchmark.py --no-warmup`; if TTFT drops to <5s and quality holds, promote to always-on.
 
 ## Phase 2 session 6 — hybrid search quality
 
