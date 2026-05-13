@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from zkm.store import (
+    _GITIGNORE,
     clone_store,
     init_store,
     pull_store,
@@ -15,6 +16,19 @@ from zkm.store import (
     remote_add,
     remote_list,
 )
+
+
+# ---------------------------------------------------------------------------
+# _GITIGNORE template
+# ---------------------------------------------------------------------------
+
+
+def test_gitignore_no_dead_embeddings_entry() -> None:
+    assert ".embeddings/" not in _GITIGNORE
+
+
+def test_gitignore_contains_zkm_index() -> None:
+    assert ".zkm-index/" in _GITIGNORE
 
 
 # ---------------------------------------------------------------------------

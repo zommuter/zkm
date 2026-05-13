@@ -9,7 +9,6 @@ _GITIGNORE = """\
 .env
 .zkm-index/
 .zkm-state/
-.embeddings/
 *.swp
 .DS_Store
 .git-lock-push.lock
