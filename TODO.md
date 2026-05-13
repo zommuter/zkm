@@ -157,7 +157,7 @@ Sequencing: E1+E2+E3 (schema + amendments + normaliser lib) → E4 (suspicious d
 - Crypto/stock-ticker domain scope — defer; revisit if real use case lands.
 - WebUI typed-query hint UX — Phase 3 design concern.
 
-- [ ] **N9g-pre. zkm-eml signature + salutation block extraction** *(unblocked — γ E1–E3 done 2026-05-12)*. Goal: emit typed entries with `scope: signature/salutation` per γ schema. Owner: `plugins/zkm-eml/src/zkm_eml/render.py`. See E12.
+- [x] **N9g-pre. zkm-eml signature + salutation block extraction** — `render.split_body_sections()` (RFC 3676 `-- ` + sign-off regex + greeting regex); `frontmatter.write_message_md` stores `signature_block` / `salutation_block`; `zkm-ner._process_file` extracts from each block with the correct `scope:`; model version bumped to `+scope-blocks-v1`; cache key extended to include sig+sal content. 16 zkm-eml + 4 new zkm-ner tests (133/254 passing) — 2026-05-13. Run `zkm convert ner` to enrich corpus-wide.
 
 - [x] **N9g. General body-NER cleanup follow-up** *(closed 2026-05-12 — E13 verdict: moot)*. Value-type spaCy mislabels (amounts as ORG, IBANs as ORG, emails as PERSON) suppressed by γ typed extractors via overlap. Residual ORG-with-digit cases (~10%) are legitimate org names. Run `zkm convert ner` to apply enrichment corpus-wide. See E13.
 
@@ -324,6 +324,17 @@ Convention: bump-and-tag + loose-0.x + plain `vX.Y.Z` per repo. See `CLAUDE.md` 
 ## Publishing / distribution (backlog — from 2026-05-12-0844-publish-plugins.md)
 
 - [x] **zkm-eml: backfill missing semver tags** (cosmetic) — tagged v0.2.0 (837130a), v0.2.1 (47a4650), v0.3.0 (e1c3808), v0.4.0 (524bb60), v0.5.0 (b1a3f2a) from commit-message milestones (pyproject.toml stayed at 0.1.0 until v0.6.0). Pushed to both fievel and GitHub — 2026-05-13.
+
+**Orphaned publish-plugins items (A1–A9 from 2026-05-12-0844-publish-plugins.md) — done vs. pending:**
+- [x] A1 — LICENSE files: MIT applied to core + all plugins (confirmed present)
+- [x] A4 — Generality fixes for zkm-ner: `tobias`/`kienzler` removed from textfilter.py + tests
+- [x] A7 — Canary publish zkm-eml to GitHub (`zommuter/zkm-eml` live)
+- [ ] **A2 — MVP READMEs**: create `plugins/zkm-ner/README.md`, `plugins/zkm-notmuch/README.md`, `plugins/zkm-scan/README.md`; refresh `examples/zkm-notes/README.md` to uniform shape (≥25 lines, MIT footer, link to `https://github.com/zommuter/zkm`).
+- [ ] **A3 — Sweep existing READMEs**: update `plugins/zkm-eml/README.md`, `plugins/zkm-pdf/README.md`, `plugins/zkm-photo/README.md` — append uniform license footer; replace `~/src/zkm-<name>` paths with `plugins/zkm-<name>` (relative); fix `Zommuter/zkm` → `zommuter/zkm`.
+- [ ] **A5 — Strip personal headers from eml CLAUDE.md**: remove `Repo: ~/src/zkm/plugins/zkm-eml/` and rewrite dev-setup commands to relative paths. Contract: `grep -E '~/src|/home/' plugins/zkm-eml/CLAUDE.md` returns empty.
+- [ ] **A6 — Add `.gitignore` to zkm-scan**: use the same template as `plugins/zkm-eml/.gitignore`. Contract: `git -C plugins/zkm-scan check-ignore __pycache__/foo.pyc` succeeds.
+- [ ] **A8 — Batch publish 5 remaining plugins to GitHub**: `zommuter/zkm-ner`, `zommuter/zkm-notmuch`, `zommuter/zkm-pdf`, `zommuter/zkm-photo`, `zommuter/zkm-scan`. Add `zkm-plugin` topic. Contract: `gh repo list zommuter --topic zkm-plugin` returns all 6 (including eml).
+- [ ] **A9 — Cross-link from core README**: add "Plugins" section to `~/src/zkm/README.md` listing all 6 plugin repos. Contract: `grep -c 'github.com/zommuter/zkm-' README.md` ≥ 6.
 
 - [ ] **ASAP: PyPI publishing** — investigate publishing core `zkm` + 6 plugins to PyPI; issues: account + name-reservation, `uv build` / `uv publish` workflow, classifier metadata, version-bump-and-publish cadence. Coordinate with bump-and-tag rule: each pyproject version bump should trigger both a git tag and a PyPI release.
 - [ ] **Runtime user-identity config for zkm-ner** — spec a `ZKM_NER_USER_NAMES` env var (or per-store `.zkm-config` entry) so users can extend the greeting-salutation stoplist at runtime without editing source. Default: empty (no built-in personal names). See `gazetteers/orgs.yaml` for the config-file pattern.
