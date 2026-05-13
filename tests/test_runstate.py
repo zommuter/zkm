@@ -370,7 +370,7 @@ def test_status_leave_if_done_exits_after_process_gone(tmp_path: Path) -> None:
 
     call_count = 0
 
-    def _fake_snapshot(_rd: Path) -> list[dict]:
+    def _fake_snapshot(_rd: Path, send_sigusr1: bool = True) -> list[dict]:
         nonlocal call_count
         call_count += 1
         if call_count == 1:
@@ -395,7 +395,7 @@ def test_status_json_follow_leave_if_done(tmp_path: Path) -> None:
 
     call_count = 0
 
-    def _fake_snapshot(_rd: Path) -> list[dict]:
+    def _fake_snapshot(_rd: Path, send_sigusr1: bool = True) -> list[dict]:
         nonlocal call_count
         call_count += 1
         return []
@@ -408,3 +408,26 @@ def test_status_json_follow_leave_if_done(tmp_path: Path) -> None:
             result = runner.invoke(main, ["status", "--json", "--follow", "--leave-if-done", "--store", str(tmp_path)])
     assert result.exit_code == 0
     assert result.output.strip() == "[]"
+
+
+def test_status_follow_does_not_send_sigusr1_in_loop(tmp_path: Path) -> None:
+    """In --follow mode, SIGUSR1 is sent only on the initial snapshot, not in the poll loop."""
+    import unittest.mock as _mock
+    from zkm import cli as _cli_mod
+
+    sigusr1_flags: list[bool] = []
+
+    def _tracking_snapshot(_rd: Path, send_sigusr1: bool = True) -> list[dict]:
+        sigusr1_flags.append(send_sigusr1)
+        return []
+
+    with _mock.patch.object(_cli_mod, "_take_status_snapshot", _tracking_snapshot):
+        with _mock.patch("time.sleep"):
+            runner = CliRunner()
+            runner.invoke(main, ["status", "--follow", "--leave-if-done", "--store", str(tmp_path)])
+
+    # First snapshot (before the loop) uses default send_sigusr1=True.
+    # Loop iterations use send_sigusr1=False.
+    assert len(sigusr1_flags) >= 1
+    assert sigusr1_flags[0] is True
+    assert all(f is False for f in sigusr1_flags[1:])

@@ -520,11 +520,14 @@ def cmd_convert(
                 click.echo(f"WARN: amender '{amender.name}' failed: {e}", err=True)
 
     if not no_commit:
+        click.echo("Staging changes...", err=True)
         subprocess.run(["git", "add", "-A"], cwd=sdir, check=True)
         result = subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=sdir)
         if result.returncode != 0:
             if reprocess_mode:
                 msg = f"refactor({plugin}): reprocess {n} file(s)"
+            elif is_amender:
+                msg = f"chore({plugin}): amend frontmatter"
             else:
                 msg = f"chore({plugin}): ingest {n} file(s)"
             if cancelled:
@@ -817,7 +820,7 @@ def cmd_index(store_override: str | None, no_progress: bool, no_embed: bool, ful
 # ---------------------------------------------------------------------------
 
 
-def _take_status_snapshot(running_dir: Path) -> list[dict]:
+def _take_status_snapshot(running_dir: Path, send_sigusr1: bool = True) -> list[dict]:
     import json as _json
     import os as _os
     import time as _time
@@ -834,7 +837,8 @@ def _take_status_snapshot(running_dir: Path) -> list[dict]:
         try:
             _os.kill(pid, 0)
             live_pids.add(pid)
-            _os.kill(pid, signal.SIGUSR1)
+            if send_sigusr1:
+                _os.kill(pid, signal.SIGUSR1)
         except ProcessLookupError:
             try:
                 pid_file.unlink(missing_ok=True)
@@ -948,7 +952,7 @@ def cmd_status(as_json: bool, follow: bool, leave_if_done: bool, store_override:
     try:
         while True:
             _time.sleep(2.0)
-            n_live = _render(_take_status_snapshot(running_dir))
+            n_live = _render(_take_status_snapshot(running_dir, send_sigusr1=False))
             if leave_if_done and n_live == 0:
                 break
     except KeyboardInterrupt:
