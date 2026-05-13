@@ -6,7 +6,7 @@ Completed Phase 1 tasks archived in `docs/phase1-done.md`.
 ## Infrastructure / cross-project
 
 - [x] Evaluate replacing llama-3.2-3b with Gemma 4 E4B for zkm LLM calls — full 7-model benchmark run 2026-05-13 (`contrib/llm_benchmark.py`), proper load+ready wait, all llama-swap models. **Results:** llama-3.2-3b 4/4 quality / 0.37s avg TTFT; gemma4-e4b 4/4 quality / 21.68s avg TTFT — thinking-mode latency. **Thinking-disabled retrial 2026-05-13:** Stage 1 (API flag) ignored by llama-swap; Stage 2 (`--reasoning off` in `/etc/llama-swap/config.yaml`) succeeded — gemma4-e4b now **0.62s avg TTFT, 4/4 quality**. `/etc/llama-swap/config.yaml` already updated with `--reasoning off`. **Post-gate actions:** always-on group move + llama-3.2-3b retirement + `_DEFAULT_MODEL` update — user decision pending (see next item).
-  - [ ] **Post-gate: gemma4-e4b promotion decisions** — success gate met. Decide: (a) move gemma4-e4b to `always-on` group in `/etc/llama-swap/config.yaml` (costs ~4 GiB VRAM permanently); (b) retire llama-3.2-3b slot or keep as backup; (c) update `_DEFAULT_MODEL` in `src/zkm/query.py` from `llama-3.2-3b` to `gemma4-e4b`. Each is independent and reversible.
+  - [x] **Post-gate: gemma4-e4b promotion decisions** — (a) gemma4-e4b moved to `always-on` group + `hooks.on_startup.preload` in `/etc/llama-swap/config.yaml`; (b) llama-3.2-3b kept as on-demand backup in workload group; (c) `_DEFAULT_MODEL` updated to `gemma4-e4b` in `src/zkm/query.py` — 2026-05-13.
   - [x] `llm_stream` in `query.py` does not strip EOS tokens (`<|END_OF_TURN_TOKEN|>`) — aya-expanse-8b emits them in RAG answers; expand.py already has `_EOS_TOKEN_RE` for this. Apply same strip in `llm_stream` — 2026-05-13.
 
 ## Phase 2 session 6 — hybrid search quality

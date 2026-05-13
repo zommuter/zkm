@@ -484,7 +484,7 @@ def search_with_expansion(
 # ---------------------------------------------------------------------------
 
 _DEFAULT_ENDPOINT = "http://localhost:8080"
-_DEFAULT_MODEL = "qwen3.5-0.8b"
+_DEFAULT_MODEL = "gemma4-e4b"
 
 
 def _resolve_llm_config(
