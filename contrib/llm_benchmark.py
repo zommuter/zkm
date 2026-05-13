@@ -1,21 +1,22 @@
 #!/usr/bin/env python3
-"""Compare two LLM models on zkm-style RAG prompts.
+"""Benchmark all llama-swap models on zkm-style RAG prompts.
 
 Usage:
-  uv run contrib/llm_benchmark.py [--endpoint URL] [--models A B] [--no-warmup]
+  uv run contrib/llm_benchmark.py [--endpoint URL] [--models A B ...] [--exclude A B ...]
 
-Defaults: zomni llama-swap (http://zomni.local:8080), models llama-3.2-3b + gemma4-e4b.
-
-Each model gets a warm-up request before timing starts, so TTFT reflects inference
-latency rather than model-swap/load time.  Use --no-warmup to skip this.
+Defaults: zomni llama-swap (http://zomni.local:8080).
+Models: auto-discovered from /v1/models, minus known embedding-only models (bge-m3).
+Each model is loaded via a warmup request, then polled on /running until
+state == "ready" before timing starts.
 
 Outputs:
+  - GPU contention warning if unexpected models are running at warmup time
   - Full responses per case per model (quality comparison)
-  - Auto quality checks where expected values are known
-  - Summary table: TTFT, total time, ~tok/s, quality pass/fail
-  - Verdict: whether Gemma >= llama quality at comparable speed
+  - Auto quality checks (expect_values / expect_not)
+  - Summary table: load time, TTFT, total time, ~tok/s, quality pass/fail
+  - Per-model verdict line
 
-Exit 0 on success; exit 1 if any model is unreachable or quality check fails.
+Exit 0 always (individual failures noted in output).
 """
 
 from __future__ import annotations
@@ -58,9 +59,7 @@ CASES: list[dict] = [
             "Bitte überweisen Sie den Betrag bis 2025-09-20 auf unser Konto IBAN CH56 0483 5012 3456 7800 9."
         ),
         "question": "Wie hoch war meine Swisscom-Rechnung im September 2025?",
-        # must mention the correct amount
         "expect_values": ["68.90", "68,90"],
-        # must NOT claim the context is irrelevant
         "expect_not": ["nicht", "keine Informationen"],
     },
     {
@@ -86,7 +85,6 @@ CASES: list[dict] = [
             "Pro plan: $20.00. Domain registration example.com: $8.57. Total: $28.57."
         ),
         "question": "Was hat mich Cloudflare im August 2025 gekostet?",
-        # must extract total from EN context and answer in DE
         "expect_values": ["28.57", "28,57"],
         "expect_not": [],
     },
@@ -100,11 +98,60 @@ CASES: list[dict] = [
             "Minuten: unlimitiert. Daten: 15 GB."
         ),
         "question": "What was my electricity bill last year?",
-        # must refuse / mention O2 / not fabricate an electricity figure
         "expect_values": ["O2"],
-        "expect_not": ["CHF 29.90", "29.90"],  # must NOT cite the O2 amount as electricity
+        "expect_not": ["CHF 29.90", "29.90"],  # must NOT cite O2 amount as electricity
     },
 ]
+
+# Models that are embeddings-only or otherwise not suitable for chat
+_SKIP_MODELS = {"bge-m3"}
+
+
+# ---------------------------------------------------------------------------
+# llama-swap helpers
+# ---------------------------------------------------------------------------
+
+
+def list_models(endpoint: str) -> list[str]:
+    """Return all model IDs from /v1/models, excluding embedding-only models."""
+    try:
+        resp = httpx.get(endpoint.rstrip("/") + "/v1/models", timeout=10.0)
+        resp.raise_for_status()
+        ids = [m["id"] for m in resp.json().get("data", [])]
+        return [m for m in ids if m not in _SKIP_MODELS]
+    except Exception as exc:
+        print(f"  WARNING: could not list models: {exc}", file=sys.stderr)
+        return []
+
+
+def running_models(endpoint: str) -> list[dict]:
+    """Return the list of currently-loaded models from /running."""
+    try:
+        resp = httpx.get(endpoint.rstrip("/") + "/running", timeout=5.0)
+        resp.raise_for_status()
+        return resp.json().get("running", [])
+    except Exception:
+        return []
+
+
+def wait_until_ready(endpoint: str, model: str, *, poll_interval: float = 0.5, timeout: float = 180.0) -> bool:
+    """Poll /running until `model` appears with state=='ready'. Return True on success."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        for entry in running_models(endpoint):
+            if entry.get("model") == model and entry.get("state") == "ready":
+                return True
+        time.sleep(poll_interval)
+    return False
+
+
+def warn_contention(endpoint: str, target_model: str) -> None:
+    """Print a warning if unexpected non-always-on models are loaded alongside target."""
+    loaded = running_models(endpoint)
+    # ttl==0 means always-on (preloaded); filter those out
+    others = [e["model"] for e in loaded if e.get("ttl", 1) != 0 and e.get("model") != target_model]
+    if others:
+        print(f"  ⚠  GPU contention: {', '.join(others)} also loaded alongside {target_model}")
 
 
 # ---------------------------------------------------------------------------
@@ -117,12 +164,13 @@ class Result:
     model: str
     case_id: str
     ok: bool
-    ttft_s: float = 0.0      # time to first token (warm — after warmup run)
+    load_s: float = 0.0      # time for warmup request + ready poll
+    ttft_s: float = 0.0      # time to first token (after model is ready)
     total_s: float = 0.0
     chars: int = 0
     text: str = ""
     error: str = ""
-    quality_ok: bool | None = None   # None = no auto-check available
+    quality_ok: bool | None = None
     quality_notes: str = ""
 
 
@@ -145,7 +193,7 @@ def _stream(endpoint: str, model: str, system: str, user: str) -> Iterator[str]:
         ],
         "stream": True,
     }
-    with httpx.stream("POST", url, json=payload, timeout=120.0) as resp:
+    with httpx.stream("POST", url, json=payload, timeout=180.0) as resp:
         resp.raise_for_status()
         for line in resp.iter_lines():
             if not line.startswith("data: "):
@@ -162,8 +210,21 @@ def _stream(endpoint: str, model: str, system: str, user: str) -> Iterator[str]:
                 continue
 
 
-def warmup(endpoint: str, model: str) -> None:
-    """Send a minimal request to ensure the model is loaded before timing."""
+def load_model(endpoint: str, model: str) -> float:
+    """Trigger model load via a warmup request, then poll until state==ready.
+
+    Returns elapsed seconds (load time). Prints progress inline.
+    """
+    t0 = time.monotonic()
+
+    # Check if already ready
+    for entry in running_models(endpoint):
+        if entry.get("model") == model and entry.get("state") == "ready":
+            elapsed = time.monotonic() - t0
+            print(f"  load {model}: already ready ({elapsed:.1f}s)")
+            return elapsed
+
+    # Send a minimal request to trigger the swap
     url = _chat_url(endpoint)
     payload = {
         "model": model,
@@ -171,17 +232,27 @@ def warmup(endpoint: str, model: str) -> None:
         "stream": True,
         "max_tokens": 4,
     }
+    print(f"  load {model}: triggering swap ...", end=" ", flush=True)
     try:
-        with httpx.stream("POST", url, json=payload, timeout=120.0) as resp:
+        with httpx.stream("POST", url, json=payload, timeout=180.0) as resp:
             resp.raise_for_status()
             for _ in resp.iter_lines():
                 pass
-    except Exception:
-        pass  # warmup failure is not fatal; timing will include swap time
+    except Exception as exc:
+        print(f"warmup request failed: {exc}")
+
+    # Poll until state==ready
+    print("polling ready ...", end=" ", flush=True)
+    ready = wait_until_ready(endpoint, model)
+    elapsed = time.monotonic() - t0
+    if ready:
+        print(f"ready ({elapsed:.1f}s)")
+    else:
+        print(f"TIMEOUT after {elapsed:.1f}s (proceeding anyway)")
+    return elapsed
 
 
 def _check_quality(text: str, case: dict) -> tuple[bool, str]:
-    """Return (pass, notes) based on expected values and forbidden strings."""
     expect_values: list[str] = case.get("expect_values", [])
     expect_not: list[str] = case.get("expect_not", [])
     notes: list[str] = []
@@ -223,7 +294,7 @@ def run_case(endpoint: str, model: str, case: dict) -> Result:
         result.ok = True
         result.quality_ok, result.quality_notes = _check_quality(result.text, case)
     except Exception as exc:
-        result.error = str(exc)[:120]
+        result.error = str(exc)[:200]
         result.total_s = time.monotonic() - t0
     return result
 
@@ -231,6 +302,7 @@ def run_case(endpoint: str, model: str, case: dict) -> Result:
 # ---------------------------------------------------------------------------
 # Output
 # ---------------------------------------------------------------------------
+
 
 def _wrap(text: str, width: int = 72, indent: str = "    ", max_lines: int = 8) -> list[str]:
     words = text.split()
@@ -264,50 +336,59 @@ def print_comparison(results: list[Result], models: list[str]) -> None:
         for mdl in models:
             r = row.get(mdl)
             if r is None:
-                print(f"  {mdl:<20}  — (not run)")
+                print(f"  {mdl:<22}  — (not run)")
             elif not r.ok:
-                print(f"  {mdl:<20}  ERROR: {r.error}")
+                print(f"  {mdl:<22}  ERROR: {r.error}")
             else:
-                tps_est = r.chars / (r.total_s or 1) / 4  # ~4 chars/token
+                tps_est = r.chars / (r.total_s or 1) / 4
                 qmark = "?" if r.quality_ok is None else ("✓" if r.quality_ok else "✗")
                 print(
-                    f"  {mdl:<20}  ttft={r.ttft_s:.2f}s  total={r.total_s:.2f}s"
+                    f"  {mdl:<22}  ttft={r.ttft_s:.2f}s  total={r.total_s:.2f}s"
                     f"  ~{tps_est:.0f} tok/s  quality={qmark}"
                 )
-                print(f"  quality: {r.quality_notes}")
+                print(f"  {'':22}  {r.quality_notes}")
                 for ln in _wrap(r.text):
                     print(ln)
     print(f"{'─' * 80}")
 
 
-def print_summary(results: list[Result], models: list[str]) -> None:
-    print("\nSUMMARY TABLE  (TTFT = warm inference latency, after model loaded)")
-    print(f"  {'case':<20}  {'model':<20}  {'ttft':>6}  {'total':>7}  {'~tok/s':>7}  quality")
-    print(f"  {'─'*20}  {'─'*20}  {'─'*6}  {'─'*7}  {'─'*7}  ───────")
+def print_summary(results: list[Result], models: list[str], load_times: dict[str, float]) -> None:
+    print("\nSUMMARY  (load = warmup+ready time; TTFT = first-token latency when warm)")
+    print(f"  {'model':<22}  {'load':>6}  {'ttft avg':>8}  {'total avg':>9}  {'~tok/s':>7}  quality")
+    print(f"  {'─'*22}  {'─'*6}  {'─'*8}  {'─'*9}  {'─'*7}  ───────")
+    for mdl in models:
+        mdl_results = [r for r in results if r.model == mdl and r.ok]
+        if not mdl_results:
+            print(f"  {mdl:<22}  — all cases failed")
+            continue
+        checks = [r for r in mdl_results if r.quality_ok is not None]
+        passes = sum(1 for r in checks if r.quality_ok)
+        avg_ttft = sum(r.ttft_s for r in mdl_results) / len(mdl_results)
+        avg_total = sum(r.total_s for r in mdl_results) / len(mdl_results)
+        avg_tps = sum(r.chars / (r.total_s or 1) / 4 for r in mdl_results) / len(mdl_results)
+        q_str = f"{passes}/{len(checks)}" if checks else "n/a"
+        load = load_times.get(mdl, 0.0)
+        print(
+            f"  {mdl:<22}  {load:>5.1f}s  {avg_ttft:>7.2f}s  {avg_total:>8.2f}s"
+            f"  {avg_tps:>6.0f}   {q_str}"
+        )
+
+    print()
+    print("PER-CASE DETAIL")
+    print(f"  {'case':<15}  {'model':<22}  {'ttft':>6}  {'total':>7}  quality")
+    print(f"  {'─'*15}  {'─'*22}  {'─'*6}  {'─'*7}  ───────")
     for case in CASES:
         for mdl in models:
             r = next((x for x in results if x.case_id == case["id"] and x.model == mdl), None)
             if r is None:
                 continue
-            tps = r.chars / (r.total_s or 1) / 4
+            if not r.ok:
+                print(f"  {case['id']:<15}  {mdl:<22}  ERROR")
+                continue
             qmark = "?" if r.quality_ok is None else ("✓ pass" if r.quality_ok else "✗ FAIL")
             print(
-                f"  {case['id']:<20}  {mdl:<20}  {r.ttft_s:>5.2f}s  {r.total_s:>6.2f}s"
-                f"  {tps:>6.0f}   {qmark}"
+                f"  {case['id']:<15}  {mdl:<22}  {r.ttft_s:>5.2f}s  {r.total_s:>6.2f}s  {qmark}"
             )
-
-    # overall verdict
-    print()
-    for mdl in models:
-        mdl_results = [r for r in results if r.model == mdl and r.ok]
-        checks = [r for r in mdl_results if r.quality_ok is not None]
-        passes = sum(1 for r in checks if r.quality_ok)
-        avg_ttft = sum(r.ttft_s for r in mdl_results) / len(mdl_results) if mdl_results else 0
-        avg_total = sum(r.total_s for r in mdl_results) / len(mdl_results) if mdl_results else 0
-        print(
-            f"  {mdl:<20}  quality {passes}/{len(checks)} checks passed"
-            f"  avg ttft={avg_ttft:.1f}s  avg total={avg_total:.1f}s"
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -319,42 +400,52 @@ def main() -> int:
     doc = __doc__ or ""
     parser = argparse.ArgumentParser(description=doc.splitlines()[0])
     parser.add_argument("--endpoint", default="http://zomni.local:8080")
-    parser.add_argument("--models", nargs="+", default=["llama-3.2-3b", "gemma4-e4b"])
-    parser.add_argument("--no-warmup", action="store_true",
-                        help="Skip warmup requests; TTFT will include model-swap time")
+    parser.add_argument("--models", nargs="+", default=[],
+                        help="Models to benchmark (default: auto-discover all chat models)")
+    parser.add_argument("--exclude", nargs="+", default=[],
+                        help="Model IDs to skip (added to built-in embedding skip list)")
     args = parser.parse_args()
 
-    print(f"Endpoint: {args.endpoint}")
-    print(f"Models:   {', '.join(args.models)}")
-    print(f"Cases:    {len(CASES)}")
-    print(f"Warmup:   {'no (TTFT includes swap time)' if args.no_warmup else 'yes'}")
+    endpoint = args.endpoint
+    skip = _SKIP_MODELS | set(args.exclude)
+
+    if args.models:
+        models = [m for m in args.models if m not in skip]
+    else:
+        models = list_models(endpoint)
+        models = [m for m in models if m not in skip]
+        if not models:
+            print("ERROR: no models discovered. Pass --models explicitly.")
+            return 1
+
+    print(f"Endpoint: {endpoint}")
+    print(f"Models ({len(models)}): {', '.join(models)}")
+    print(f"Cases:  {len(CASES)}")
     print()
 
     results: list[Result] = []
-    for model in args.models:
-        if not args.no_warmup:
-            print(f"  warming up {model} ...", end=" ", flush=True)
-            t0 = time.monotonic()
-            warmup(args.endpoint, model)
-            print(f"done ({time.monotonic() - t0:.1f}s)")
+    load_times: dict[str, float] = {}
+
+    for model in models:
+        warn_contention(endpoint, model)
+        load_s = load_model(endpoint, model)
+        load_times[model] = load_s
 
         for case in CASES:
-            print(f"  running {model} / {case['id']} ...", end=" ", flush=True)
-            r = run_case(args.endpoint, model, case)
+            print(f"  run {model} / {case['id']} ...", end=" ", flush=True)
+            r = run_case(endpoint, model, case)
+            r.load_s = load_s
             results.append(r)
             if r.ok:
-                qmark = "" if r.quality_ok is None else (" quality=✓" if r.quality_ok else " quality=✗")
-                print(f"done ({r.total_s:.1f}s){qmark}")
+                qmark = "" if r.quality_ok is None else (" ✓" if r.quality_ok else " ✗")
+                print(f"ttft={r.ttft_s:.2f}s total={r.total_s:.2f}s{qmark}")
             else:
                 print(f"FAILED: {r.error}")
 
-    print_comparison(results, args.models)
-    print_summary(results, args.models)
+        print()
 
-    failed = [r for r in results if not r.ok]
-    if failed:
-        print(f"\n{len(failed)} case(s) failed.")
-        return 1
+    print_comparison(results, models)
+    print_summary(results, models, load_times)
     return 0
 
 
