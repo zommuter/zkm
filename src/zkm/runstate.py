@@ -17,8 +17,62 @@ from pathlib import Path
 from types import FrameType
 from typing import Any
 
+import click
+
 # Write at these progress counts; also write if ≥60s elapsed since last write.
 _FIBONACCI: frozenset[int] = frozenset((1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610))
+
+# Commands that must not run concurrently due to the sidecar read-modify-write race.
+_MUTUAL_EXCLUSIVE: frozenset[str] = frozenset({"convert", "scrub"})
+
+
+class ConcurrentRunError(click.ClickException):
+    """Raised when a conflicting zkm process is already running (EX_TEMPFAIL)."""
+
+    exit_code = 75
+
+
+def _scan_running_dir(running_dir: Path) -> list[dict]:
+    """Read live PID files from running_dir; silently drop stale ones. No SIGUSR1 sent."""
+    if not running_dir.exists():
+        return []
+    rows: list[dict] = []
+    for pid_file in sorted(running_dir.glob("*.json")):
+        try:
+            pid = int(pid_file.stem)
+        except ValueError:
+            continue
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            try:
+                pid_file.unlink(missing_ok=True)
+            except OSError:
+                pass
+            continue
+        except PermissionError:
+            pass  # process exists but we can't signal it — treat as live
+        try:
+            data = json.loads(pid_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        rows.append(data)
+    return rows
+
+
+def _conflicts_with(my_command: str, my_first_arg: str, row: dict) -> bool:
+    """Return True if the running row conflicts with a new (my_command, my_first_arg) session."""
+    other_cmd = str(row.get("command", ""))
+    other_args = row.get("args") or []
+    other_first = str(other_args[0]) if other_args else ""
+    # Same key always conflicts.
+    if my_command == other_cmd and my_first_arg == other_first:
+        return True
+    # Any two commands in the mutual-exclusive set conflict regardless of args,
+    # because they share sidecar files that have a cross-process race.
+    if my_command in _MUTUAL_EXCLUSIVE and other_cmd in _MUTUAL_EXCLUSIVE:
+        return True
+    return False
 
 
 def _should_write(count: int) -> bool:
@@ -64,6 +118,18 @@ class RunSession:
         self._phase_start_time = time.monotonic()
         running_dir = self._store / ".zkm-state" / "running"
         running_dir.mkdir(parents=True, exist_ok=True)
+
+        if os.environ.get("ZKM_BYPASS_RUN_GUARD") != "1":
+            my_first = self._args[0] if self._args else ""
+            for row in _scan_running_dir(running_dir):
+                if _conflicts_with(self._command, my_first, row):
+                    other_pid = row.get("pid", "?")
+                    other_started = row.get("started_at", "?")
+                    label = f"{self._command}({my_first})" if my_first else self._command
+                    raise ConcurrentRunError(
+                        f"{label} already running (pid {other_pid}, started {other_started})"
+                    )
+
         self._pid_file = running_dir / f"{self._pid}.json"
         self._write_file()
         try:

@@ -48,6 +48,7 @@ ZKM_STORE=/tmp/my-kb uv run zkm init
 
 See `docs/install.md` for global PATH install (required for the mbsync auto-trigger hook).
 See `docs/restore.md` for disaster-recovery procedure (re-derive caches after full disk loss).
+See `docs/concurrent-runs.md` for the concurrent-run guard (`ZKM_BYPASS_RUN_GUARD=1` bypass, exit-75 convention, mbsync-hook implication).
 
 ## Plugin system
 

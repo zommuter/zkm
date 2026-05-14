@@ -836,6 +836,18 @@ def cmd_index(store_override: str | None, no_progress: bool, no_embed: bool, ful
 # ---------------------------------------------------------------------------
 
 
+def _count_concurrent_keys(rows: list[dict]) -> dict[tuple[str, str], int]:
+    """Return {(command, first_arg): count} for detecting same-key duplicate runs."""
+    counts: dict[tuple[str, str], int] = {}
+    for row in rows:
+        cmd = str(row.get("command", ""))
+        args = row.get("args") or []
+        first = str(args[0]) if args else ""
+        key = (cmd, first)
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
 def _take_status_snapshot(running_dir: Path, send_sigusr1: bool = True) -> list[dict]:
     import json as _json
     import os as _os
@@ -1116,6 +1128,19 @@ def cmd_doctor(store_override: str | None) -> None:
                 ok = False
     else:
         click.echo(f"{'expand model':<{col}}(not configured)")
+
+    from zkm.runstate import _scan_running_dir
+    running_dir = sdir / ".zkm-state" / "running"
+    concurrent = _count_concurrent_keys(_scan_running_dir(running_dir))
+    for (cmd, arg), count in concurrent.items():
+        if count > 1:
+            label = f"{cmd}({arg})" if arg else cmd
+            click.echo(
+                f"{'concurrent runs':<{col}}{label} × {count}  "
+                f"(stale: {count - 1} race-survivor pid(s))",
+                err=True,
+            )
+            ok = False
 
     if not ok:
         sys.exit(1)

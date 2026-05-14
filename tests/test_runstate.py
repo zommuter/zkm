@@ -12,7 +12,7 @@ import pytest
 from click.testing import CliRunner
 
 from zkm.cli import main
-from zkm.runstate import RunSession, _should_write
+from zkm.runstate import ConcurrentRunError, RunSession, _conflicts_with, _scan_running_dir, _should_write
 
 
 # ---------------------------------------------------------------------------
@@ -439,3 +439,132 @@ def test_status_wait_implies_follow_leave_if_done(tmp_path: Path) -> None:
     result = runner.invoke(main, ["status", "--wait", "--store", str(tmp_path)])
     assert result.exit_code == 0
     assert "no running" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Concurrent-run guard
+# ---------------------------------------------------------------------------
+
+
+def test_concurrent_same_key_raises(tmp_path: Path) -> None:
+    """Same (command, args[0]) key raises ConcurrentRunError with exit_code=75."""
+    running_dir = tmp_path / ".zkm-state" / "running"
+    _make_pid_file(running_dir, os.getpid(), command="convert", args=["eml"])
+    with pytest.raises(ConcurrentRunError) as exc_info:
+        with RunSession(tmp_path, "convert", args=["eml"]):
+            pass
+    assert exc_info.value.exit_code == 75
+    assert str(os.getpid()) in exc_info.value.format_message()
+
+
+def test_concurrent_cross_key_convert_scrub_raises(tmp_path: Path) -> None:
+    """convert × scrub raises even with different args."""
+    running_dir = tmp_path / ".zkm-state" / "running"
+    _make_pid_file(running_dir, os.getpid(), command="scrub", args=["ner"])
+    with pytest.raises(ConcurrentRunError):
+        with RunSession(tmp_path, "convert", args=["eml"]):
+            pass
+
+
+def test_concurrent_convert_index_allowed(tmp_path: Path) -> None:
+    """convert × index is allowed (index does not share sidecar files)."""
+    running_dir = tmp_path / ".zkm-state" / "running"
+    _make_pid_file(running_dir, os.getpid(), command="index", args=[])
+    # Must not raise — RunSession.__enter__ would overwrite same PID file path;
+    # use a mock to stop after the guard check.
+    import unittest.mock as _mock
+    original_write = RunSession._write_file
+
+    entered: list[bool] = []
+
+    def _stop_after_guard(self: RunSession) -> None:  # type: ignore[override]
+        entered.append(True)
+        original_write(self)
+
+    with _mock.patch.object(RunSession, "_write_file", _stop_after_guard):
+        with RunSession(tmp_path, "convert", args=["eml"]):
+            pass
+    assert entered  # __enter__ completed without raising
+
+
+def test_concurrent_bypass_env_var(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """ZKM_BYPASS_RUN_GUARD=1 skips the precheck."""
+    monkeypatch.setenv("ZKM_BYPASS_RUN_GUARD", "1")
+    running_dir = tmp_path / ".zkm-state" / "running"
+    _make_pid_file(running_dir, os.getpid(), command="convert", args=["eml"])
+    with RunSession(tmp_path, "convert", args=["eml"]):
+        pass  # should not raise
+
+
+def test_concurrent_stale_pid_not_blocked(tmp_path: Path) -> None:
+    """A stale PID file (dead process) is cleaned up and does not block a new session."""
+    running_dir = tmp_path / ".zkm-state" / "running"
+    # Use a PID that cannot exist (exceeds max PID on Linux).
+    dead_pid = 2**30
+    _make_pid_file(running_dir, dead_pid, command="convert", args=["eml"])
+    with RunSession(tmp_path, "convert", args=["eml"]):
+        pass  # stale file cleaned up; no ConcurrentRunError
+
+
+def test_concurrent_error_message_includes_pid_and_started(tmp_path: Path) -> None:
+    """Error message includes the conflicting pid and started_at for diagnosis."""
+    running_dir = tmp_path / ".zkm-state" / "running"
+    _make_pid_file(running_dir, os.getpid(), command="convert", args=["eml"])
+    with pytest.raises(ConcurrentRunError) as exc_info:
+        with RunSession(tmp_path, "convert", args=["eml"]):
+            pass
+    msg = exc_info.value.format_message()
+    assert str(os.getpid()) in msg
+    assert "2026-01-01" in msg  # started_at from _make_pid_file
+
+
+# ---------------------------------------------------------------------------
+# _conflicts_with helper
+# ---------------------------------------------------------------------------
+
+
+def test_conflicts_with_same_key() -> None:
+    row = {"command": "convert", "args": ["eml"]}
+    assert _conflicts_with("convert", "eml", row) is True
+
+
+def test_conflicts_with_cross_key_mutual_exclusive() -> None:
+    row = {"command": "scrub", "args": ["ner"]}
+    assert _conflicts_with("convert", "eml", row) is True
+
+
+def test_conflicts_with_convert_index_not_conflicting() -> None:
+    row = {"command": "index", "args": []}
+    assert _conflicts_with("convert", "eml", row) is False
+
+
+def test_conflicts_with_same_command_different_arg() -> None:
+    # convert(eml) vs convert(ner) — different args but both in mutual-exclusive set
+    row = {"command": "convert", "args": ["ner"]}
+    assert _conflicts_with("convert", "eml", row) is True
+
+
+# ---------------------------------------------------------------------------
+# _scan_running_dir
+# ---------------------------------------------------------------------------
+
+
+def test_scan_running_dir_empty(tmp_path: Path) -> None:
+    assert _scan_running_dir(tmp_path / ".zkm-state" / "running") == []
+
+
+def test_scan_running_dir_drops_stale(tmp_path: Path) -> None:
+    running_dir = tmp_path / ".zkm-state" / "running"
+    dead_pid = 2**30
+    stale = _make_pid_file(running_dir, dead_pid)
+    rows = _scan_running_dir(running_dir)
+    assert rows == []
+    assert not stale.exists()  # cleaned up
+
+
+def test_scan_running_dir_returns_live(tmp_path: Path) -> None:
+    running_dir = tmp_path / ".zkm-state" / "running"
+    _make_pid_file(running_dir, os.getpid(), command="convert", args=["eml"])
+    rows = _scan_running_dir(running_dir)
+    assert len(rows) == 1
+    assert rows[0]["command"] == "convert"
