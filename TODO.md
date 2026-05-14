@@ -367,7 +367,18 @@ Convention: bump-and-tag + loose-0.x + plain `vX.Y.Z` per repo. See `CLAUDE.md` 
 Items migrated from the orphan per-plugin TODO file (pre-polyrepo-split artefact). Prefix convention documented in `CLAUDE.md`.
 
 - [ ] **M1.** Decoration vs inline-photo classification — heuristics to distinguish logos/banners from informational inline images (size, repeated cid across senders, alt-text, tracking domains). Currently all attachments treated uniformly.
-- [ ] **M2.** Per-store YAML/JSON config shared by zkm core and all plugins — replaces long comma-separated env vars. Related: Session 15 whatsapp scoping also needs per-store config.
+- [ ] **M2.** Per-store YAML/JSON config — `zkm-config.yaml` + `.zkm-secrets.yaml` retires `.env` + `.zkm-config`; hard-cutover via `zkm config migrate [--apply]`. Planning done 2026-05-14 (see `docs/meeting-notes/2026-05-14-1232-m2-per-store-yaml-config.md`). C1–C11:
+  - [ ] **C1.** `src/zkm/config.py` — `load_config(store)->StoreConfig`; `.for_plugin(name)`; `.core_value(*path)`; `_assert_env_cutover()`; `_CORE_SCHEMA`. Fail-loud if `.env` has non-secret keys.
+  - [ ] **C2.** `tests/test_config.py` — YAML round-trip; precedence; fail-loud; chmod 0600; `migrate` round-trip; `validate` unknown/missing.
+  - [ ] **C3.** `src/zkm/convert.py:164-298` — replace `load_env`/`append_env`/`prompt_required_config` with `load_config(store).for_plugin(name)`.
+  - [ ] **C4.** `src/zkm/store.py:74,100-166` — `init_store()` writes `zkm-config.yaml`; `read_zkm_config()` thin alias; add `.zkm-secrets.yaml` to `_GITIGNORE`.
+  - [ ] **C5.** `query.py:494-555`, `embed.py:64-72,362-370`, `expand.py:214-215` — replace `_get()`-via-env with `cfg.core_value(...)`.
+  - [ ] **C6.** `plugins/zkm-eml/src/zkm_eml/naming.py:11` — drop `os.environ["EML_SLUG_ASCII"]`; add `slug_ascii` to `plugin.yaml`; receive via config dict.
+  - [ ] **C7.** All `plugins/*/plugin.yaml` — rename keys to bare snake_case (`source_dir` not `EML_SOURCE_DIR`); add `secret: true` where needed.
+  - [ ] **C8.** `src/zkm/cli.py` — `zkm config` command group: `migrate [--apply]`, `show [--include-secrets]`, `validate`.
+  - [ ] **C9.** `docs/plugin-spec.md` — rewrite Config + Secret management sections for YAML topology.
+  - [ ] **C10.** `CLAUDE.md`, `docs/install.md`, `README.md` — update `.env`/`.zkm-config` references; document migration step.
+  - [ ] **C11.** Version bump + tag zkm core (minor bump; M2 is a feature).
 - [ ] **M3.** Deleted-mail policy — detect removals from `~/mail` between runs; options: always-keep (default), purge, archive-only.
 - [ ] **M4.** Drafts — optional "follow draft updates" mode (Message-ID/content changes on each save). YAGNI for now.
 - [x] **M5.** `_objects` GC — `gc_mail_objects(store_path, *, dry_run=True)` in `plugins/zkm-eml/src/zkm_eml/originals.py`; walks `mail/_objects/*.json` sidecars, marks CAS objects orphaned when all producer `message` paths are gone, skips objects still referenced by an inbox symlink (those stay owned by core `zkm gc`); 6 new tests — 2026-05-14. CLI hookup deferred (callable from Python today; integration with `zkm gc` is a future ergonomics item).
