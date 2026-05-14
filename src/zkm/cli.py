@@ -1202,6 +1202,12 @@ def cmd_doctor(store_override: str | None) -> None:
     help="Print expansion keywords and hypothetical answer to stderr (implies --expand was used).",
 )
 @click.option(
+    "--expand-model",
+    default=None,
+    metavar="MODEL",
+    help="Override the expand model for this run (runtime toggle; also ZKM_LLM_EXPAND_MODEL).",
+)
+@click.option(
     "--store",
     "store_override",
     default=None,
@@ -1210,7 +1216,8 @@ def cmd_doctor(store_override: str | None) -> None:
 )
 def cmd_search(
     query: str, top_k: int, as_json: bool, no_dense: bool, expand: bool,
-    allow_fallback: bool, show_expansion: bool, store_override: str | None,
+    allow_fallback: bool, show_expansion: bool, expand_model: str | None,
+    store_override: str | None,
 ) -> None:
     """Search the knowledge store (BM25 + dense hybrid when embedding index is available)."""
     import json as _json
@@ -1220,7 +1227,10 @@ def cmd_search(
     sdir = Path(store_override) if store_override else store_path()
     try:
         if expand:
-            hits, trace = search_with_expansion_traced(sdir, query, top_k=top_k, dense=not no_dense)
+            hits, trace = search_with_expansion_traced(
+                sdir, query, top_k=top_k, dense=not no_dense,
+                model=expand_model or None,
+            )
         else:
             hits, trace = search_hybrid_traced(sdir, query, top_k=top_k, dense=not no_dense)
     except FileNotFoundError as e:
@@ -1309,6 +1319,12 @@ def cmd_search(
     help="Print expansion keywords and hypothetical answer to stderr.",
 )
 @click.option(
+    "--expand-model",
+    default=None,
+    metavar="MODEL",
+    help="Override the expand model for this run (runtime toggle; also ZKM_LLM_EXPAND_MODEL).",
+)
+@click.option(
     "--store",
     "store_override",
     default=None,
@@ -1317,7 +1333,8 @@ def cmd_search(
 )
 def cmd_query(
     question: str, top_k: int, no_expand: bool, no_dense: bool,
-    allow_fallback: bool, show_expansion: bool, store_override: str | None
+    allow_fallback: bool, show_expansion: bool, expand_model: str | None,
+    store_override: str | None,
 ) -> None:
     """Answer a question using hybrid retrieval (BM25 + dense) + LLM."""
     import httpx
@@ -1330,7 +1347,8 @@ def cmd_query(
             hits, trace = search_hybrid_traced(sdir, question, top_k=top_k, dense=not no_dense)
         else:
             hits, trace = search_with_expansion_traced(
-                sdir, question, top_k=top_k, dense=not no_dense
+                sdir, question, top_k=top_k, dense=not no_dense,
+                model=expand_model or None,
             )
         if not no_expand and trace.expand_skipped_reason:
             if allow_fallback:

@@ -10,7 +10,7 @@ Completed Phase 1 tasks archived in `docs/phase1-done.md`.
   - [x] `llm_stream` in `query.py` does not strip EOS tokens (`<|END_OF_TURN_TOKEN|>`) — aya-expanse-8b emits them in RAG answers; expand.py already has `_EOS_TOKEN_RE` for this. Apply same strip in `llm_stream` — 2026-05-13.
   - [ ] **gemma4-e4b expand echo issue** — gemma4-e4b returns the query string itself (or near-variant) as one of its 3 EN keyword slots in 5/7 benchmark queries. Fix: prompt tweak to suppress query-string repetition in `_EXPANSION_PROMPT`. Verify fix on same n=7 set before switching `zkm-config.yaml` to permanent. See `docs/meeting-notes/2026-05-14-1508-gemma4-e4b-expand-benchmark.md`.
   - [ ] **Expand latency benchmark** — no explicit wall-clock comparison of expand-call latency (gemma4-e4b vs aya-expanse-8b) has been run; only query-answering TTFT is benchmarked. Add to `contrib/llm_benchmark.py` or a new `contrib/expand_benchmark.py`: measure expand call from cold and warm state for both models.
-  - [ ] **CLI/env override for expand model** — `ZKM_LLM_EXPAND_MODEL` env var was removed in M2; no flag on `zkm search --expand` to override the config model. Add `--expand-model` flag to `zkm search` and `zkm query` (or reinstate env var as a runtime toggle) so the model can be tested without editing `zkm-config.yaml`.
+  - [x] **CLI/env override for expand model** — `--expand-model` flag added to `zkm search` and `zkm query`; `ZKM_LLM_EXPAND_MODEL` env var reinstated as runtime toggle in `_resolve_expand_config` (highest priority, overrides config). 3 new tests — 457 passing 2026-05-14.
 
 ## Phase 2 session 6 — hybrid search quality
 

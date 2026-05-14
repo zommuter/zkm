@@ -506,11 +506,19 @@ def _resolve_expand_config(store: Path) -> tuple[str, str, str]:
     The expand section overrides the main LLM settings so a bilingual-capable
     model can be used for keyword extraction while a smaller model handles the
     RAG answer.
+
+    ZKM_LLM_EXPAND_MODEL is a runtime toggle (not stored in config); useful for
+    one-off model comparisons without editing zkm-config.yaml.
     """
     from zkm.config import load_config
     cfg = load_config(store)
     ep = cfg.core_value("expand", "endpoint") or cfg.core_value("llm", "endpoint") or _DEFAULT_ENDPOINT
-    mdl = cfg.core_value("expand", "model") or cfg.core_value("llm", "model") or _DEFAULT_MODEL
+    mdl = (
+        os.environ.get("ZKM_LLM_EXPAND_MODEL")
+        or cfg.core_value("expand", "model")
+        or cfg.core_value("llm", "model")
+        or _DEFAULT_MODEL
+    )
     key = cfg.core_value("expand", "key") or cfg.core_value("llm", "key") or ""
     return ep, mdl, key
 

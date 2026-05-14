@@ -12,7 +12,7 @@ import pytest
 
 from zkm.embed import EmbedStore, save_embed_store
 from zkm.index import build_index, save_index
-from zkm.query import _chat_url, llm_query, llm_stream, search, search_hybrid, search_with_expansion
+from zkm.query import _chat_url, _resolve_expand_config, llm_query, llm_stream, search, search_hybrid, search_with_expansion
 from zkm.store import init_store
 
 
@@ -593,3 +593,66 @@ def test_llm_stream_strips_eos_tokens(
     monkeypatch.setattr(httpx, "stream", lambda *a, **kw: MockResponse())
     tokens = list(llm_stream(store, [], "test question?"))
     assert tokens == ["Hello", " world"], f"EOS tokens not stripped: {tokens!r}"
+
+
+# ---------------------------------------------------------------------------
+# Expand-model override
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_expand_config_env_override(
+    store: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ZKM_LLM_EXPAND_MODEL env var overrides config expand.model."""
+    import yaml
+    cfg_path = store / "zkm-config.yaml"
+    data = yaml.safe_load(cfg_path.read_text()) or {}
+    data.setdefault("core", {})["expand"] = {"model": "config-expand-model"}
+    cfg_path.write_text(yaml.dump(data, default_flow_style=False))
+
+    monkeypatch.setenv("ZKM_LLM_EXPAND_MODEL", "env-override-model")
+    _, mdl, _ = _resolve_expand_config(store)
+    assert mdl == "env-override-model"
+
+
+def test_resolve_expand_config_env_override_absent(
+    store: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Without ZKM_LLM_EXPAND_MODEL, config expand.model wins."""
+    import yaml
+    cfg_path = store / "zkm-config.yaml"
+    data = yaml.safe_load(cfg_path.read_text()) or {}
+    data.setdefault("core", {})["expand"] = {"model": "config-expand-model"}
+    cfg_path.write_text(yaml.dump(data, default_flow_style=False))
+
+    monkeypatch.delenv("ZKM_LLM_EXPAND_MODEL", raising=False)
+    _, mdl, _ = _resolve_expand_config(store)
+    assert mdl == "config-expand-model"
+
+
+def test_search_expand_model_flag_forwarded(
+    indexed_store: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--expand-model CLI flag is forwarded to search_with_expansion_traced."""
+    from click.testing import CliRunner
+    from zkm.cli import main
+    import zkm.query as qmod
+
+    calls: list[str | None] = []
+
+    original = qmod.search_with_expansion_traced
+
+    def patched(store, question, *, top_k=20, dense=True, model=None, **kw):
+        calls.append(model)
+        return original(store, question, top_k=top_k, dense=False, model=model, **kw)
+
+    monkeypatch.setattr(qmod, "search_with_expansion_traced", patched)
+    monkeypatch.delenv("ZKM_LLM_EXPAND_MODEL", raising=False)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        ["search", "--store", str(indexed_store), "--expand", "--expand-model", "aya-expanse-8b", "test"],
+        catch_exceptions=False,
+    )
+    assert calls == ["aya-expanse-8b"], f"model not forwarded, calls={calls}, output={result.output}"
