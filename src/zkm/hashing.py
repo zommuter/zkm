@@ -28,3 +28,18 @@ def git_blob_sha1_bytes(data: bytes) -> str:
     h.update(f"blob {len(data)}\0".encode())
     h.update(data)
     return h.hexdigest()
+
+
+def git_blob_hash_bytes(data: bytes, object_format: str = "sha1") -> str:
+    """Return the git blob hash of *data* for the given object format.
+
+    *object_format* is ``"sha1"`` (default) or ``"sha256"`` — the value returned by
+    ``git rev-parse --show-object-format`` for the repository.
+    """
+    prefix = f"blob {len(data)}\0".encode()
+    if object_format == "sha256":
+        return hashlib.sha256(prefix + data).hexdigest()
+    h = hashlib.sha1(usedforsecurity=False)
+    h.update(prefix)
+    h.update(data)
+    return h.hexdigest()
