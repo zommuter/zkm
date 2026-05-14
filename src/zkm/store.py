@@ -11,7 +11,7 @@ _GITIGNORE = """\
 .zkm-state/
 *.swp
 .DS_Store
-.git-lock-push.lock
+*.lock
 """
 
 _GITATTRIBUTES_ANNEX = "originals/** annex.largefiles=anything\n"

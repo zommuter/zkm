@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import concurrent.futures
 import json
 from pathlib import Path
 
@@ -124,3 +125,27 @@ def test_rebuild_sidecar_missing_key_raises(tmp_path: Path) -> None:
     path = tmp_path / "s.json"
     with pytest.raises(ValueError, match="missing required keys"):
         rebuild_sidecar(path, sha256="a" * 64, producers=[{"plugin": "eml"}])
+
+
+# --- concurrency ---
+
+def test_merge_producer_concurrent_no_data_loss(tmp_path: Path) -> None:
+    """Concurrent merge_producer from N threads must not lose any producer entry."""
+    path = tmp_path / "s.origin.json"
+    n = 20
+    producers = [
+        _make_producer(sha=str(i).zfill(64), msg=f"mail/m{i:04d}.md")
+        for i in range(n)
+    ]
+
+    def _merge(p: dict) -> None:
+        merge_producer(path, sha256="a" * 64, producer=p)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=n) as ex:
+        list(ex.map(_merge, producers))
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert len(data["producers"]) == n, (
+        f"Expected {n} producers after concurrent merges, "
+        f"got {len(data['producers'])} — possible lost-write race"
+    )
