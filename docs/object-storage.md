@@ -93,12 +93,18 @@ Stage keys are `<extractor-name>-<version>` so an extractor upgrade automaticall
 ## Library API (Phase 2+, `src/zkm/`)
 
 ```python
-from zkm.atomic  import write_atomic           # write_atomic(path, content)
-from zkm.hashing import sha256_file, git_blob_sha1
-from zkm.cas     import write_object           # write_object(store, subdir, src) -> Path
-from zkm.sidecar import merge_producer, read_sidecar, rebuild_sidecar
-from zkm.inbox   import symlink_with_sidecar   # implements one-canonical-symlink protocol
+from zkm.atomic  import write_atomic                      # write_atomic(path, content)
+from zkm.hashing import sha256_file, git_blob_sha1        # git_blob_sha1(path) → SHA-1 hex
+from zkm.hashing import git_blob_hash_bytes               # git_blob_hash_bytes(data, object_format="sha1"|"sha256")
+from zkm.cas     import write_object                      # write_object(store, subdir, src) -> Path
+from zkm.sidecar import merge_producer, remove_producer   # concurrent-safe (fcntl.LOCK_EX)
+from zkm.sidecar import read_sidecar, rebuild_sidecar
+from zkm.inbox   import symlink_with_sidecar              # implements one-canonical-symlink protocol
 ```
+
+`git_blob_hash_bytes` (added M6 / 2026-05-14) supports SHA-256 git repos (`object_format="sha256"`); defaults to SHA-1 for backward compatibility.
+
+`merge_producer` and `remove_producer` acquire an exclusive `fcntl` lock on a sibling `.lock` file before the read-modify-write, eliminating the race condition verified in the 2026-05-14 concurrent-run-guard session.
 
 Plugins SHOULD import from these rather than re-implementing the protocol. See `docs/plugin-spec.md § Core helpers`.
 

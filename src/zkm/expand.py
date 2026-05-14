@@ -28,7 +28,9 @@ _EXPANSION_PROMPT = (
     "Section 1 — Search terms: produce keyword phrases in BOTH languages, one per line, "
     "no blank lines, no bullets, no markdown. Each phrase must be ≤4 words. "
     "Output 3 English phrases, then 3 German phrases. "
-    "Translate the question's main concepts into the OTHER language. Do not repeat phrases.\n\n"
+    "Translate the question's main concepts into the OTHER language. Do not repeat phrases. "
+    "Do NOT echo the question verbatim or as a near-verbatim substring — "
+    "every phrase must be a paraphrase, synonym, or related concept, never the question itself.\n\n"
     "Section 2 — Hypothetical answer: one sentence that would be a plausible answer, in either language.\n\n"
     "Question: {question}"
 )

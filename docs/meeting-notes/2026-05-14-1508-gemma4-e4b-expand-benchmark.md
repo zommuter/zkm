@@ -52,6 +52,25 @@ Note: `ZKM_LLM_EXPAND_MODEL` env var is no longer read after M2 — config patch
 
 ## Action items
 
-- [ ] `TODO.md` — add echo-issue investigation under expand/LLM section; add expand-latency benchmark item; mark M8 done.
-- [ ] Update `docs/meeting-notes/meeting-style.md` past-meetings index.
-- [ ] Update 2026-05-08 bilingual-expand discovery entry.
+- [x] `TODO.md` — add echo-issue investigation under expand/LLM section; add expand-latency benchmark item; mark M8 done. (done 2026-05-14)
+- [x] Update `docs/meeting-notes/meeting-style.md` past-meetings index. (already present; confirmed 2026-05-14)
+- [x] Update 2026-05-08 bilingual-expand discovery entry. (done 2026-05-14 — removed "only"; added gemma4-e4b bilingual finding + echo-fix caveat)
+
+## Echo fix verification (2026-05-14)
+
+Prompt tweak added to `_EXPANSION_PROMPT` in `src/zkm/expand.py`:
+> "Do NOT echo the question verbatim or as a near-verbatim substring — every phrase must be a paraphrase, synonym, or related concept, never the question itself."
+
+n=7 re-run result:
+
+| Query | Before (echoed?) | After keywords |
+|---|---|---|
+| Stromrechnung | no echo | Electricity bill, Power invoice, Energy statement, Strom Rechnung, Stromkostenabrechnung, Stromzählerstände |
+| electricity invoice payment | ⚠ echo | pay electricity bill, power bill payment, utility bill payment, Stromrechnung bezahlen, ... |
+| Krankenkasse Prämie | no echo | Health insurance premium cost, Medical fee contribution rate, ..., Krankenversicherung Beitrag, ... |
+| vacation hotel booking | ⚠ echo | book holiday accommodation, hotel reservations online, vacation stay booking, Ferienhotel buchen, ... |
+| GitHub Actions workflow | ⚠ echo | CICD automation pipeline, Automated code deployment, Workflow automation scripting, ... |
+| Wohnungssuche Miete | no echo | Apartment rental search, Rental unit finding, ..., Wohnungs mieten suchen, Mietwohnung finden, ... |
+| invoice Amazon order | ⚠ echo | Amazon order invoice (same words, reordered), Invoice for Amazon purchase, Amazon billing document, ... |
+
+**Verdict: 0/7 verbatim echoes** (down from 5/7). "Amazon order invoice" reorders the query words but is not a verbatim substring — marginal. Target ≤1/7 met. `_PROMPT_HASH` auto-invalidated the cache. 36 tests pass.
