@@ -207,6 +207,28 @@ def _git_run(store: Path, *args: str) -> None:
     subprocess.run(list(args), cwd=store, check=True)
 
 
+def _git_add(cwd: Path) -> None:
+    """Run git add -A; emit a tagged journald event on .git/index.lock contention.
+
+    Watchpoint: review journald evidence 2026-06-11 (4 weeks after 2026-05-14).
+    Query: journalctl -t zkm-index-lock-watch
+    """
+    result = subprocess.run(["git", "add", "-A"], cwd=cwd, stderr=subprocess.PIPE)
+    if result.returncode != 0:
+        stderr_text = result.stderr.decode(errors="replace")
+        if "index.lock" in stderr_text:
+            try:
+                subprocess.run(
+                    ["systemd-cat", "-t", "zkm-index-lock-watch", "-p", "warning"],
+                    input=f"zkm git-add lock-contention in {cwd}: {stderr_text.strip()}".encode(),
+                    stderr=subprocess.DEVNULL,
+                )
+            except FileNotFoundError:
+                pass  # systemd-cat not available
+        sys.stderr.buffer.write(result.stderr)
+        raise subprocess.CalledProcessError(result.returncode, result.args)
+
+
 @main.command("rm")
 @click.argument("path")
 @click.option("--apply", "do_apply", is_flag=True, help="Perform deletions (default: dry-run)")
@@ -240,7 +262,7 @@ def cmd_rm(path: str, do_apply: bool, no_commit: bool, store_override: str | Non
     if do_apply:
         apply_plan(action)
         if not no_commit:
-            _git_run(sdir, "git", "add", "-A")
+            _git_add(sdir)
             result = subprocess.run(
                 ["git", "diff", "--cached", "--quiet"], cwd=sdir
             )
@@ -281,7 +303,7 @@ def cmd_gc(do_apply: bool, no_commit: bool, store_override: str | None) -> None:
             apply_plan(action)
         n = len(actions)
         if not no_commit:
-            _git_run(sdir, "git", "add", "-A")
+            _git_add(sdir)
             result = subprocess.run(
                 ["git", "diff", "--cached", "--quiet"], cwd=sdir
             )
@@ -521,7 +543,7 @@ def cmd_convert(
 
     if not no_commit:
         click.echo("Staging changes...", err=True)
-        subprocess.run(["git", "add", "-A"], cwd=sdir, check=True)
+        _git_add(sdir)
         result = subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=sdir)
         if result.returncode != 0:
             if reprocess_mode:
