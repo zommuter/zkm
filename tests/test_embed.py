@@ -50,11 +50,14 @@ def test_embeddings_url_trailing_slash() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_resolve_embed_config_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_resolve_embed_config_yaml(tmp_path: Path) -> None:
+    import yaml
     store = tmp_path / "store"
     init_store(store, backend="none")
-    monkeypatch.setenv("ZKM_EMBED_ENDPOINT", "http://myhost:9090")
-    monkeypatch.setenv("ZKM_EMBED_MODEL", "my-model")
+    cfg_path = store / "zkm-config.yaml"
+    data = yaml.safe_load(cfg_path.read_text()) or {}
+    data.setdefault("core", {})["embed"] = {"endpoint": "http://myhost:9090", "model": "my-model"}
+    cfg_path.write_text(yaml.dump(data, default_flow_style=False))
     ep, mdl, key = resolve_embed_config(store)
     assert ep == "http://myhost:9090"
     assert mdl == "my-model"

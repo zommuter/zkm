@@ -1367,3 +1367,127 @@ def cmd_query(
     except httpx.HTTPError as e:
         click.echo(f"Error: LLM request failed: {e}", err=True)
         sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
+# zkm config
+# ---------------------------------------------------------------------------
+
+
+def _redact_leaves(d: dict) -> None:
+    """Recursively replace all non-dict leaf values with '***'."""
+    for k, v in d.items():
+        if isinstance(v, dict):
+            _redact_leaves(v)
+        else:
+            d[k] = "***"
+
+
+@main.group("config")
+def cmd_config() -> None:
+    """Manage store configuration (zkm-config.yaml + .zkm-secrets.yaml)."""
+
+
+@cmd_config.command("migrate")
+@click.option("--apply", is_flag=True, help="Write YAML files and rename .env → .env.migrated")
+@click.option(
+    "--store",
+    "store_override",
+    default=None,
+    metavar="PATH",
+    help="Store path (default: $ZKM_STORE or ~/knowledge)",
+)
+def cmd_config_migrate(apply: bool, store_override: str | None) -> None:
+    """Migrate .env to zkm-config.yaml + .zkm-secrets.yaml.
+
+    Dry-run by default; use --apply to write files.
+    """
+    import warnings
+
+    import yaml
+
+    from zkm.config import migrate_env
+
+    sdir = Path(store_override) if store_override else store_path()
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        result = migrate_env(sdir, apply=apply)
+    for w in caught:
+        click.echo(f"Warning: {w.message}", err=True)
+
+    cfg_out = result["config"]
+    sec_out = result["secrets"]
+
+    if not cfg_out and not sec_out:
+        click.echo("Nothing to migrate (no .env found or .env is empty).")
+        return
+
+    if cfg_out:
+        click.echo("--- zkm-config.yaml ---")
+        click.echo(yaml.dump(cfg_out, default_flow_style=False).rstrip())
+    if sec_out:
+        click.echo("--- .zkm-secrets.yaml ---")
+        import copy
+        redacted = copy.deepcopy(sec_out)
+        _redact_leaves(redacted)
+        click.echo(yaml.dump(redacted, default_flow_style=False).rstrip())
+
+    if apply:
+        click.echo("\nMigration applied. .env renamed to .env.migrated.")
+    else:
+        click.echo("\nDry run — use --apply to write files.")
+
+
+@cmd_config.command("show")
+@click.option("--include-secrets", is_flag=True, help="Show secret values (use with care)")
+@click.option(
+    "--store",
+    "store_override",
+    default=None,
+    metavar="PATH",
+    help="Store path (default: $ZKM_STORE or ~/knowledge)",
+)
+def cmd_config_show(include_secrets: bool, store_override: str | None) -> None:
+    """Show current store configuration."""
+    import copy
+
+    import yaml
+
+    from zkm.config import ConfigError, load_config
+
+    sdir = Path(store_override) if store_override else store_path()
+    try:
+        cfg = load_config(sdir)
+    except ConfigError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+    data = cfg._data
+    if not include_secrets:
+        data = copy.deepcopy(data)
+        core = data.get("core", {})
+        for section in core.values():
+            if isinstance(section, dict) and "key" in section:
+                section["key"] = "***" if section["key"] else ""
+    click.echo(yaml.dump(data, default_flow_style=False).rstrip())
+
+
+@cmd_config.command("validate")
+@click.option(
+    "--store",
+    "store_override",
+    default=None,
+    metavar="PATH",
+    help="Store path (default: $ZKM_STORE or ~/knowledge)",
+)
+def cmd_config_validate(store_override: str | None) -> None:
+    """Validate store configuration and report issues."""
+    from zkm.config import ConfigError, load_config
+
+    sdir = Path(store_override) if store_override else store_path()
+    try:
+        load_config(sdir)
+        click.echo("Config OK.")
+    except ConfigError as e:
+        click.echo(f"Config error: {e}", err=True)
+        sys.exit(1)

@@ -7,10 +7,10 @@ creates_dirs:
   - notes
 
 config:
-  NOTES_SOURCE_DIR:
+  source_dir:
     required: true
     description: Directory to scan recursively for .txt/.md files
-  NOTES_DEFAULT_TAGS:
+  default_tags:
     required: false
     default: ""
     description: Comma-separated tags to add to every imported note

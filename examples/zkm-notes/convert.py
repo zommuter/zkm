@@ -31,16 +31,15 @@ def convert(store_path: Path, config: dict, *, progress=None) -> list[Path]:
     Returns a list of paths to newly created .md files.
     progress: optional callback(current, total, message) — called once per file processed.
     """
-    src = Path(config["NOTES_SOURCE_DIR"]).expanduser().resolve()
+    src = Path(config["source_dir"]).expanduser().resolve()
     if not src.exists():
-        raise FileNotFoundError(f"NOTES_SOURCE_DIR does not exist: {src}")
+        raise FileNotFoundError(f"source_dir does not exist: {src}")
 
     notes_dir = store_path / "notes"
     notes_dir.mkdir(parents=True, exist_ok=True)
 
-    default_tags = [
-        t.strip() for t in config.get("NOTES_DEFAULT_TAGS", "").split(",") if t.strip()
-    ]
+    val = config.get("default_tags", "")
+    default_tags = val if isinstance(val, list) else [t.strip() for t in val.split(",") if t.strip()]
     existing_shas = _scan_existing_shas(notes_dir)
 
     candidates = [

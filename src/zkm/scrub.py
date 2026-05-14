@@ -8,7 +8,7 @@ import json
 import types
 from pathlib import Path
 
-from zkm.convert import find_plugin, load_env, Plugin
+from zkm.convert import find_plugin, Plugin
 
 
 def _load_module(plugin: Plugin) -> types.ModuleType:
@@ -61,7 +61,9 @@ def run_scrub(
             "See docs/plugin-spec.md for the contract."
         )
 
-    config = load_env(store_path)
+    from zkm.config import load_config
+    cfg = load_config(store_path)
+    config = cfg.for_plugin(plugin_name)
 
     # ---- watermark support ------------------------------------------------
     watermark_path = store_path / ".zkm-state" / f"scrub-{plugin.name}-watermark.json"

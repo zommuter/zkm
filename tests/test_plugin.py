@@ -163,7 +163,7 @@ def test_notes_convert_basic(
     (src / "diary.md").write_text("# Entry\nToday was fine.")
 
     add_plugin(str(notes_plugin_dir))
-    created = run_convert("notes", store, extra_env={"NOTES_SOURCE_DIR": str(src)})
+    created = run_convert("notes", store, extra_env={"source_dir": str(src)})
 
     assert len(created) == 2
     for p in created:
@@ -182,8 +182,8 @@ def test_notes_convert_idempotent(
     (src / "note.txt").write_text("Some note content")
 
     add_plugin(str(notes_plugin_dir))
-    first = run_convert("notes", store, extra_env={"NOTES_SOURCE_DIR": str(src)})
-    second = run_convert("notes", store, extra_env={"NOTES_SOURCE_DIR": str(src)})
+    first = run_convert("notes", store, extra_env={"source_dir": str(src)})
+    second = run_convert("notes", store, extra_env={"source_dir": str(src)})
 
     assert len(first) == 1
     assert len(second) == 0
@@ -201,7 +201,7 @@ def test_notes_convert_preserves_frontmatter(
     )
 
     add_plugin(str(notes_plugin_dir))
-    created = run_convert("notes", store, extra_env={"NOTES_SOURCE_DIR": str(src)})
+    created = run_convert("notes", store, extra_env={"source_dir": str(src)})
 
     assert len(created) == 1
     post = frontmatter.load(created[0])
@@ -213,7 +213,7 @@ def test_notes_convert_missing_config_raises(
     isolated_plugins: Path, store: Path, notes_plugin_dir: Path
 ) -> None:
     add_plugin(str(notes_plugin_dir))
-    with pytest.raises(ValueError, match="NOTES_SOURCE_DIR"):
+    with pytest.raises(ValueError, match="source_dir"):
         run_convert("notes", store)
 
 
@@ -232,7 +232,7 @@ def test_notes_convert_writes_processor_fields(
     (src / "note.txt").write_text("Test content")
 
     add_plugin(str(notes_plugin_dir))
-    created = run_convert("notes", store, extra_env={"NOTES_SOURCE_DIR": str(src)})
+    created = run_convert("notes", store, extra_env={"source_dir": str(src)})
 
     assert len(created) == 1
     post = frontmatter.load(created[0])
@@ -254,10 +254,10 @@ def test_reprocess_all_calls_convert(
     (src / "note.txt").write_text("Reprocess me")
 
     add_plugin(str(notes_plugin_dir))
-    run_convert("notes", store, extra_env={"NOTES_SOURCE_DIR": str(src)})
+    run_convert("notes", store, extra_env={"source_dir": str(src)})
 
     # run_reprocess should not raise; returns 0 new files (sha256 dedup still active)
-    result = run_reprocess("notes", store, extra_env={"NOTES_SOURCE_DIR": str(src)}, mode="all")
+    result = run_reprocess("notes", store, extra_env={"source_dir": str(src)}, mode="all")
     assert isinstance(result, list)
 
 
@@ -276,7 +276,7 @@ def test_progress_callback_invoked(
     run_convert(
         "notes",
         store,
-        extra_env={"NOTES_SOURCE_DIR": str(src)},
+        extra_env={"source_dir": str(src)},
         progress=lambda c, t, m: calls.append((c, t, m)),
     )
 
@@ -313,7 +313,7 @@ def test_cancel_soft_stops_after_item(
         run_convert(
             "notes",
             store,
-            extra_env={"NOTES_SOURCE_DIR": str(src)},
+            extra_env={"source_dir": str(src)},
             progress=cancelling_progress,
         )
 
@@ -354,7 +354,7 @@ def test_reprocess_outdated_skips_current_version(
     (src / "note.txt").write_text("Already current")
 
     add_plugin(str(notes_plugin_dir))
-    created = run_convert("notes", store, extra_env={"NOTES_SOURCE_DIR": str(src)})
+    created = run_convert("notes", store, extra_env={"source_dir": str(src)})
     assert len(created) == 1
 
     # In outdated mode, _find_managed_files should return 0 candidates (version matches)
@@ -388,11 +388,13 @@ def two_key_plugin(tmp_path: Path) -> Path:
     return plugin_dir
 
 
-def test_prompt_required_config_writes_env(
+def test_prompt_required_config_writes_yaml(
     isolated_plugins: Path, store: Path, two_key_plugin: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """prompt_required_config prompts for required keys, writes them, sets mode 0600."""
+    """prompt_required_config prompts for required keys; plain keys go to zkm-config.yaml,
+    secret keys go to .zkm-secrets.yaml."""
     import getpass
+    import yaml
 
     plugin = add_plugin(str(two_key_plugin))
 
@@ -407,23 +409,30 @@ def test_prompt_required_config_writes_env(
     assert len(prompt_calls) == 1      # SOURCE_DIR prompted via click.prompt
     assert len(getpass_calls) == 1     # API_TOKEN prompted via getpass
 
-    env = load_env(store)
-    assert env["SOURCE_DIR"] == "myvalue"
-    assert env["API_TOKEN"] == "mysecret"
+    cfg_data = yaml.safe_load((store / "zkm-config.yaml").read_text())
+    assert cfg_data["twokey"]["SOURCE_DIR"] == "myvalue"
 
-    env_file = store / ".env"
-    mode = env_file.stat().st_mode & 0o777
+    sec_data = yaml.safe_load((store / ".zkm-secrets.yaml").read_text())
+    assert sec_data["twokey"]["API_TOKEN"] == "mysecret"
+
+    sec_file = store / ".zkm-secrets.yaml"
+    mode = sec_file.stat().st_mode & 0o777
     assert mode == 0o600, f"Expected 0600, got {oct(mode)}"
 
 
-def test_prompt_skips_existing_env_keys(
+def test_prompt_skips_existing_yaml_keys(
     isolated_plugins: Path, store: Path, two_key_plugin: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Keys already in .env are not re-prompted."""
+    """Keys already in zkm-config.yaml are not re-prompted."""
     import getpass
+    import yaml
 
     plugin = add_plugin(str(two_key_plugin))
-    append_env(store, "SOURCE_DIR", "existing_val")
+    # Pre-populate SOURCE_DIR in zkm-config.yaml
+    cfg_path = store / "zkm-config.yaml"
+    existing = yaml.safe_load(cfg_path.read_text()) or {}
+    existing.setdefault("twokey", {})["SOURCE_DIR"] = "existing_val"
+    cfg_path.write_text(yaml.dump(existing, default_flow_style=False))
 
     prompt_calls: list[str] = []
     monkeypatch.setattr("click.prompt", lambda text, **_kw: (prompt_calls.append(text) or "new"))
@@ -433,10 +442,12 @@ def test_prompt_skips_existing_env_keys(
 
     assert missing == []
     assert len(prompt_calls) == 0   # SOURCE_DIR already set — not prompted
-    # API_TOKEN was prompted via getpass; SOURCE_DIR was skipped
-    env = load_env(store)
-    assert env["SOURCE_DIR"] == "existing_val"   # unchanged
-    assert env["API_TOKEN"] == "newsecret"
+
+    cfg_data = yaml.safe_load(cfg_path.read_text())
+    assert cfg_data["twokey"]["SOURCE_DIR"] == "existing_val"   # unchanged
+
+    sec_data = yaml.safe_load((store / ".zkm-secrets.yaml").read_text())
+    assert sec_data["twokey"]["API_TOKEN"] == "newsecret"
 
 
 def test_prompt_no_interactive_returns_missing(
@@ -448,7 +459,6 @@ def test_prompt_no_interactive_returns_missing(
     missing = prompt_required_config(plugin, store, interactive=False)
 
     assert sorted(missing) == ["API_TOKEN", "SOURCE_DIR"]
-    assert not (store / ".env").exists() or load_env(store) == {}
 
 
 def test_prompt_non_tty_silent(
@@ -510,6 +520,15 @@ def test_list_amenders_returns_only_amenders(isolated_plugins: Path, tmp_path: P
     assert amenders[0].kind == "amender"
 
 
+def _write_plugin_config(store: Path, plugin_bare: str, key: str, value: str) -> None:
+    """Write a plugin config key into the store's zkm-config.yaml."""
+    import yaml as _yaml
+    cfg_path = store / "zkm-config.yaml"
+    data = _yaml.safe_load(cfg_path.read_text()) or {} if cfg_path.exists() else {}
+    data.setdefault(plugin_bare, {})[key] = value
+    cfg_path.write_text(_yaml.dump(data, default_flow_style=False))
+
+
 def test_cmd_convert_runs_amenders_by_default(
     isolated_plugins: Path, store: Path, tmp_path: Path, notes_plugin_dir: Path
 ) -> None:
@@ -521,6 +540,7 @@ def test_cmd_convert_runs_amenders_by_default(
     src.mkdir()
     (src / "note.txt").write_text("Test note")
     add_plugin(str(notes_plugin_dir))
+    _write_plugin_config(store, "notes", "source_dir", str(src))
 
     amend_dir = isolated_plugins / "zkm-amend"
     amend_dir.mkdir()
@@ -536,7 +556,7 @@ def test_cmd_convert_runs_amenders_by_default(
     result = runner.invoke(
         main,
         ["convert", "notes", "--store", str(store), "--no-commit"],
-        env={"NOTES_SOURCE_DIR": str(src), "ZKM_PLUGINS_DIR": str(isolated_plugins)},
+        env={"ZKM_PLUGINS_DIR": str(isolated_plugins)},
     )
     assert result.exit_code == 0, result.output
     assert sentinel.exists(), "amender did not run"
@@ -554,6 +574,7 @@ def test_cmd_convert_no_amenders_flag_skips_amenders(
     src.mkdir()
     (src / "note.txt").write_text("Test note")
     add_plugin(str(notes_plugin_dir))
+    _write_plugin_config(store, "notes", "source_dir", str(src))
 
     amend_dir = isolated_plugins / "zkm-amend"
     amend_dir.mkdir()
@@ -569,7 +590,7 @@ def test_cmd_convert_no_amenders_flag_skips_amenders(
     result = runner.invoke(
         main,
         ["convert", "notes", "--store", str(store), "--no-commit", "--no-amenders"],
-        env={"NOTES_SOURCE_DIR": str(src), "ZKM_PLUGINS_DIR": str(isolated_plugins)},
+        env={"ZKM_PLUGINS_DIR": str(isolated_plugins)},
     )
     assert result.exit_code == 0, result.output
     assert not sentinel.exists(), "amender should not have run with --no-amenders"

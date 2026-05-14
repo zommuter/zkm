@@ -104,16 +104,20 @@ def test_defaults_used_when_no_config(indexed_store: Path, monkeypatch: pytest.M
     assert requests_made[0]["model"] == "gemma4-e4b"
 
 
-def test_config_from_dot_env(indexed_store: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_config_from_yaml(indexed_store: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import yaml
     monkeypatch.delenv("ZKM_LLM_ENDPOINT", raising=False)
     monkeypatch.delenv("ZKM_LLM_MODEL", raising=False)
     monkeypatch.delenv("ZKM_LLM_KEY", raising=False)
 
-    (indexed_store / ".env").write_text(
-        "ZKM_LLM_ENDPOINT=http://localhost:11434\n"
-        "ZKM_LLM_MODEL=llama3\n"
-        "ZKM_LLM_KEY=testkey\n"
-    )
+    cfg_path = indexed_store / "zkm-config.yaml"
+    data = yaml.safe_load(cfg_path.read_text()) or {}
+    data.setdefault("core", {})["llm"] = {
+        "endpoint": "http://localhost:11434",
+        "model": "llama3",
+        "key": "testkey",
+    }
+    cfg_path.write_text(yaml.dump(data, default_flow_style=False))
 
     chunks = ["Hello ", "world"]
     done_line = "data: [DONE]"

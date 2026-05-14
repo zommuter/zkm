@@ -16,7 +16,7 @@ from pathlib import Path
 import httpx
 import numpy as np
 
-from zkm.convert import load_env
+from zkm.config import load_config
 
 _DEFAULT_ENDPOINT = "http://localhost:8080"
 _DEFAULT_MODEL = "bge-m3"
@@ -50,26 +50,14 @@ def resolve_embed_config(
     model: str | None = None,
     api_key: str | None = None,
 ) -> tuple[str, str, str]:
-    """Resolve embed config from overrides → env vars → .env → defaults.
+    """Resolve embed config from overrides → store config → defaults.
 
     Returns (endpoint, model, key). Endpoint is empty string when not configured.
     """
-    import os
-
-    env = load_env(store)
-
-    def _get(key: str, override: str | None, default: str) -> str:
-        if override:
-            return override
-        if key in os.environ:
-            return os.environ[key]
-        if key in env:
-            return env[key]
-        return default
-
-    ep = _get("ZKM_EMBED_ENDPOINT", endpoint, _DEFAULT_ENDPOINT)
-    mdl = _get("ZKM_EMBED_MODEL", model, _DEFAULT_MODEL)
-    key = _get("ZKM_EMBED_KEY", api_key, "")
+    cfg = load_config(store)
+    ep = endpoint or cfg.core_value("embed", "endpoint") or _DEFAULT_ENDPOINT
+    mdl = model or cfg.core_value("embed", "model") or _DEFAULT_MODEL
+    key = api_key if api_key is not None else (cfg.core_value("embed", "key") or "")
     return ep, mdl, key
 
 
@@ -359,9 +347,15 @@ def _chunk_texts(store: Path, doc) -> list[str]:  # doc: Doc
     ZKM_EMBED_CHUNK_OVERLAP (default 200) sets the overlap between consecutive chunks.
     ZKM_EMBED_MAX_CHARS is a deprecated alias for ZKM_EMBED_CHUNK_CHARS.
     """
-    chunk_chars = int(os.environ.get("ZKM_EMBED_CHUNK_CHARS", _DEFAULT_CHUNK_CHARS))
-    chunk_overlap = int(os.environ.get("ZKM_EMBED_CHUNK_OVERLAP", _DEFAULT_CHUNK_OVERLAP))
+    cfg = load_config(store)
+    chunk_chars = int(cfg.core_value("embed", "chunk_chars") or _DEFAULT_CHUNK_CHARS)
+    chunk_overlap = int(cfg.core_value("embed", "chunk_overlap") or _DEFAULT_CHUNK_OVERLAP)
 
+    # Keep env overrides for runtime use
+    if "ZKM_EMBED_CHUNK_CHARS" in os.environ:
+        chunk_chars = int(os.environ["ZKM_EMBED_CHUNK_CHARS"])
+    if "ZKM_EMBED_CHUNK_OVERLAP" in os.environ:
+        chunk_overlap = int(os.environ["ZKM_EMBED_CHUNK_OVERLAP"])
     if "ZKM_EMBED_MAX_CHARS" in os.environ:
         print(
             "ZKM_EMBED_MAX_CHARS is deprecated; use ZKM_EMBED_CHUNK_CHARS",

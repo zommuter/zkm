@@ -5,8 +5,11 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import yaml
+
 _GITIGNORE = """\
 .env
+.zkm-secrets.yaml
 .zkm-index/
 .zkm-state/
 *.swp
@@ -72,6 +75,8 @@ def init_store(path: Path, backend: str = "auto") -> None:
         print("WARN: No binary backend. Large files in originals/ will bloat the repo.")
 
     (path / ".zkm-config").write_text(f"binary_backend={backend}\n")
+    cfg_data = {"core": {"binary_backend": backend}}
+    (path / "zkm-config.yaml").write_text(yaml.dump(cfg_data, default_flow_style=False))
     (path / ".gitignore").write_text(_GITIGNORE)
     (path / ".env").touch()
 
@@ -98,7 +103,14 @@ def _hostname() -> str:
 
 
 def read_zkm_config(store: Path) -> dict[str, str]:
-    """Parse .zkm-config from the store root. Returns {} if absent."""
+    """Parse binary_backend from the store. Returns {} if absent."""
+    new_cfg = store / "zkm-config.yaml"
+    if new_cfg.exists():
+        from zkm.config import load_config
+        cfg = load_config(store)
+        backend = cfg.core_value("binary_backend")
+        return {"binary_backend": backend} if backend else {}
+    # Legacy fallback
     cfg_path = store / ".zkm-config"
     if not cfg_path.exists():
         return {}

@@ -217,14 +217,8 @@ def test_clone_store_none_backend(tmp_path: Path) -> None:
 def test_clone_store_preserves_config(tmp_path: Path) -> None:
     src = tmp_path / "source"
     init_store(src, backend="none")
-    # Manually write a different config value to simulate a multi-key config
-    (src / ".zkm-config").write_text("binary_backend=none\ncustom=hello\n")
-    import subprocess
-    subprocess.run(["git", "add", "-A"], cwd=src, check=True)
-    subprocess.run(["git", "commit", "-m", "add custom config"], cwd=src, check=True)
-
+    # init_store already writes zkm-config.yaml with binary_backend=none
     dest = tmp_path / "cloned"
     clone_store(str(src), dest)
-
     cfg = read_zkm_config(dest)
-    assert cfg.get("custom") == "hello"
+    assert cfg.get("binary_backend") == "none"

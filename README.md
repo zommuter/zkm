@@ -45,7 +45,8 @@ zkm init
 ```
 
 `zkm init` creates `~/knowledge/` with `inbox/`, `notes/`, `originals/`, a
-git repo, and a gitignored `.env` for secrets.
+git repo, `zkm-config.yaml` for committed config, and a gitignored
+`.zkm-secrets.yaml` for credentials.
 
 ### 3. Install a plugin
 
@@ -69,8 +70,11 @@ zkm plugin list
 ### 4. Convert (ingest)
 
 ```bash
-# plain notes importer: set the source directory
-echo "NOTES_SOURCE_DIR=$HOME/Documents/notes" >> $ZKM_STORE/.env
+# plain notes importer: set the source directory in zkm-config.yaml
+cat >> $ZKM_STORE/zkm-config.yaml <<EOF
+notes:
+  source_dir: $HOME/Documents/notes
+EOF
 
 zkm convert notes
 ```
@@ -104,23 +108,31 @@ Output: ranked hits with score, date, and a text snippet.
 
 ### 7. Query (LLM-augmented)
 
-Point zkm at any OpenAI-compatible endpoint:
+Point zkm at any OpenAI-compatible endpoint via `$ZKM_STORE/zkm-config.yaml`
+(non-secret) and `$ZKM_STORE/.zkm-secrets.yaml` (gitignored, chmod 0600):
+
+```yaml
+# zkm-config.yaml
+core:
+  llm:
+    endpoint: http://localhost:11434   # Ollama
+    model: llama3
+```
+
+```yaml
+# .zkm-secrets.yaml
+core:
+  llm:
+    key: sk-...
+```
+
+Then:
 
 ```bash
-export ZKM_LLM_ENDPOINT=http://localhost:11434   # Ollama
-export ZKM_LLM_MODEL=llama3
-export ZKM_LLM_KEY=ollama                        # placeholder for keyless servers
-
 zkm query "what bills are due this month?"
 ```
 
-Or put the vars in `$ZKM_STORE/.env`:
-
-```
-ZKM_LLM_ENDPOINT=https://api.openai.com
-ZKM_LLM_MODEL=gpt-4o-mini
-ZKM_LLM_KEY=sk-...
-```
+Migrating from an existing `.env`? Run `zkm config migrate --apply` once.
 
 The answer streams to stdout with a sources list at the end.
 
@@ -184,10 +196,10 @@ zkm plugin add ./my-plugin     # creates a symlink in plugins/
 ~/knowledge/
 ├── inbox/          # drop zone — unsorted items
 ├── notes/          # manual notes, diary, zettelkasten
-├── originals/      # binary originals (git-annex / git-lfs / plain)
-├── .env            # secrets (gitignored)
-├── .zkm-config     # binary_backend=annex|lfs|none
-└── .zkm-index/     # BM25 index (gitignored)
+├── originals/         # binary originals (git-annex / git-lfs / plain)
+├── zkm-config.yaml    # non-secret config (committed)
+├── .zkm-secrets.yaml  # credentials (chmod 0600, gitignored)
+└── .zkm-index/        # BM25 index (gitignored)
 ```
 
 Plugins create additional directories on first run (e.g. `mail/`, `messages/`).

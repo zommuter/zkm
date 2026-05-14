@@ -61,7 +61,7 @@ plugins/zkm-imap/
 └── README.md
 ```
 
-Plugins declare which subdirs they create (e.g., `mail/`) and what config they need. Secrets go in `$ZKM_STORE/.env` (gitignored). Plugin discovery: scan `plugins/*/plugin.yaml`.
+Plugins declare which subdirs they create (e.g., `mail/`) and what config they need. Non-secret config lives in `$ZKM_STORE/zkm-config.yaml` (committed); secrets in `$ZKM_STORE/.zkm-secrets.yaml` (gitignored, chmod 0600). Plugin discovery: scan `plugins/*/plugin.yaml`.
 
 **Local install** (during development): `zkm plugin add ./examples/zkm-notes` creates a symlink in `plugins/`. Git URL install uses `git clone`. The installed plugins directory can be overridden with `$ZKM_PLUGINS_DIR`.
 
@@ -78,8 +78,8 @@ See `docs/plugin-spec.md` for the full interface contract. See `examples/zkm-not
 ├── inbox/              # Drop zone — unsorted items land here
 ├── notes/              # Manual notes, diary, zettelkasten
 ├── originals/          # Binary originals (git-annex or git-lfs, user choice)
-├── .env                # API tokens, IMAP credentials (gitignored)
-├── .zkm-config         # binary_backend=annex|lfs|none
+├── zkm-config.yaml     # non-secret store + plugin config (committed)
+├── .zkm-secrets.yaml   # API tokens, credentials (chmod 0600, gitignored)
 ├── .gitignore
 └── .gitattributes
 ```

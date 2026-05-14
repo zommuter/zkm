@@ -28,23 +28,23 @@ license: MIT
 creates_dirs:
   - mail
 
-# Config keys this plugin reads from $ZKM_STORE/.env
+# Config keys this plugin reads from zkm-config.yaml (bare snake_case)
 config:
-  IMAP_HOST:
+  host:
     required: true
     description: IMAP server hostname
-  IMAP_USER:
+  user:
     required: true
-  IMAP_PASS:
+  pass:
     required: true
     secret: true
-  IMAP_FOLDERS:
+  folders:
     required: false
-    default: "INBOX"
-    description: Comma-separated folder list
-  IMAP_SINCE_DAYS:
+    default: [INBOX]
+    description: List of folders to sync
+  since_days:
     required: false
-    default: "30"
+    default: 30
     description: Only fetch emails newer than N days
 ```
 
@@ -63,7 +63,7 @@ def convert(store_path: Path, config: dict, *, progress: ProgressCallback | None
 
     Args:
         store_path: Root of the knowledge store (e.g., ~/knowledge/)
-        config: Dict of config values from .env, filtered to this plugin's keys
+        config: Dict of config values from zkm-config.yaml for this plugin (bare snake_case keys)
         progress: Optional callback(current, total, message). Call once per item
                   processed. total=None is allowed when the count isn't known upfront.
 
@@ -309,23 +309,34 @@ If a plugin does not define `scrub`, `zkm scrub <plugin>` exits 2 with a clear m
 
 Scrub is a one-time migration tool, not a production code path. The right fix is always to improve the extractor so it never emits the undesired value. Scrub cleans up the historical backlog; the improved extractor prevents recurrence.
 
-## Secret management
+## Config and secret management
 
-Secrets live in `$ZKM_STORE/.env`, which is gitignored. Format:
+Non-secret config lives in `$ZKM_STORE/zkm-config.yaml` (committed to git). Secrets live in `$ZKM_STORE/.zkm-secrets.yaml` (chmod 0600, gitignored). Both share the same YAML structure:
 
+```yaml
+# zkm-config.yaml — committed, no secrets
+core:
+  binary_backend: none
+  llm: { endpoint: "http://localhost:8080/v1", model: gemma4-e4b }
+
+imap:
+  host: mail.example.com
+  user: user@example.com
+  folders: [INBOX]
+  since_days: 30
+
+# .zkm-secrets.yaml — gitignored, chmod 0600
+imap:
+  pass: hunter2
 ```
-# IMAP plugin
-IMAP_HOST=mail.example.com
-IMAP_USER=user@example.com
-IMAP_PASS=hunter2
 
-# WhatsApp plugin
-WA_BACKUP_PATH=/path/to/syncthing/whatsapp
-```
+`zkm convert <plugin>` reads `zkm-config.yaml` + `.zkm-secrets.yaml`, extracts the plugin's section (keyed by bare plugin name, e.g. `imap:`), and passes the merged dict to `convert()`.
 
-`zkm convert <plugin>` loads `.env` (hand-rolled `KEY=VALUE` parser — no shell expansion, no multi-line values), filters to the plugin's declared config keys, and passes them to `convert()`.
+Plugin `config:` keys use bare snake_case names (e.g. `source_dir`, not `PLUGIN_SOURCE_DIR`).
 
-For plugins requiring OAuth or API tokens (e.g., LinkedIn, Instagram), the same `.env` pattern applies. Plugins should document their auth flow in their README.
+To migrate an existing `.env` file: `zkm config migrate --apply`.
+
+For plugins requiring OAuth or API tokens (e.g., LinkedIn, Instagram), mark the key `secret: true` in `plugin.yaml` — it will be written to `.zkm-secrets.yaml`. Plugins should document their auth flow in their README.
 
 ## Installing a plugin
 
@@ -333,7 +344,7 @@ For plugins requiring OAuth or API tokens (e.g., LinkedIn, Instagram), the same 
 zkm plugin add https://github.com/you/zkm-imap.git
 # → clones into plugins/zkm-imap/
 # → validates plugin.yaml
-# → prompts for missing .env keys
+# → prompts for missing config keys, writes to zkm-config.yaml
 
 zkm plugin list
 # imap  0.1.0  (plugins/zkm-imap)

@@ -17,6 +17,8 @@ from pathlib import Path
 
 import yaml
 
+from zkm.config import load_config
+
 # ---------------------------------------------------------------------------
 # Plugin directory resolution
 # ---------------------------------------------------------------------------
@@ -205,12 +207,14 @@ def prompt_required_config(
     interactive: bool = True,
 ) -> list[str]:
     """
-    Prompt for each required config key that is not already in .env and has no default.
+    Prompt for each required config key that is not already configured and has no default.
 
     Returns the list of keys still missing after prompting (empty = all satisfied).
     When interactive=False, immediately returns all missing keys without prompting.
     """
-    env = load_env(store_path)
+    cfg = load_config(store_path)
+    plugin_bare = plugin.name.removeprefix("zkm-")
+    existing = cfg.for_plugin(plugin.name)
     missing: list[str] = []
 
     for key, spec in plugin.config_keys.items():
@@ -218,7 +222,7 @@ def prompt_required_config(
             continue
         if "default" in spec:
             continue
-        if key in env:
+        if key in existing:
             continue
         if not interactive:
             missing.append(key)
@@ -239,11 +243,38 @@ def prompt_required_config(
             if value:
                 break
         if value:
-            append_env(store_path, key, value)
+            if _SECRET_RE.search(key):
+                _write_yaml_key(store_path / ".zkm-secrets.yaml", plugin_bare, key, value)
+            else:
+                _write_yaml_key(store_path / "zkm-config.yaml", plugin_bare, key, value)
         else:
             missing.append(key)
 
     return missing
+
+
+def _write_yaml_key(yaml_path: Path, section: str, key: str, value: str) -> None:
+    """Atomically set yaml_path[section][key] = value, creating the file if absent."""
+    existing_data: dict = {}
+    if yaml_path.exists():
+        try:
+            existing_data = yaml.safe_load(yaml_path.read_text(encoding="utf-8")) or {}
+        except Exception:
+            existing_data = {}
+    if not isinstance(existing_data, dict):
+        existing_data = {}
+    section_data = existing_data.setdefault(section, {})
+    if not isinstance(section_data, dict):
+        section_data = {}
+        existing_data[section] = section_data
+    section_data[key] = value
+    fd, tmp = tempfile.mkstemp(dir=yaml_path.parent, prefix=yaml_path.name + ".tmp")
+    try:
+        os.write(fd, yaml.dump(existing_data, default_flow_style=False, allow_unicode=True).encode("utf-8"))
+    finally:
+        os.close(fd)
+    os.replace(tmp, yaml_path)
+    yaml_path.chmod(0o600)
 
 
 # ---------------------------------------------------------------------------
@@ -271,19 +302,16 @@ def run_convert(
     if plugin is None:
         raise LookupError(f"Plugin not installed: '{name}'. Run: zkm plugin list")
 
-    # Build config: .env → extra_env → process env (fallback) → spec defaults
-    env = load_env(store_path)
+    cfg = load_config(store_path)
+    plugin_cfg = cfg.for_plugin(name)
     if extra_env:
-        env.update(extra_env)
-    for k in plugin.config_keys:
-        if k not in env and k in os.environ:
-            env[k] = os.environ[k]
+        plugin_cfg.update(extra_env)
 
-    config: dict[str, str] = {}
+    config: dict = {}
     missing = []
     for k, spec in plugin.config_keys.items():
-        if k in env:
-            config[k] = env[k]
+        if k in plugin_cfg:
+            config[k] = plugin_cfg[k]
         elif "default" in spec:
             config[k] = spec["default"]
         elif spec.get("required"):
@@ -292,7 +320,7 @@ def run_convert(
     if missing:
         raise ValueError(
             f"Plugin '{name}' requires missing config keys: {', '.join(missing)}\n"
-            f"Add them to {store_path / '.env'}"
+            f"Add them to {store_path / 'zkm-config.yaml'}"
         )
 
     # Ensure declared dirs exist
@@ -326,18 +354,16 @@ def run_reprocess(
     if plugin is None:
         raise LookupError(f"Plugin not installed: '{name}'. Run: zkm plugin list")
 
-    env = load_env(store_path)
+    cfg = load_config(store_path)
+    plugin_cfg = cfg.for_plugin(name)
     if extra_env:
-        env.update(extra_env)
-    for k in plugin.config_keys:
-        if k not in env and k in os.environ:
-            env[k] = os.environ[k]
+        plugin_cfg.update(extra_env)
 
-    config: dict[str, str] = {}
+    config: dict = {}
     missing = []
     for k, spec in plugin.config_keys.items():
-        if k in env:
-            config[k] = env[k]
+        if k in plugin_cfg:
+            config[k] = plugin_cfg[k]
         elif "default" in spec:
             config[k] = spec["default"]
         elif spec.get("required"):
@@ -346,7 +372,7 @@ def run_reprocess(
     if missing:
         raise ValueError(
             f"Plugin '{name}' requires missing config keys: {', '.join(missing)}\n"
-            f"Add them to {store_path / '.env'}"
+            f"Add them to {store_path / 'zkm-config.yaml'}"
         )
 
     mod = _load_plugin_module(plugin)

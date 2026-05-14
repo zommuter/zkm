@@ -367,18 +367,18 @@ Convention: bump-and-tag + loose-0.x + plain `vX.Y.Z` per repo. See `CLAUDE.md` 
 Items migrated from the orphan per-plugin TODO file (pre-polyrepo-split artefact). Prefix convention documented in `CLAUDE.md`.
 
 - [ ] **M1.** Decoration vs inline-photo classification — heuristics to distinguish logos/banners from informational inline images (size, repeated cid across senders, alt-text, tracking domains). Currently all attachments treated uniformly.
-- [ ] **M2.** Per-store YAML/JSON config — `zkm-config.yaml` + `.zkm-secrets.yaml` retires `.env` + `.zkm-config`; hard-cutover via `zkm config migrate [--apply]`. Planning done 2026-05-14 (see `docs/meeting-notes/2026-05-14-1232-m2-per-store-yaml-config.md`). C1–C11:
-  - [ ] **C1.** `src/zkm/config.py` — `load_config(store)->StoreConfig`; `.for_plugin(name)`; `.core_value(*path)`; `_assert_env_cutover()`; `_CORE_SCHEMA`. Fail-loud if `.env` has non-secret keys.
-  - [ ] **C2.** `tests/test_config.py` — YAML round-trip; precedence; fail-loud; chmod 0600; `migrate` round-trip; `validate` unknown/missing.
-  - [ ] **C3.** `src/zkm/convert.py:164-298` — replace `load_env`/`append_env`/`prompt_required_config` with `load_config(store).for_plugin(name)`.
-  - [ ] **C4.** `src/zkm/store.py:74,100-166` — `init_store()` writes `zkm-config.yaml`; `read_zkm_config()` thin alias; add `.zkm-secrets.yaml` to `_GITIGNORE`.
-  - [ ] **C5.** `query.py:494-555`, `embed.py:64-72,362-370`, `expand.py:214-215` — replace `_get()`-via-env with `cfg.core_value(...)`.
-  - [ ] **C6.** `plugins/zkm-eml/src/zkm_eml/naming.py:11` — drop `os.environ["EML_SLUG_ASCII"]`; add `slug_ascii` to `plugin.yaml`; receive via config dict.
-  - [ ] **C7.** All `plugins/*/plugin.yaml` — rename keys to bare snake_case (`source_dir` not `EML_SOURCE_DIR`); add `secret: true` where needed.
-  - [ ] **C8.** `src/zkm/cli.py` — `zkm config` command group: `migrate [--apply]`, `show [--include-secrets]`, `validate`.
-  - [ ] **C9.** `docs/plugin-spec.md` — rewrite Config + Secret management sections for YAML topology.
-  - [ ] **C10.** `CLAUDE.md`, `docs/install.md`, `README.md` — update `.env`/`.zkm-config` references; document migration step.
-  - [ ] **C11.** Version bump + tag zkm core (minor bump; M2 is a feature).
+- [x] **M2.** Per-store YAML config — `zkm-config.yaml` + `.zkm-secrets.yaml` retire `.env`; hard-cutover via `zkm config migrate [--apply]`. Shipped 2026-05-14; zkm core bumped to v0.7.0. 454 tests passing. C1–C11 all done (see `docs/meeting-notes/2026-05-14-1232-m2-per-store-yaml-config.md`).
+  - [x] **C1.** `src/zkm/config.py` — `load_config(store)->StoreConfig`; `.for_plugin(name)` (bare snake_case); `.core_value(*path)`; `_assert_env_cutover()`; `_CORE_DEFAULTS`; `migrate_env()` + `_ENV_KEY_MAP`. ConfigError sub-ClickException.
+  - [x] **C2.** `tests/test_config.py` — 32 tests: YAML round-trip; deep-merge; secrets-override; .env-cutover guard (absent/empty/only-secrets/non-secret-raises); migrate dry-run + apply (0600); type coercion.
+  - [x] **C3.** `src/zkm/convert.py` — `run_convert`/`run_reprocess` now read `load_config(store).for_plugin(name)`; error message points to `zkm-config.yaml`. `prompt_required_config` writes to YAML (secrets to `.zkm-secrets.yaml`, non-secrets to `zkm-config.yaml`). `load_env`/`append_env` retained for test backward-compat.
+  - [x] **C4.** `src/zkm/store.py` — `init_store()` writes `zkm-config.yaml` (+ legacy `.zkm-config` for backward read); `read_zkm_config()` prefers `zkm-config.yaml` via `load_config`, falls back to legacy file. `.zkm-secrets.yaml` added to `_GITIGNORE`.
+  - [x] **C5.** `embed.py:resolve_embed_config` + `_chunk_texts`, `query.py:_resolve_llm_config` + `_resolve_expand_config`, `expand.py:expand_query_with_hyp` timeout block — all read from `cfg.core_value(...)`; explicit kwargs remain highest-precedence override; env-var overrides retained for `ZKM_EMBED_CHUNK_*` runtime tuning.
+  - [x] **C6.** `plugins/zkm-eml/src/zkm_eml/naming.py` — dropped `_SLUG_ASCII = os.environ.get(...)`; `slugify`/`message_slug` take `slug_ascii=False` kwarg; eml convert.py passes `slug_ascii` from config.
+  - [x] **C7.** All plugin.yaml + plugin convert.py — keys renamed to bare snake_case: eml (`source_dir`, `folders_exclude` list, `keep_originals` bool, `attachment_inbox`, `quote_strip`, `slug_ascii`), notmuch (`config_file`, `tags_exclude` list), pdf (`source_dir`, `min_text_chars` int), photo (`source_dir`), scan (`source_dir`, `lang`, `min_text_chars` int), ner (`model`, `lang`, `gazetteer`, `verifier_model/endpoint/key`), notes (`source_dir`, `default_tags`). Plugin `convert.py` handles native YAML types (bool, int, list).
+  - [x] **C8.** `src/zkm/cli.py` — `zkm config` command group with `migrate [--apply]` (deep-merges into existing YAML; renames `.env` → `.env.migrated`), `show [--include-secrets]` (redacts core.*.key by default), `validate`. `_redact_leaves` helper for nested-secret display.
+  - [x] **C9.** `docs/plugin-spec.md` — Config + Secret management section rewritten for YAML topology; example plugin.yaml uses bare snake_case keys.
+  - [x] **C10.** `CLAUDE.md`, `README.md` — store-layout diagrams updated; `.env` references replaced with `zkm-config.yaml` + `.zkm-secrets.yaml`; migration step documented.
+  - [x] **C11.** Version bump `0.6.0` → `0.7.0` in `pyproject.toml` (minor bump per loose-0.x; M2 is a feature). Tag pending commit.
 - [ ] **M3.** Deleted-mail policy — detect removals from `~/mail` between runs; options: always-keep (default), purge, archive-only.
 - [ ] **M4.** Drafts — optional "follow draft updates" mode (Message-ID/content changes on each save). YAGNI for now.
 - [x] **M5.** `_objects` GC — `gc_mail_objects(store_path, *, dry_run=True)` in `plugins/zkm-eml/src/zkm_eml/originals.py`; walks `mail/_objects/*.json` sidecars, marks CAS objects orphaned when all producer `message` paths are gone, skips objects still referenced by an inbox symlink (those stay owned by core `zkm gc`); 6 new tests — 2026-05-14. CLI hookup deferred (callable from Python today; integration with `zkm gc` is a future ergonomics item).

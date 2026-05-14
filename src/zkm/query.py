@@ -13,7 +13,6 @@ from pathlib import Path
 import frontmatter
 import httpx
 
-from zkm.convert import load_env
 from zkm.embed import (
     EmbedStore,
     EmbedUnavailable,
@@ -493,43 +492,26 @@ def _resolve_llm_config(
     model: str | None,
     api_key: str | None,
 ) -> tuple[str, str, str]:
-    env = load_env(store)
-
-    def _get(key: str, override: str | None, default: str) -> str:
-        if override:
-            return override
-        if key in os.environ:
-            return os.environ[key]
-        if key in env:
-            return env[key]
-        return default
-
-    resolved_endpoint = _get("ZKM_LLM_ENDPOINT", endpoint, _DEFAULT_ENDPOINT)
-    resolved_model = _get("ZKM_LLM_MODEL", model, _DEFAULT_MODEL)
-    resolved_key = _get("ZKM_LLM_KEY", api_key, "")
+    from zkm.config import load_config
+    cfg = load_config(store)
+    resolved_endpoint = endpoint or cfg.core_value("llm", "endpoint") or _DEFAULT_ENDPOINT
+    resolved_model = model or cfg.core_value("llm", "model") or _DEFAULT_MODEL
+    resolved_key = api_key if api_key is not None else (cfg.core_value("llm", "key") or "")
     return resolved_endpoint, resolved_model, resolved_key
 
 
 def _resolve_expand_config(store: Path) -> tuple[str, str, str]:
     """Resolve expansion-model config, falling back to main LLM config.
 
-    ZKM_LLM_EXPAND_ENDPOINT / ZKM_LLM_EXPAND_MODEL / ZKM_LLM_EXPAND_KEY override
-    the main LLM settings so a bilingual-capable model can be used for keyword
-    extraction while a smaller model handles the RAG answer.
+    The expand section overrides the main LLM settings so a bilingual-capable
+    model can be used for keyword extraction while a smaller model handles the
+    RAG answer.
     """
-    main_ep, main_mdl, main_key = _resolve_llm_config(store, None, None, None)
-    env = load_env(store)
-
-    def _get(key: str, fallback: str) -> str:
-        if key in os.environ:
-            return os.environ[key]
-        if key in env:
-            return env[key]
-        return fallback
-
-    ep = _get("ZKM_LLM_EXPAND_ENDPOINT", main_ep)
-    mdl = _get("ZKM_LLM_EXPAND_MODEL", main_mdl)
-    key = _get("ZKM_LLM_EXPAND_KEY", main_key)
+    from zkm.config import load_config
+    cfg = load_config(store)
+    ep = cfg.core_value("expand", "endpoint") or cfg.core_value("llm", "endpoint") or _DEFAULT_ENDPOINT
+    mdl = cfg.core_value("expand", "model") or cfg.core_value("llm", "model") or _DEFAULT_MODEL
+    key = cfg.core_value("expand", "key") or cfg.core_value("llm", "key") or ""
     return ep, mdl, key
 
 
