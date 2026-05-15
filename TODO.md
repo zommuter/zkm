@@ -3,25 +3,6 @@
 See `CLAUDE.md` for architecture overview. See `docs/phase2-plan.md` for sequencing.
 Completed Phase 1 tasks archived in `docs/phase1-done.md`.
 
-## Infrastructure / cross-project
-
-
-## Phase 2 session 6 — hybrid search quality
-
-
-## Phase 2 session 7 — aya expansion bugs (3 blockers found in live test)
-
-
-## Query quality (post-MVP backlog)
-
-
-## Phase 2.5 — next plugins (decided 2026-05-08-next-plugins.md, 2026-05-08-information-flow.md)
-
-Order: pre-flight specs → zkm.amendments lib → photo → pdf → scan → notmuch → (scoping) → whatsapp.
-WhatsApp requires three core additions before its own session; see session 15.
-
-Pre-flight sessions (9a–9d) must land before any plugin session starts.
-
 ## Phase 2.5 — NER (decided 2026-05-10-1148-entity-extraction.md)
 
 NER lands before whatsapp. `zkm convert <plugin>` runs amenders default-on (`--no-amenders` to skip). Session 9d extraction-cache transitions from design-only to implementation alongside zkm-ner.
@@ -43,12 +24,9 @@ NER lands before whatsapp. `zkm convert <plugin>` runs amenders default-on (`--n
 - Co-reference within doc deferred to v2; intra-doc pronoun coref not in scope.
 - GLiNER is opt-in only; sentence-level language routing out of scope.
 
-
 ## Phase 2.5 — γ schema rollout (decided 2026-05-12-1500-entity-vs-datamining.md)
 
 Sequencing: E1+E2+E3 (schema + amendments + normaliser lib) → E4 (suspicious dispatch) → E6 (`amount` pilot) → E7 (more value-types) → E8+E9 (P2 index integration + field-test). Each step rollback-able. ~6–8 sessions total.
-
-
 
 **Named deferrals (with triggers):**
 - P3 typed query language — defer until γ + P2 live ≥1 month AND ≥1 concrete typed-query request.
@@ -58,50 +36,9 @@ Sequencing: E1+E2+E3 (schema + amendments + normaliser lib) → E4 (suspicious d
 - Crypto/stock-ticker domain scope — defer; revisit if real use case lands.
 - WebUI typed-query hint UX — Phase 3 design concern.
 
-
-
-
 - [ ] **Entity alias / synonym linking (Phase 4 backlog)** — `SBB CFF FFS` (DE/FR/IT names for Swiss Federal Railways) highlights that the same real-world entity can appear under multiple mention strings (abbreviations, translations, official variants). Likewise, persons appear under nicknames, maiden names, or initials. Deferred to Phase 4 alongside manual-merge tooling; design note needed in `docs/entity-model.md` before implementation. No heuristic auto-merge — human-confirmed alias pairs only.
 
 - [ ] Session 15 (scoping, not implementation): meeting on zkm-whatsapp core gaps — (a) non-git source state / `zkm.state` helper, (b) per-store YAML config replacing long env-var lists, (c) stable-ID synthesis contract; deliverable: `docs/meeting-notes/YYYY-MM-DD-whatsapp-scope.md`
-
-## Phase 2 housekeeping — repo reorg (decided 2026-05-08-repo-reorg.md)
-
-
-## Phase 2 session 8 — doc chunking (core)
-
-
-## Phase 2 session 1 — zkm-eml hot-fix
-
-
-## Phase 2 session 2 — embed index fixes
-
-
-## Phase 2 session 3 — core library
-
-See `docs/object-storage.md` for the spec contract.
-
-
-## Phase 2 session 4 — plugin migration
-
-(Only after session 3 core library is complete and field-tested.)
-
-
-## Phase 2 session 5 — hygiene commands
-
-(Only after one week of session 4 in real use, per `docs/phase2-plan.md`.)
-
-
-## `zkm store` — git-like store management
-
-The store is a git repo; zkm should expose a thin wrapper that handles
-git-annex / git-lfs automatically so the user doesn't have to think about it.
-
-
-Design note: these commands read `.zkm-config` to know the backend and dispatch accordingly. The user never has to type `git annex` directly.
-
-## Incremental processing (backlog)
-
 
 ## Phase 2 — mbsync auto-trigger (decided 2026-05-08-mbsync-hook.md)
 
@@ -111,8 +48,6 @@ Design note: these commands read `.zkm-config` to know the backend and dispatch 
 ## Phase 2 — SIGUSR1 progress + `zkm status` (decided 2026-05-08-1913-sigusr1-status.md)
 
 Scope: `convert` and `index` (BM25 + embed phases) only. `query`, `clone`, `push`, `pull` explicitly out. Daemon/supervisor model deferred (N<2 background callers). Host-wide multi-store registry, historical run log, `--kill`, `--watch`, live-tail all deferred.
-
-
 
 **Spawned follow-ups (from 2026-05-14 concurrent-run-guard meeting):**
 
@@ -138,14 +73,6 @@ Scope: `convert` and `index` (BM25 + embed phases) only. `query`, `clone`, `push
 - [ ] **Meeting: social-network profile scraping scope** — LinkedIn profile photo + resume/CV export, and equivalent for other networks (Instagram, Twitter/X, Mastodon, GitHub bio, etc.). Two distinct sub-questions: (1) *identity card* — profile data as a per-person entity page (photo, headline, current employer, skills); (2) *activity feed* — posts, reactions, comments, tags. Both have legal/TOS constraints that differ by network (takeout export vs. API vs. scraping). Needs a scoping meeting before any implementation. Key design questions: which networks are in scope, what the canonical markdown shape is, and whether profile data goes into `entities[]` (γ schema) or its own document type.
 - [ ] **Meeting: takeout / export archive import** — personal data exports from Google Takeout, Facebook "Download Your Data", Instagram, LinkedIn, Twitter/X, etc. are structured archives (ZIP + JSON/HTML). Distinct from live scraping: deterministic, offline, privacy-safe. Sub-questions: (1) which export formats to support first (LinkedIn most structured); (2) shared `zkm.takeout` extraction helper vs. per-network plugins; (3) "being tagged" in others' posts as a distinct entity-mention type (requires cross-document resolution). Warrants a scoping meeting; likely a prerequisite for the live-scraping meeting above.
 
-## Encoding / text quality (backlog)
-
-
-## Versioning — retroactive tags (decided 2026-05-08-2318-tagging-cadence.md)
-
-Convention: bump-and-tag + loose-0.x + plain `vX.Y.Z` per repo. See `CLAUDE.md` "Versioning".
-
-
 ## Amendment contract backlog
 
 - [ ] **Meeting: amendment replace-mode** — set-union merge (current) is correct for additive enrichment but cannot remove stale entities when extractor quality improves. `zkm scrub <plugin>` is the current workaround (N9b + future N9c). Trigger for meeting: a third amender wants single-producer-per-field semantics, OR N9c surfaces a need not solvable by scrub. See `docs/meeting-notes/2026-05-10-2142-n9b-scrub-cli.md` for design context.
@@ -158,13 +85,11 @@ Convention: bump-and-tag + loose-0.x + plain `vX.Y.Z` per repo. See `CLAUDE.md` 
 
 ## Publishing / distribution (backlog — from 2026-05-12-0844-publish-plugins.md)
 
-
 **Orphaned publish-plugins items (A1–A9 from 2026-05-12-0844-publish-plugins.md) — done vs. pending:**
 
 - [~] **ASAP: PyPI publishing** — Stage 1 complete (2026-05-13): core `zkm` 0.5.0 published; 6 plugin names reserved as 0.0.1 stubs. Stage 2 (OIDC) + Session B (real plugin code) remaining. See `docs/meeting-notes/2026-05-13-1325-pypi-publish-canary.md`.
 - [ ] **Session B (Class 3 meeting): plugin discovery via entry-point groups** — `[project.entry-points."zkm.plugins"]` in each plugin + extend `convert.py:find_plugin`; replaces 0.0.1 stubs with real wheels; architectural change, needs design meeting.
 - [ ] **Stage 2: OIDC Trusted Publisher + `.github/workflows/release.yml` in all 7 repos** — tokenless CI publish; closes auto-publish loop with the post-commit auto-tag TODO. Per-project tokens available (created after first publish).
-- [x] **Apply user_names to live store + scrub** — added `ner: { user_names: [Tobias, Kienzler, Zommuter] }` to `~/knowledge/zkm-config.yaml` 2026-05-15. Still needed: run `zkm scrub ner` to retroactively remove greeting FPs (`'Hallo Tobias' ×1930`, `'Guten Tag Herr Kienzler' ×444`); run `zkm convert ner` for ongoing filtering.
   - [ ] **Ambiguity: bare first/last names in user_names are not unique** — "Tobias" and "Kienzler" match greetings addressed to *any* person with those names (e.g. "Hallo Tobias" in a forwarded thread about someone else). `build_user_salutations` only generates prefix×name pairs (not bare tokens), so false positives are bounded to greeting phrases — but still over-broad. Consider keeping only unambiguous forms (`Zommuter`, `"Tobias Kienzler"`) and dropping bare first/last names. Revisit after running scrub and inspecting what actually gets removed.
 
 ## zkm-eml backlog (M-prefix) — migrated from plugins/zkm-eml/TODO.md 2026-05-13
