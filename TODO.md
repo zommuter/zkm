@@ -164,7 +164,7 @@ Convention: bump-and-tag + loose-0.x + plain `vX.Y.Z` per repo. See `CLAUDE.md` 
 - [~] **ASAP: PyPI publishing** — Stage 1 complete (2026-05-13): core `zkm` 0.5.0 published; 6 plugin names reserved as 0.0.1 stubs. Stage 2 (OIDC) + Session B (real plugin code) remaining. See `docs/meeting-notes/2026-05-13-1325-pypi-publish-canary.md`.
 - [ ] **Session B (Class 3 meeting): plugin discovery via entry-point groups** — `[project.entry-points."zkm.plugins"]` in each plugin + extend `convert.py:find_plugin`; replaces 0.0.1 stubs with real wheels; architectural change, needs design meeting.
 - [ ] **Stage 2: OIDC Trusted Publisher + `.github/workflows/release.yml` in all 7 repos** — tokenless CI publish; closes auto-publish loop with the post-commit auto-tag TODO. Per-project tokens available (created after first publish).
-- [ ] **Runtime user-identity config for zkm-ner** — spec a `ZKM_NER_USER_NAMES` env var (or per-store `.zkm-config` entry) so users can extend the greeting-salutation stoplist at runtime without editing source. Default: empty (no built-in personal names). See `gazetteers/orgs.yaml` for the config-file pattern.
+- [x] **Runtime user-identity config for zkm-ner** — `user_names` key in `plugin.yaml` + `ner:` section of `<store>/zkm-config.yaml`; cross-product with greeting-prefix set → filtered phrases; `textfilter-v6` + per-edit cache hash. zkm-ner v0.14.0. See `docs/meeting-notes/2026-05-15-1108-ner-user-names-config.md`.
 
 ## zkm-eml backlog (M-prefix) — migrated from plugins/zkm-eml/TODO.md 2026-05-13
 
