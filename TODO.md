@@ -164,12 +164,11 @@ Convention: bump-and-tag + loose-0.x + plain `vX.Y.Z` per repo. See `CLAUDE.md` 
 - [~] **ASAP: PyPI publishing** — Stage 1 complete (2026-05-13): core `zkm` 0.5.0 published; 6 plugin names reserved as 0.0.1 stubs. Stage 2 (OIDC) + Session B (real plugin code) remaining. See `docs/meeting-notes/2026-05-13-1325-pypi-publish-canary.md`.
 - [ ] **Session B (Class 3 meeting): plugin discovery via entry-point groups** — `[project.entry-points."zkm.plugins"]` in each plugin + extend `convert.py:find_plugin`; replaces 0.0.1 stubs with real wheels; architectural change, needs design meeting.
 - [ ] **Stage 2: OIDC Trusted Publisher + `.github/workflows/release.yml` in all 7 repos** — tokenless CI publish; closes auto-publish loop with the post-commit auto-tag TODO. Per-project tokens available (created after first publish).
-- [x] **Runtime user-identity config for zkm-ner** — `user_names` key in `plugin.yaml` + `ner:` section of `<store>/zkm-config.yaml`; cross-product with greeting-prefix set → filtered phrases; `textfilter-v6` + per-edit cache hash. zkm-ner v0.14.0. See `docs/meeting-notes/2026-05-15-1108-ner-user-names-config.md`.
+- [ ] **Apply user_names to live store + scrub** — add `ner: { user_names: [Tobias, Kienzler, "Tobias Kienzler"] }` (or preferred forms) to `<store>/zkm-config.yaml`; run `zkm scrub ner` to retroactively remove greeting FPs (`'Hallo Tobias' ×1930`, `'Guten Tag Herr Kienzler' ×444`) from live store; run `zkm convert ner` for ongoing filtering on new mail.
 
 ## zkm-eml backlog (M-prefix) — migrated from plugins/zkm-eml/TODO.md 2026-05-13
 
 Items migrated from the orphan per-plugin TODO file (pre-polyrepo-split artefact). Prefix convention documented in `CLAUDE.md`.
 
 - [ ] **M1.** Decoration vs inline-photo classification — heuristics to distinguish logos/banners from informational inline images (size, repeated cid across senders, alt-text, tracking domains). Currently all attachments treated uniformly.
-- [x] **Test fixture stale-keys cleanup (zkm-eml)** — pre-existing tests in `plugins/zkm-eml/tests/test_convert.py` still use ALLCAPS config keys (`EML_SOURCE_DIR`, `EML_KEEP_ORIGINALS`, `EML_LIMIT_RECENT`) that M2 (b8a337a) retired in favour of bare snake_case. With the stale keys, `config.get("source_dir")` returns empty → fallback to `Path.home() / "mail"` → tests scan the real ~/mail (~55k mails) and time out. Single-pass rename across ~19 occurrences. Spotted while implementing M3 (2026-05-14).
 - [ ] **M4.** Drafts — optional "follow draft updates" mode (Message-ID/content changes on each save). YAGNI for now.
