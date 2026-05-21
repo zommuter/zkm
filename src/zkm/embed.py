@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -258,24 +259,33 @@ def build_embed_store(
         for batch_start in range(0, n, _EMBED_BATCH):
             batch_texts = flat_texts[batch_start : batch_start + _EMBED_BATCH]
             batch_meta = flat_meta[batch_start : batch_start + _EMBED_BATCH]
-            try:
-                resp = httpx.post(
-                    url,
-                    headers=headers,
-                    json={"model": model, "input": batch_texts},
-                    timeout=timeout,
-                )
-                resp.raise_for_status()
-                data = resp.json()["data"]
-                data.sort(key=lambda x: x["index"])
-                batch_vecs = np.array([item["embedding"] for item in data], dtype=np.float32)
-                norms = np.linalg.norm(batch_vecs, axis=1, keepdims=True)
-                norms = np.where(norms == 0.0, 1.0, norms)
-                batch_vecs = (batch_vecs / norms).astype(np.float32)
-            except EmbedUnavailable:
-                raise
-            except Exception as exc:
-                raise EmbedUnavailable(f"embed_texts failed: {exc}") from exc
+            batch_vecs: np.ndarray = np.empty(0)
+            last_exc: Exception | None = None
+            for attempt in range(3):
+                try:
+                    if attempt:
+                        time.sleep(5 * attempt)
+                    resp = httpx.post(
+                        url,
+                        headers=headers,
+                        json={"model": model, "input": batch_texts},
+                        timeout=timeout,
+                    )
+                    resp.raise_for_status()
+                    data = resp.json()["data"]
+                    data.sort(key=lambda x: x["index"])
+                    batch_vecs = np.array([item["embedding"] for item in data], dtype=np.float32)
+                    norms = np.linalg.norm(batch_vecs, axis=1, keepdims=True)
+                    norms = np.where(norms == 0.0, 1.0, norms)
+                    batch_vecs = (batch_vecs / norms).astype(np.float32)
+                    last_exc = None
+                    break
+                except EmbedUnavailable:
+                    raise
+                except Exception as exc:
+                    last_exc = exc
+            if last_exc is not None:
+                raise EmbedUnavailable(f"embed_texts failed: {last_exc}") from last_exc
             for (doc, ci), vec in zip(batch_meta, batch_vecs):
                 acc_paths.append(doc.rel_path)
                 acc_mtimes.append(doc.mtime_ns)
