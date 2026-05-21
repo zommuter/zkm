@@ -254,7 +254,9 @@ def build_embed_store(
     endpoint: str,
     model: str,
     api_key: str,
-    timeout: float = 60.0,
+    # A batch of 32 dense-token chunks (CJK/encoded, ~2.5 tok/char) can total ~150k+ tokens
+    # and take ~75-100s on the bge-m3 server; 60s was too tight and failed legitimate batches.
+    timeout: float = 180.0,
     checkpoint_every: int = 100,
     progress=None,  # ProgressCallback | None
 ) -> EmbedStore:
