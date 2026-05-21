@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import httpx
 import numpy as np
 import pytest
 
@@ -276,6 +277,44 @@ def test_build_embed_store_embeds_all_docs(tmp_path: Path) -> None:
 
     assert len(es.paths) == 3
     assert es.vectors.shape == (3, 4)
+
+
+def test_build_embed_store_splits_oversized_chunk(tmp_path: Path) -> None:
+    """A chunk the server rejects as 'too large to process' is split + mean-pooled
+    instead of aborting the whole build (deterministic 500, not retried with backoff)."""
+    store = tmp_path / "store"
+    init_store(store, backend="none")
+    # One doc whose single chunk exceeds the server's per-input limit (simulated at 8 chars).
+    docs = [_make_doc(store, "notes/big.md", "X" * 20, mtime_ns=100)]
+    threshold = 8
+    too_large_body = (
+        '{"error":{"code":500,"message":"input (999 tokens) is too large to process.'
+        ' increase the physical batch size (current batch size: 2048)","type":"server_error"}}'
+    )
+
+    def fake_post(url, headers, json, timeout):  # noqa: A002
+        texts = json["input"]
+        resp = MagicMock()
+        if any(len(t) > threshold for t in texts):
+            req = httpx.Request("POST", url)
+            http_resp = httpx.Response(500, text=too_large_body, request=req)
+            resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+                "500", request=req, response=http_resp
+            )
+            return resp
+        resp.json.return_value = _fake_embed_response(len(texts), 4)
+        resp.raise_for_status = MagicMock()
+        return resp
+
+    with patch("httpx.post", side_effect=fake_post):
+        es = build_embed_store(
+            store, docs, prev_es=None, endpoint="http://localhost:8080",
+            model="bge-m3", api_key="",
+        )
+
+    # The oversized chunk still produces exactly one normalized row — no abort, no data loss.
+    assert es.vectors.shape == (1, 4)
+    np.testing.assert_allclose(np.linalg.norm(es.vectors, axis=1), 1.0, atol=1e-6)
 
 
 def test_build_embed_store_reuses_cached_vectors(tmp_path: Path) -> None:

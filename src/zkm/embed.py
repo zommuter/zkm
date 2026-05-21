@@ -105,6 +105,66 @@ def embed_texts(
     return (mat / norms).astype(np.float32)
 
 
+def _post_embed_batch(
+    url: str, headers: dict[str, str], model: str, texts: list[str], timeout: float
+) -> np.ndarray:
+    """POST one batch, return L2-normalized float32 (N, D). Raises httpx errors as-is."""
+    resp = httpx.post(url, headers=headers, json={"model": model, "input": texts}, timeout=timeout)
+    resp.raise_for_status()
+    data = resp.json()["data"]
+    data.sort(key=lambda x: x["index"])
+    vecs = np.array([item["embedding"] for item in data], dtype=np.float32)
+    norms = np.linalg.norm(vecs, axis=1, keepdims=True)
+    norms = np.where(norms == 0.0, 1.0, norms)
+    return (vecs / norms).astype(np.float32)
+
+
+def _is_too_large_error(exc: Exception) -> bool:
+    """True if exc is the server rejecting an input that exceeds its physical batch size.
+
+    This 500 is *deterministic* — the same oversized input fails identically every time —
+    so it must NOT be retried with backoff; the offending text is split instead.
+    """
+    return isinstance(exc, httpx.HTTPStatusError) and "too large to process" in exc.response.text
+
+
+def _embed_single_with_split(
+    url: str, headers: dict[str, str], model: str, text: str, timeout: float, *, depth: int = 0
+) -> np.ndarray:
+    """Embed one text; if the server rejects it as too large, split in half and mean-pool
+    the sub-vectors so the chunk still maps to a single normalized (D,) row."""
+    try:
+        return _post_embed_batch(url, headers, model, [text], timeout)[0]
+    except httpx.HTTPStatusError as exc:
+        if not _is_too_large_error(exc) or len(text) <= 1 or depth >= 24:
+            raise
+    mid = len(text) // 2
+    left = _embed_single_with_split(url, headers, model, text[:mid], timeout, depth=depth + 1)
+    right = _embed_single_with_split(url, headers, model, text[mid:], timeout, depth=depth + 1)
+    pooled = (left + right) / 2.0
+    norm = float(np.linalg.norm(pooled))
+    return (pooled / (norm or 1.0)).astype(np.float32)
+
+
+def _log_embed_stall(batch_start: int, attempt: int, exc: Exception) -> None:
+    """Log a transient embed stall (status, body, origin, position) to stderr."""
+    nxt = _EMBED_RETRY_SLEEPS[attempt + 1] if attempt + 1 < len(_EMBED_RETRY_SLEEPS) else None
+    retry_msg = f"retrying in {nxt}s" if nxt is not None else "giving up"
+    if isinstance(exc, httpx.HTTPStatusError):
+        origin = exc.response.headers.get("server", exc.response.headers.get("via", "unknown"))
+        print(
+            f"[zkm-embed] stall at text {batch_start}: attempt {attempt},"
+            f" status={exc.response.status_code}, origin={origin!r},"
+            f" body={exc.response.text!r}, {retry_msg}",
+            file=sys.stderr,
+        )
+    else:
+        print(
+            f"[zkm-embed] stall at text {batch_start}: attempt {attempt}, exc={exc!r}, {retry_msg}",
+            file=sys.stderr,
+        )
+
+
 @dataclass
 class EmbedStore:
     """In-memory embedding matrix with one row per (path, chunk_index) pair."""
@@ -269,43 +329,34 @@ def build_embed_store(
                 try:
                     if sleep_s:
                         time.sleep(sleep_s)
-                    resp = httpx.post(
-                        url,
-                        headers=headers,
-                        json={"model": model, "input": batch_texts},
-                        timeout=timeout,
-                    )
-                    resp.raise_for_status()
-                    data = resp.json()["data"]
-                    data.sort(key=lambda x: x["index"])
-                    batch_vecs = np.array([item["embedding"] for item in data], dtype=np.float32)
-                    norms = np.linalg.norm(batch_vecs, axis=1, keepdims=True)
-                    norms = np.where(norms == 0.0, 1.0, norms)
-                    batch_vecs = (batch_vecs / norms).astype(np.float32)
+                    batch_vecs = _post_embed_batch(url, headers, model, batch_texts, timeout)
                     last_exc = None
                     break
                 except EmbedUnavailable:
                     raise
-                except Exception as exc:
+                except httpx.HTTPStatusError as exc:
+                    if _is_too_large_error(exc):
+                        # Deterministic: a chunk exceeds the server's physical batch size.
+                        # Retrying is futile (identical input) — embed each text individually,
+                        # splitting + mean-pooling any oversized one. No backoff.
+                        print(
+                            f"[zkm-embed] oversized chunk at text {batch_start}:"
+                            f" {exc.response.text!r}; embedding individually with split",
+                            file=sys.stderr,
+                        )
+                        batch_vecs = np.stack(
+                            [_embed_single_with_split(url, headers, model, t, timeout)
+                             for t in batch_texts]
+                        )
+                        last_exc = None
+                        break
+                    # Transient HTTP error — back off and retry.
                     last_exc = exc
-                    # Log the stall: captures the 500 body + origin for diagnosis and
-                    # provides stall-frequency evidence for the server-side root cause.
-                    next_sleep = _EMBED_RETRY_SLEEPS[attempt + 1] if attempt + 1 < len(_EMBED_RETRY_SLEEPS) else None
-                    retry_msg = f"retrying in {next_sleep}s" if next_sleep is not None else "giving up"
-                    if isinstance(exc, httpx.HTTPStatusError):
-                        origin = exc.response.headers.get("server", exc.response.headers.get("via", "unknown"))
-                        print(
-                            f"[zkm-embed] stall at text {batch_start}: attempt {attempt},"
-                            f" status={exc.response.status_code}, origin={origin!r},"
-                            f" body={exc.response.text!r}, {retry_msg}",
-                            file=sys.stderr,
-                        )
-                    else:
-                        print(
-                            f"[zkm-embed] stall at text {batch_start}: attempt {attempt},"
-                            f" exc={exc!r}, {retry_msg}",
-                            file=sys.stderr,
-                        )
+                    _log_embed_stall(batch_start, attempt, exc)
+                except Exception as exc:
+                    # Transient (connection reset, timeout, …) — back off and retry.
+                    last_exc = exc
+                    _log_embed_stall(batch_start, attempt, exc)
             if last_exc is not None:
                 raise EmbedUnavailable(f"embed_texts failed: {last_exc}") from last_exc
             for (doc, ci), vec in zip(batch_meta, batch_vecs):
