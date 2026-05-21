@@ -29,7 +29,10 @@ NER lands before whatsapp. `zkm convert <plugin>` runs amenders default-on (`--n
 
 ## Phase 2.5 — γ schema rollout (decided 2026-05-12-1500-entity-vs-datamining.md)
 
-Sequencing: E1+E2+E3 (schema + amendments + normaliser lib) → E4 (suspicious dispatch) → E6 (`amount` pilot) → E7 (more value-types) → E8+E9 (P2 index integration + field-test). Each step rollback-able. ~6–8 sessions total.
+**Status: γ rollout COMPLETE (E1–E12).** Typed-slot `entities[]`, `(scope,type,value)` dedup, `zkm.canonical`, suspicious dispatch, 8 value-type extractors, P2 index integration, docs contract tables, and zkm-eml signature/salutation γ-scopes all shipped (largely 2026-05-12). E14 (this TODO bookkeeping) was the only never-run item — reconciled 2026-05-21, see `docs/meeting-notes/2026-05-21-0816-gamma-schema-gap-audit.md` and `docs/field-test-bge-m3.md` step 7.
+
+- [ ] **E9 follow-up (field-test 7c + embed rebuild):** value-type extractors (iban, amount, etc.) landed after the last `zkm convert ner` run — re-run convert to populate value-type `entities[]` in the mail corpus (cache-busts via `model_version`), rebuild the dense embed index, then run the deferred 7c typed-value probe. Contract: `zkm search "<an-IBAN>" --no-dense` returns the source doc via `entities[]` at high rank, not just via body text. See `docs/field-test-bge-m3.md` step 7c.
+- [ ] **E13: N9g re-evaluation** — now unblocked (γ + per-type extractors + P2 all landed); re-audit residual body-NER false positives; expected outcome per meeting: close as moot. See `docs/meeting-notes/2026-05-12-1500-entity-vs-datamining.md`.
 
 **Named deferrals (with triggers):**
 - P3 typed query language — defer until γ + P2 live ≥1 month AND ≥1 concrete typed-query request.
