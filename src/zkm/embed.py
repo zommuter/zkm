@@ -26,6 +26,10 @@ _EMBED_BATCH = 32
 # Requires --ubatch-size >= 512 on the llama-server side (default is 512, raise to 2048+
 # for headroom). Override with ZKM_EMBED_CHUNK_CHARS env var.
 _DEFAULT_CHUNK_CHARS = 2000
+# Retry sleeps (seconds) on transient 500s. Spans the ~30-40s self-recovery window
+# observed in bge-m3/llama-server embedding mode under sustained load. Attempt 2
+# fires at ~45s (0+15+30), well past the recovery window.
+_EMBED_RETRY_SLEEPS = (0, 15, 30, 60)
 _DEFAULT_CHUNK_OVERLAP = 200
 _NPZ_FILE = ".zkm-index/embeddings.npz"
 _META_FILE = ".zkm-index/embeddings-meta.json"
@@ -191,7 +195,7 @@ def build_embed_store(
     model: str,
     api_key: str,
     timeout: float = 60.0,
-    checkpoint_every: int = 500,
+    checkpoint_every: int = 100,
     progress=None,  # ProgressCallback | None
 ) -> EmbedStore:
     """Build or incrementally update an EmbedStore for the given docs.
@@ -261,10 +265,10 @@ def build_embed_store(
             batch_meta = flat_meta[batch_start : batch_start + _EMBED_BATCH]
             batch_vecs: np.ndarray = np.empty(0)
             last_exc: Exception | None = None
-            for attempt in range(3):
+            for attempt, sleep_s in enumerate(_EMBED_RETRY_SLEEPS):
                 try:
-                    if attempt:
-                        time.sleep(5 * attempt)
+                    if sleep_s:
+                        time.sleep(sleep_s)
                     resp = httpx.post(
                         url,
                         headers=headers,
@@ -284,6 +288,24 @@ def build_embed_store(
                     raise
                 except Exception as exc:
                     last_exc = exc
+                    # Log the stall: captures the 500 body + origin for diagnosis and
+                    # provides stall-frequency evidence for the server-side root cause.
+                    next_sleep = _EMBED_RETRY_SLEEPS[attempt + 1] if attempt + 1 < len(_EMBED_RETRY_SLEEPS) else None
+                    retry_msg = f"retrying in {next_sleep}s" if next_sleep is not None else "giving up"
+                    if isinstance(exc, httpx.HTTPStatusError):
+                        origin = exc.response.headers.get("server", exc.response.headers.get("via", "unknown"))
+                        print(
+                            f"[zkm-embed] stall at text {batch_start}: attempt {attempt},"
+                            f" status={exc.response.status_code}, origin={origin!r},"
+                            f" body={exc.response.text!r}, {retry_msg}",
+                            file=sys.stderr,
+                        )
+                    else:
+                        print(
+                            f"[zkm-embed] stall at text {batch_start}: attempt {attempt},"
+                            f" exc={exc!r}, {retry_msg}",
+                            file=sys.stderr,
+                        )
             if last_exc is not None:
                 raise EmbedUnavailable(f"embed_texts failed: {last_exc}") from last_exc
             for (doc, ci), vec in zip(batch_meta, batch_vecs):
