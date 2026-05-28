@@ -51,6 +51,27 @@ previous failure points.
    `docs/field-test-bge-m3.md` step 7.
 3. **Close E9** in `TODO.md`; note `convert ner` was redundant (entities[] already populated).
 
+## GPU contention probe result (2026-05-28, [88f8])
+
+Intel Arc 140V (Xe driver, GT0 render engine). `nvidia-smi` unavailable; used sysfs
+`tile0/gt0/freq0/act_freq` sampled at 0.4s intervals during a 30-text bge-m3 embed batch.
+
+| Metric | Value |
+|---|---|
+| GT0 act_freq during batch | 1950 MHz (100% of rp0 max) for ~13/15 samples |
+| GT0 act_freq idle | 0–750 MHz |
+| GT1 (media) act_freq | 0–1200 MHz, avg 160 MHz (not primary) |
+| Batch: 30 texts | 4.9s (6.1 texts/s, short texts) |
+
+**Conclusion: GPU-bound confirmed.** GT0 pegged at max boost clock throughout the batch.
+gemma4-e4b (always-on group, never evicted) shares GPU hardware.
+
+**Active contention occurs only when gemma4-e4b processes concurrent requests** — in an
+unattended overnight rebuild, contention is unlikely.  If a rebuild window coincides with
+heavy LLM usage, temporarily move gemma4-e4b to a TTL group in
+`/etc/llama-swap/config.yaml` and restart llama-swap.  For a background run starting now,
+no action is needed.
+
 ## OPEN DECISION — the rebuild is slow (~per-session blocker)
 
 At pause, the guard projected **ETA ~19.5h** (~1.25 texts/s) for the full 89546-chunk re-embed,
