@@ -3,6 +3,10 @@
   "generated_from": "plugins/zkm-eml/scripts/generate_corpus.py",
   "inputs": [
     {
+      "eml": "corpus_iban_invoice.eml",
+      "sha256": "ad216929fd03737229794828a1e68a5d935ed9e461fa77c1959fed534e5ce063"
+    },
+    {
       "eml": "corpus_multi_addr.eml",
       "sha256": "cea1ecd856aaccd3e721ebf65bd2d7eae93abbc03bc8f3363dcf63d5807fbf1c"
     },
@@ -23,5 +27,5 @@
       "sha256": "708a99d7260384dab388ab0457cb68e407689445bc026c4f91fa088008e66abf"
     }
   ],
-  "regen": "cd plugins/zkm-eml && uv run python scripts/generate_corpus.py; then run convert on the .eml files and copy mail/messages/**/*.md to tests/fixtures/corpus/mail/"
+  "regen": "cd plugins/zkm-eml && uv run python scripts/generate_corpus.py; then convert .eml fixtures via Python API (source_dir=tests/fixtures/corpus) + zkm-ner convert(); copy only mail/messages/**/*.md (no .amendments.json) to tests/fixtures/corpus/mail/"
 }

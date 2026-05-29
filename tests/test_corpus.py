@@ -46,12 +46,12 @@ def test_corpus_manifest_exists() -> None:
     data = json.loads(MANIFEST.read_text())
     assert "processor_version" in data
     assert "inputs" in data
-    assert len(data["inputs"]) == 5
+    assert len(data["inputs"]) == 6
 
 
 def test_corpus_indexes_cleanly(corpus_store: Path) -> None:
     idx = build_index(corpus_store)
-    assert len(idx.docs) == 5, f"Expected 5 corpus docs, got {len(idx.docs)}"
+    assert len(idx.docs) == 6, f"Expected 6 corpus docs, got {len(idx.docs)}"
 
 
 def test_corpus_no_import_zkm_eml() -> None:

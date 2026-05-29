@@ -361,10 +361,25 @@ test updated. All 390 tests pass.
 - Pre-fix: rank 2341 / score 3.445 (only `gmx` + `de` matched — useless); post-fix: rank 20 / score 19.61
   (all four tokens matched including `ludwig-deluxe`).
 
-**7c — Typed-value queries:** IBAN and amount entities are not yet present in the mail corpus
-`entities[]` frontmatter (the amount/IBAN extractors in zkm-ner v0.12.0 were added but `zkm convert ner`
-hasn't re-run since γ E6-E7 landed). Body-text IBAN/amount searches work via normal BM25 body indexing.
-This probe is deferred until the next `zkm convert ner` run re-populates `entities[]`.
+**7c — Typed-value queries (COMPLETED 2026-05-29 on synthetic corpus):**
+
+Probe method: synthetic corpus fixture `corpus_iban_invoice.eml` contains spaced IBAN
+`DE44 5001 0517 5407 3249 31` in body; compact canonical `DE44500105175407324931` absent from body.
+NER amender extracted `entities[{type:iban, canonical:DE44500105175407324931, valid:true}]` and
+`entities[{type:amount, unit:CHF, value:"CHF 1250"}]`. Committed as `tests/fixtures/corpus/mail/messages/`.
+
+Results (4/4 pytest assertions, `tests/test_entity_search.py`):
+- `search(store, "DE44500105175407324931", --no-dense)` → IBAN invoice as top hit ✓
+  (compact canonical absent from body → match is ONLY via `entities[].canonical`, E8 regression confirmed)
+- `search(store, "CHF 1250", --no-dense)` → IBAN invoice in top-5 ✓;
+  `entities[{type:amount, unit:CHF}]` present ✓
+
+**E8 regression status:** CONFIRMED. `index.py:68-74` indexes `entities[].value` and `.canonical`
+since commit `e56dd55`. The 2026-05-12 discovery "BM25 ignores entities[]" is STALE.
+
+**Production store gap:** production `entities[]` is populated (zkm-ner ran post-E8), but the
+production embed rebuild (PID 189608) is still running. The production 7c probe (`zkm doctor`
+embed docs == md count gate) remains open as TODO `[2c6e]`.
 
 **7d — Index size:** BM25 v2→v4: 194.5 MB → 219.0 MB (+24.5 MB, +12.6% from entity + participant tokens).
 Dense NPZ unchanged at 308.4 MB (embed rebuild pending).
