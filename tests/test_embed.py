@@ -513,6 +513,26 @@ def test_chunk_texts_includes_participant_address_and_name(tmp_path: Path) -> No
     assert any("Bob Builder" in c for c in chunks)
 
 
+def test_chunk_texts_prefix_capped_on_large_entities(tmp_path: Path) -> None:
+    """Synthetic 30k-char entities prefix must be capped to _MAX_PREFIX_CHARS."""
+    from zkm.embed import _MAX_PREFIX_CHARS
+
+    store = tmp_path / "store"
+    init_store(store, backend="none")
+    path = store / "mail/msg.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # Build 150 entity entries of 200 chars each → ~30k-char entity_str
+    entities_yaml = "".join(
+        f"  - {{scope: body, type: org, value: 'entity_{i:04d}_{'x' * 190}'}}\n"
+        for i in range(150)
+    )
+    path.write_text(f"---\nentities:\n{entities_yaml}---\nshort body\n")
+    doc = Doc(rel_path="mail/msg.md", mtime_ns=1000, metadata={}, tokens=[])
+    chunks = _chunk_texts(store, doc)
+    for chunk in chunks:
+        assert len(chunk) <= _MAX_PREFIX_CHARS + 2000 + 10  # prefix cap + body window + newline
+
+
 # ---------------------------------------------------------------------------
 # EmbedStore schema versioning
 # ---------------------------------------------------------------------------
@@ -640,3 +660,31 @@ def test_build_embed_store_rechunks_on_mtime_change(tmp_path: Path) -> None:
         )
 
     assert call_count > 0
+
+
+def test_build_embed_store_skips_doc_on_persistent_failure(tmp_path: Path) -> None:
+    """A doc whose batches always fail is skipped; the run does not abort."""
+    store = tmp_path / "store"
+    init_store(store, backend="none")
+    doc_ok = _make_doc(store, "notes/ok.md", body="hello world okay", mtime_ns=1)
+    doc_bad = _make_doc(store, "notes/bad.md", body="FAILME", mtime_ns=2)
+
+    def fake_post(url, headers, json, timeout):  # noqa: A002
+        inputs: list[str] = json["input"]
+        if any("FAILME" in t for t in inputs):
+            raise Exception("simulated transient failure")
+        resp = MagicMock()
+        resp.json.return_value = _fake_embed_response(len(inputs), 4)
+        resp.raise_for_status = MagicMock()
+        return resp
+
+    # batch size = 1 so each doc is isolated; single-attempt retry so failure skips
+    with patch("zkm.embed._EMBED_RETRY_SLEEPS", (0,)), \
+         patch("zkm.embed._EMBED_BATCH", 1), \
+         patch("httpx.post", side_effect=fake_post):
+        es = build_embed_store(
+            store, [doc_ok, doc_bad], prev_es=None, endpoint="http://localhost:8080",
+            model="bge-m3", api_key="",
+        )
+
+    assert "notes/ok.md" in es.paths

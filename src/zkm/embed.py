@@ -29,11 +29,15 @@ _DEFAULT_CHUNK_CHARS = 2000
 # Retry sleeps (seconds) on transient 500s. Spans the ~30-40s self-recovery window
 # observed in bge-m3/llama-server embedding mode under sustained load. Attempt 2
 # fires at ~45s (0+15+30), well past the recovery window.
-_EMBED_RETRY_SLEEPS = (0, 15, 30, 60)
+_EMBED_RETRY_SLEEPS = (0, 15, 30, 60, 120)
 _DEFAULT_CHUNK_OVERLAP = 200
 _NPZ_FILE = ".zkm-index/embeddings.npz"
 _META_FILE = ".zkm-index/embeddings-meta.json"
-_STORE_SCHEMA_VERSION = 3
+_STORE_SCHEMA_VERSION = 4
+# Max chars for the metadata prefix (title+tags+entities+participants) prepended to
+# every body window. Prevents oversized chunks when entities[] is large (e.g. 75 entities
+# → 22k chars), which would push the assembled text well past bge-m3's 8192-token limit.
+_MAX_PREFIX_CHARS = 500
 
 
 class EmbedUnavailable(Exception):
@@ -322,6 +326,7 @@ def build_embed_store(
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
         done = 0
+        skipped_paths: list[str] = []
         for batch_start in range(0, n, _EMBED_BATCH):
             batch_texts = flat_texts[batch_start : batch_start + _EMBED_BATCH]
             batch_meta = flat_meta[batch_start : batch_start + _EMBED_BATCH]
@@ -360,7 +365,18 @@ def build_embed_store(
                     last_exc = exc
                     _log_embed_stall(batch_start, attempt, exc)
             if last_exc is not None:
-                raise EmbedUnavailable(f"embed_texts failed: {last_exc}") from last_exc
+                # All retries exhausted — log, checkpoint, skip this batch, continue.
+                batch_doc_paths = sorted({meta[0].rel_path for meta in batch_meta})
+                print(
+                    f"[zkm-embed] batch at text {batch_start} failed after"
+                    f" {len(_EMBED_RETRY_SLEEPS)} attempts: {last_exc};"
+                    f" skipping {len(batch_doc_paths)} doc(s): {batch_doc_paths}",
+                    file=sys.stderr,
+                )
+                skipped_paths.extend(batch_doc_paths)
+                if checkpoint_every:
+                    _save_partial(store, acc_paths, acc_mtimes, acc_chunk_indices, acc_vecs, model)
+                continue
             for (doc, ci), vec in zip(batch_meta, batch_vecs):
                 acc_paths.append(doc.rel_path)
                 acc_mtimes.append(doc.mtime_ns)
@@ -371,6 +387,14 @@ def build_embed_store(
                 progress(done, n, batch_meta[-1][0].rel_path.split("/")[-1])
             if checkpoint_every and done % checkpoint_every < _EMBED_BATCH:
                 _save_partial(store, acc_paths, acc_mtimes, acc_chunk_indices, acc_vecs, model)
+
+        if skipped_paths:
+            unique_skipped = sorted(set(skipped_paths))
+            print(
+                f"[zkm-embed] {len(unique_skipped)} doc(s) skipped due to persistent embed"
+                f" failures: {unique_skipped}",
+                file=sys.stderr,
+            )
 
     # Reconstruct in doc order, with chunks sorted by chunk_index per path
     path_chunks: dict[str, list[tuple[int, int, np.ndarray]]] = {}
@@ -478,16 +502,21 @@ def _chunk_texts(store: Path, doc) -> list[str]:  # doc: Doc
     except Exception:
         return [" ".join(doc.tokens[:200])]
 
+    # Cap the metadata prefix so oversized entities[] (e.g. 75 entities → 22k chars)
+    # cannot push the assembled chunk past bge-m3's 8192-token limit.
+    prefix = "\n".join(p for p in [title, tag_str, entity_str, participant_str] if p)
+    if len(prefix) > _MAX_PREFIX_CHARS:
+        prefix = prefix[:_MAX_PREFIX_CHARS]
+
     if not body:
-        text = "\n".join(p for p in [title, tag_str, entity_str, participant_str] if p)
-        return [text or " ".join(doc.tokens[:200])]
+        return [prefix or " ".join(doc.tokens[:200])]
 
     stride = max(1, chunk_chars - chunk_overlap)
     chunks: list[str] = []
     start = 0
     while start < len(body):
         window = body[start : start + chunk_chars]
-        text = "\n".join(p for p in [title, tag_str, entity_str, participant_str, window] if p)
+        text = "\n".join(p for p in [prefix, window] if p)
         chunks.append(text)
         if start + chunk_chars >= len(body):
             break
