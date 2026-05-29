@@ -1,0 +1,27 @@
+{
+  "processor_version": "0.11.0",
+  "generated_from": "plugins/zkm-eml/scripts/generate_corpus.py",
+  "inputs": [
+    {
+      "eml": "corpus_multi_addr.eml",
+      "sha256": "cea1ecd856aaccd3e721ebf65bd2d7eae93abbc03bc8f3363dcf63d5807fbf1c"
+    },
+    {
+      "eml": "corpus_standalone.eml",
+      "sha256": "b0cb60976925d8a2787ce46b72e4b339eda2dcaefbd7928a07d0029ffd952c93"
+    },
+    {
+      "eml": "corpus_thread_reply1.eml",
+      "sha256": "d5f39abc4d69cb2bcb36823371f676910db5215bdba597a07ee59d2fcca13e9a"
+    },
+    {
+      "eml": "corpus_thread_reply2.eml",
+      "sha256": "16d9fefdc60a06b494629e03407a375ca8a5fe139b7c305773de33639d018261"
+    },
+    {
+      "eml": "corpus_thread_root.eml",
+      "sha256": "708a99d7260384dab388ab0457cb68e407689445bc026c4f91fa088008e66abf"
+    }
+  ],
+  "regen": "cd plugins/zkm-eml && uv run python scripts/generate_corpus.py; then run convert on the .eml files and copy mail/messages/**/*.md to tests/fixtures/corpus/mail/"
+}

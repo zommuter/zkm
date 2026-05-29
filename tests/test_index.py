@@ -4,31 +4,11 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from typing import Callable
 
 import pytest
 
 from zkm.index import _read_watermark, build_index, load_index, save_index, tokenize, write_watermark
-from zkm.store import init_store
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture()
-def store(tmp_path: Path) -> Path:
-    sdir = tmp_path / "store"
-    init_store(sdir, backend="none")
-    return sdir
-
-
-def _write_note(store: Path, rel: str, body: str, frontmatter: str = "") -> Path:
-    path = store / rel
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fm = f"---\n{frontmatter}\n---\n" if frontmatter else ""
-    path.write_text(fm + body)
-    return path
-
 
 # ---------------------------------------------------------------------------
 # tokenize
@@ -87,9 +67,9 @@ def test_tokenize_german_stemming() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_build_index_basic(store: Path) -> None:
-    _write_note(store, "notes/alpha.md", "apples and oranges", "source: notes")
-    _write_note(store, "notes/beta.md", "bananas only", "source: notes")
+def test_build_index_basic(store: Path, make_note: Callable[..., Path]) -> None:
+    make_note("notes/alpha.md", "apples and oranges", "source: notes")
+    make_note("notes/beta.md", "bananas only", "source: notes")
 
     idx = build_index(store)
     assert len(idx.docs) == 2
@@ -98,11 +78,11 @@ def test_build_index_basic(store: Path) -> None:
     assert "notes/beta.md" in rels
 
 
-def test_build_index_skips_system_dirs(store: Path) -> None:
-    _write_note(store, "notes/real.md", "real content")
-    _write_note(store, "originals/scan.md", "should be skipped")
-    _write_note(store, ".zkm-index/meta.md", "should be skipped")
-    _write_note(store, "plugins/zkm-x/readme.md", "should be skipped")
+def test_build_index_skips_system_dirs(store: Path, make_note: Callable[..., Path]) -> None:
+    make_note("notes/real.md", "real content")
+    make_note("originals/scan.md", "should be skipped")
+    make_note(".zkm-index/meta.md", "should be skipped")
+    make_note("plugins/zkm-x/readme.md", "should be skipped")
 
     idx = build_index(store)
     rels = {d.rel_path for d in idx.docs}
@@ -110,8 +90,8 @@ def test_build_index_skips_system_dirs(store: Path) -> None:
     assert not any("originals" in r or ".zkm-index" in r or "plugins" in r for r in rels)
 
 
-def test_save_load_round_trip(store: Path) -> None:
-    _write_note(store, "notes/note.md", "hello world")
+def test_save_load_round_trip(store: Path, make_note: Callable[..., Path]) -> None:
+    make_note("notes/note.md", "hello world")
     idx = build_index(store)
     save_index(store, idx)
 
@@ -142,9 +122,11 @@ def test_load_index_version_mismatch_returns_none(store: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_incremental_reuses_unchanged_doc(store: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_incremental_reuses_unchanged_doc(
+    store: Path, make_note: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Files unchanged since last build must not be re-tokenized."""
-    _write_note(store, "notes/note.md", "hello world")
+    make_note("notes/note.md", "hello world")
     idx1 = build_index(store)
     save_index(store, idx1)
 
@@ -172,8 +154,10 @@ def test_incremental_reuses_unchanged_doc(store: Path, monkeypatch: pytest.Monke
     assert len(idx2.docs) == 1
 
 
-def test_incremental_retokenizes_changed_doc(store: Path) -> None:
-    path = _write_note(store, "notes/note.md", "original content")
+def test_incremental_retokenizes_changed_doc(
+    store: Path, make_note: Callable[..., Path]
+) -> None:
+    path = make_note("notes/note.md", "original content")
     idx1 = build_index(store)
     old_tokens = idx1.docs[0].tokens[:]
     save_index(store, idx1)
@@ -189,9 +173,11 @@ def test_incremental_retokenizes_changed_doc(store: Path) -> None:
     assert "oranges" in idx2.docs[0].tokens
 
 
-def test_incremental_drops_deleted_doc(store: Path) -> None:
-    _write_note(store, "notes/keep.md", "keep this")
-    p2 = _write_note(store, "notes/gone.md", "delete me")
+def test_incremental_drops_deleted_doc(
+    store: Path, make_note: Callable[..., Path]
+) -> None:
+    make_note("notes/keep.md", "keep this")
+    p2 = make_note("notes/gone.md", "delete me")
     idx1 = build_index(store)
     save_index(store, idx1)
     assert len(idx1.docs) == 2
@@ -207,9 +193,8 @@ def test_incremental_drops_deleted_doc(store: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_build_index_reads_frontmatter(store: Path) -> None:
-    _write_note(
-        store,
+def test_build_index_reads_frontmatter(store: Path, make_note: Callable[..., Path]) -> None:
+    make_note(
         "notes/tagged.md",
         "some body text",
         "date: 2026-01-15\ntags: [bills, electricity]\nsource: notes",
@@ -221,9 +206,10 @@ def test_build_index_reads_frontmatter(store: Path) -> None:
     assert "electricity" in doc.tokens
 
 
-def test_tokenize_doc_includes_entity_values(store: Path) -> None:
-    _write_note(
-        store,
+def test_tokenize_doc_includes_entity_values(
+    store: Path, make_note: Callable[..., Path]
+) -> None:
+    make_note(
         "notes/ner.md",
         "call me",
         "entities:\n  - {scope: body, type: email, value: 'alice@example.com', canonical: 'alice@example.com'}",
@@ -235,9 +221,10 @@ def test_tokenize_doc_includes_entity_values(store: Path) -> None:
     assert "example" in tokens
 
 
-def test_tokenize_doc_includes_entity_canonical(store: Path) -> None:
-    _write_note(
-        store,
+def test_tokenize_doc_includes_entity_canonical(
+    store: Path, make_note: Callable[..., Path]
+) -> None:
+    make_note(
         "notes/ner2.md",
         "send money",
         "entities:\n  - {scope: body, type: iban, value: 'DE44 5001 0517 5407 3249 31', canonical: 'DE44500105175407324931', standard: 'ISO 13616'}",
@@ -248,9 +235,10 @@ def test_tokenize_doc_includes_entity_canonical(store: Path) -> None:
     assert "de44500105175407324931" in tokens
 
 
-def test_tokenize_doc_skips_invalid_entities(store: Path) -> None:
-    _write_note(
-        store,
+def test_tokenize_doc_skips_invalid_entities(
+    store: Path, make_note: Callable[..., Path]
+) -> None:
+    make_note(
         "notes/ner3.md",
         "body text",
         "entities:\n  - {scope: body, type: person, value: 'garbage', valid: false}",
@@ -259,9 +247,10 @@ def test_tokenize_doc_skips_invalid_entities(store: Path) -> None:
     assert "garbage" not in idx.docs[0].tokens
 
 
-def test_tokenize_doc_includes_participant_address(store: Path) -> None:
-    _write_note(
-        store,
+def test_tokenize_doc_includes_participant_address(
+    store: Path, make_note: Callable[..., Path]
+) -> None:
+    make_note(
         "mail/msg.md",
         "hi",
         "participants:\n  - {address: 'bob@example.org', role: 'from'}",
@@ -273,9 +262,10 @@ def test_tokenize_doc_includes_participant_address(store: Path) -> None:
     assert all(t in idx.docs[0].tokens for t in addr_tokens)
 
 
-def test_tokenize_doc_includes_participant_name(store: Path) -> None:
-    _write_note(
-        store,
+def test_tokenize_doc_includes_participant_name(
+    store: Path, make_note: Callable[..., Path]
+) -> None:
+    make_note(
         "mail/msg2.md",
         "hi",
         "participants:\n  - {address: 'carol@x.com', name: 'Carol Smith', role: 'to'}",
@@ -286,9 +276,9 @@ def test_tokenize_doc_includes_participant_name(store: Path) -> None:
     assert "smith" in tokens
 
 
-def test_progress_callback_invoked(store: Path) -> None:
-    _write_note(store, "notes/a.md", "alpha")
-    _write_note(store, "notes/b.md", "beta")
+def test_progress_callback_invoked(store: Path, make_note: Callable[..., Path]) -> None:
+    make_note("notes/a.md", "alpha")
+    make_note("notes/b.md", "beta")
 
     calls: list[tuple[int, int | None, str]] = []
     build_index(store, progress=lambda c, t, m: calls.append((c, t, m)))
@@ -316,9 +306,9 @@ def _commit_all(store: Path, msg: str = "test commit") -> str:
     return _git(["rev-parse", "HEAD"], store)
 
 
-def test_watermark_absent_does_full_scan(store: Path) -> None:
+def test_watermark_absent_does_full_scan(store: Path, make_note: Callable[..., Path]) -> None:
     """No watermark → full rglob scan (same behaviour as before)."""
-    _write_note(store, "notes/a.md", "apple")
+    make_note("notes/a.md", "apple")
     _commit_all(store)
     idx = build_index(store)
     assert len(idx.docs) == 1
@@ -331,15 +321,17 @@ def test_write_read_watermark(store: Path) -> None:
     assert _read_watermark(store) == sha
 
 
-def test_watermark_fast_path_picks_up_new_file(store: Path) -> None:
+def test_watermark_fast_path_picks_up_new_file(
+    store: Path, make_note: Callable[..., Path]
+) -> None:
     """After a watermark is recorded, a newly committed file is indexed."""
-    _write_note(store, "notes/a.md", "apple")
+    make_note("notes/a.md", "apple")
     sha1 = _commit_all(store, "add a")
     idx1 = build_index(store)
     save_index(store, idx1)
     write_watermark(store, sha1)  # mark sha1 as last indexed
 
-    _write_note(store, "notes/b.md", "banana content")
+    make_note("notes/b.md", "banana content")
     _commit_all(store, "add b")  # new commit, watermark still at sha1
 
     idx2 = build_index(store)  # fast path diffs sha1..HEAD → finds b.md
@@ -348,10 +340,12 @@ def test_watermark_fast_path_picks_up_new_file(store: Path) -> None:
     assert "notes/b.md" in rels
 
 
-def test_watermark_fast_path_drops_deleted_file(store: Path) -> None:
+def test_watermark_fast_path_drops_deleted_file(
+    store: Path, make_note: Callable[..., Path]
+) -> None:
     """A file deleted after the watermark must not appear in the next index."""
-    _write_note(store, "notes/keep.md", "keeper")
-    _write_note(store, "notes/gone.md", "going away")
+    make_note("notes/keep.md", "keeper")
+    make_note("notes/gone.md", "going away")
     sha1 = _commit_all(store, "add both")
     idx1 = build_index(store)
     save_index(store, idx1)
@@ -366,32 +360,36 @@ def test_watermark_fast_path_drops_deleted_file(store: Path) -> None:
     assert "notes/gone.md" not in rels
 
 
-def test_watermark_fast_path_uncommitted_md_included(store: Path) -> None:
+def test_watermark_fast_path_uncommitted_md_included(
+    store: Path, make_note: Callable[..., Path]
+) -> None:
     """An uncommitted (dirty) .md file must be picked up via git status."""
-    _write_note(store, "notes/committed.md", "base")
+    make_note("notes/committed.md", "base")
     sha1 = _commit_all(store, "base")
     idx1 = build_index(store)
     save_index(store, idx1)
     write_watermark(store, sha1)
 
     # Add a file but do NOT commit it
-    _write_note(store, "notes/dirty.md", "dirty content")
+    make_note("notes/dirty.md", "dirty content")
 
     idx2 = build_index(store)
     rels = {d.rel_path for d in idx2.docs}
     assert "notes/dirty.md" in rels
 
 
-def test_watermark_unreachable_falls_back_to_full_scan(store: Path) -> None:
+def test_watermark_unreachable_falls_back_to_full_scan(
+    store: Path, make_note: Callable[..., Path]
+) -> None:
     """A bogus watermark SHA triggers full scan; index is still correct."""
-    _write_note(store, "notes/a.md", "apple")
+    make_note("notes/a.md", "apple")
     _commit_all(store)
     idx1 = build_index(store)
     save_index(store, idx1)
 
     write_watermark(store, "deadbeef" * 5)  # bogus SHA
 
-    _write_note(store, "notes/b.md", "banana")
+    make_note("notes/b.md", "banana")
     _commit_all(store)
 
     idx2 = build_index(store)
@@ -400,16 +398,16 @@ def test_watermark_unreachable_falls_back_to_full_scan(store: Path) -> None:
     assert "notes/b.md" in rels
 
 
-def test_full_flag_bypasses_watermark(store: Path) -> None:
+def test_full_flag_bypasses_watermark(store: Path, make_note: Callable[..., Path]) -> None:
     """--full ignores the watermark and returns all docs."""
-    _write_note(store, "notes/a.md", "apple")
+    make_note("notes/a.md", "apple")
     sha1 = _commit_all(store, "add a")
     idx1 = build_index(store)
     save_index(store, idx1)
     write_watermark(store, sha1)
 
     # Add and commit another file, but set watermark to HEAD (nothing "changed")
-    _write_note(store, "notes/b.md", "banana")
+    make_note("notes/b.md", "banana")
     sha2 = _commit_all(store, "add b")
     # Intentionally record sha2 as watermark so fast path sees no changes
     write_watermark(store, sha2)

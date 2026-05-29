@@ -4,36 +4,21 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 from pathlib import Path
+from typing import Callable
 
 import pytest
 
 from zkm.index import build_index, save_index
 from zkm.query import _temporal_filter, search
-from zkm.store import init_store
 
 
 @pytest.fixture()
-def store(tmp_path: Path) -> Path:
-    sdir = tmp_path / "store"
-    init_store(sdir, backend="none")
-    return sdir
-
-
-def _write_note(store: Path, rel: str, body: str, frontmatter: str = "") -> Path:
-    path = store / rel
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fm = f"---\n{frontmatter}\n---\n" if frontmatter else ""
-    path.write_text(fm + body)
-    return path
-
-
-@pytest.fixture()
-def indexed_store(store: Path) -> Path:
-    _write_note(store, "notes/apples.md", "apples and oranges", "date: 2026-01-01\nsource: notes")
-    _write_note(
-        store, "notes/oranges.md", "oranges only, no apples here", "date: 2026-01-02\nsource: notes"
+def indexed_store(store: Path, make_note: Callable[..., Path]) -> Path:
+    make_note("notes/apples.md", "apples and oranges", "date: 2026-01-01\nsource: notes")
+    make_note(
+        "notes/oranges.md", "oranges only, no apples here", "date: 2026-01-02\nsource: notes"
     )
-    _write_note(store, "notes/bananas.md", "bananas are yellow", "date: 2026-01-03\nsource: notes")
+    make_note("notes/bananas.md", "bananas are yellow", "date: 2026-01-03\nsource: notes")
     idx = build_index(store)
     save_index(store, idx)
     return store
@@ -92,10 +77,12 @@ def test_snippet_contains_query_term(indexed_store: Path) -> None:
     assert "orange" in hits[0].snippet.lower()
 
 
-def test_snippet_fallback_to_body_head(indexed_store: Path) -> None:
+def test_snippet_fallback_to_body_head(
+    indexed_store: Path, make_note: Callable[..., Path]
+) -> None:
     """When query term only in frontmatter (not body), snippet falls back to body head."""
-    _write_note(indexed_store, "notes/meta_only.md", "Some unrelated body text here.",
-                "tags: [quux]\nsource: notes")
+    make_note("notes/meta_only.md", "Some unrelated body text here.",
+              "tags: [quux]\nsource: notes")
     idx = build_index(indexed_store)
     save_index(indexed_store, idx)
 
@@ -181,7 +168,9 @@ def test_temporal_filter_german_letztes_jahr() -> None:
     assert _temporal_filter("Berichte vom letzten Jahr") == (date(y, 1, 1), date(y, 12, 31))
 
 
-def test_temporal_search_respects_date_window_for_german_query(store: Path) -> None:
+def test_temporal_search_respects_date_window_for_german_query(
+    store: Path, make_note: Callable[..., Path]
+) -> None:
     """German 'letzten Monat' must activate the temporal filter so old docs are excluded.
 
     Regression test: before the fix, unrecognised German phrases fell through to plain
@@ -192,12 +181,12 @@ def test_temporal_search_respects_date_window_for_german_query(store: Path) -> N
     last_month_end = first_this - timedelta(days=1)
     last_month_mid = last_month_end.replace(day=min(15, last_month_end.day))
 
-    _write_note(
-        store, "notes/recent_bill.md", "Rechnung Stadtwerke Mai",
+    make_note(
+        "notes/recent_bill.md", "Rechnung Stadtwerke Mai",
         f"date: {last_month_mid.isoformat()}\nsource: notes"
     )
-    _write_note(
-        store, "notes/old_bill.md", "Rechnung Stadtwerke 2012",
+    make_note(
+        "notes/old_bill.md", "Rechnung Stadtwerke 2012",
         "date: 2012-03-01\nsource: notes"
     )
     idx = build_index(store)
@@ -227,7 +216,9 @@ def test_temporal_filter_none_for_plain_query() -> None:
     assert _temporal_filter("electricity bill stadtwerke") is None
 
 
-def test_temporal_search_returns_date_filtered_docs(store: Path) -> None:
+def test_temporal_search_returns_date_filtered_docs(
+    store: Path, make_note: Callable[..., Path]
+) -> None:
     today = date.today()
     first_this = today.replace(day=1)
     last_month_end = first_this - timedelta(days=1)
@@ -235,10 +226,10 @@ def test_temporal_search_returns_date_filtered_docs(store: Path) -> None:
     last_month_mid = last_month_start.replace(day=min(15, last_month_end.day))
     old_date = "2018-03-01"
 
-    _write_note(store, "notes/recent.md", "meeting with Frank",
-                f"date: {last_month_mid.isoformat()}\nsource: notes")
-    _write_note(store, "notes/old.md", "meeting with Frank",
-                f"date: {old_date}\nsource: notes")
+    make_note("notes/recent.md", "meeting with Frank",
+              f"date: {last_month_mid.isoformat()}\nsource: notes")
+    make_note("notes/old.md", "meeting with Frank",
+              f"date: {old_date}\nsource: notes")
     idx = build_index(store)
     save_index(store, idx)
 
@@ -248,15 +239,17 @@ def test_temporal_search_returns_date_filtered_docs(store: Path) -> None:
     assert "notes/old.md" not in paths
 
 
-def test_temporal_search_most_recent_first(store: Path) -> None:
+def test_temporal_search_most_recent_first(
+    store: Path, make_note: Callable[..., Path]
+) -> None:
     today = date.today()
     first_this = today.replace(day=1)
     last_month_end = first_this - timedelta(days=1)
     day1 = last_month_end.replace(day=1)
     day15 = last_month_end.replace(day=min(15, last_month_end.day))
 
-    _write_note(store, "notes/early.md", "early note", f"date: {day1.isoformat()}\nsource: notes")
-    _write_note(store, "notes/later.md", "later note", f"date: {day15.isoformat()}\nsource: notes")
+    make_note("notes/early.md", "early note", f"date: {day1.isoformat()}\nsource: notes")
+    make_note("notes/later.md", "later note", f"date: {day15.isoformat()}\nsource: notes")
     idx = build_index(store)
     save_index(store, idx)
 
@@ -264,9 +257,11 @@ def test_temporal_search_most_recent_first(store: Path) -> None:
     assert hits[0].path == "notes/later.md"  # more recent first
 
 
-def test_temporal_search_falls_back_on_empty_window(store: Path) -> None:
+def test_temporal_search_falls_back_on_empty_window(
+    store: Path, make_note: Callable[..., Path]
+) -> None:
     """If no docs fall in the date window, all docs are returned (fallback)."""
-    _write_note(store, "notes/old.md", "some content", "date: 2018-01-01\nsource: notes")
+    make_note("notes/old.md", "some content", "date: 2018-01-01\nsource: notes")
     idx = build_index(store)
     save_index(store, idx)
 
