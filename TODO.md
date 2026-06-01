@@ -127,4 +127,4 @@ Items migrated from the orphan per-plugin TODO file (pre-polyrepo-split artefact
 
 Synthetic small corpus to replace multi-hour embed rebuild during dev/test. Two outputs sharing one source: a committed `.md` corpus for core pytest + a `seed_dev_store.py` for sub-second offline iteration. See `docs/meeting-notes/2026-05-29-1112-synthetic-test-corpus.md` for polyrepo split, drift-guard design, and the title/subject trap rationale.
 
-- [ ] **[deferred / future planning] `zkm test <plugin>` conformance-validator command** — builds on roundtrip harness; conformance-validator (not bare runner) interpretation; advisory-vs-gating TBD. (see docs/meeting-notes/2026-05-29-1112-synthetic-test-corpus.md) <!-- id:aa77 -->
+- [x] **`zkm test <plugin>` conformance-validator command** — layered static (manifest + interface) + dynamic (convert against fixtures) checks; `--advisory` flag; `FRONTMATTER_REQUIRED` in `src/zkm/conformance.py`; `conformance:` block in plugin.yaml. (see docs/meeting-notes/2026-05-29-1112-synthetic-test-corpus.md, docs/meeting-notes/2026-06-01-1616-zkm-test-conformance.md) <!-- id:aa77 -->

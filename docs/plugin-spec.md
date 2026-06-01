@@ -46,7 +46,14 @@ config:
     required: false
     default: 30
     description: Only fetch emails newer than N days
+
+# Optional: conformance fixtures for `zkm test <plugin>`
+conformance:
+  config:
+    source_dir: tests/fixtures/corpus  # path relative to plugin root
 ```
+
+`conformance.config` supplies config overrides whose values are relative paths from the plugin root. When declared, `zkm test <plugin>` resolves these paths to absolute, creates a temporary store, runs `convert()`, and validates every emitted file's frontmatter against the core schema. Omitting `conformance:` means the dynamic tier is skipped (static checks still run).
 
 ## convert.py interface
 
@@ -308,6 +315,21 @@ If a plugin does not define `scrub`, `zkm scrub <plugin>` exits 2 with a clear m
 ### Scrub is not a replacement for extraction quality
 
 Scrub is a one-time migration tool, not a production code path. The right fix is always to improve the extractor so it never emits the undesired value. Scrub cleans up the historical backlog; the improved extractor prevents recurrence.
+
+## Conformance (`zkm test <plugin>`)
+
+`zkm test <plugin>` is a CI-wireable conformance validator. It does not run the plugin's own test suite — that is handled by per-plugin pytest. It checks that the plugin correctly implements the spec contract:
+
+**Layer 1 — static (always runs):**
+- `plugin.yaml`: `name:` is bare (no `zkm-` prefix), `version:` matches `X.Y.Z` semver, `creates_dirs` are relative paths, each `config:` entry is a well-formed dict.
+- `convert.py`: module imports without error, `convert()` exists and accepts `(store_path, config)` positionally plus a `progress` keyword argument. Optional `scrub()` and `reprocess()` signatures are checked if present.
+
+**Layer 2 — dynamic (only if `conformance.config` is declared):**
+- Creates a temp store, calls `convert()` with fixture-pointing config, and validates every emitted `.md` file's frontmatter against the required field list (`source`, `date`, `tags`, `sha256`, `processor`, `processor_version`). Checks `date` has a timezone, `tags` is a list, `source`/`processor` match the plugin name. Messaging-extension fields are validated if `message_id` is present.
+
+**Exit codes:** `0` — conformant; `1` — one or more FAIL findings or plugin not found.
+
+`--advisory` flag: reports all findings as warnings and exits 0 regardless (CI-soft mode).
 
 ## Config and secret management
 

@@ -1,0 +1,10 @@
+name: good
+version: 0.1.0
+description: Minimal conformant test plugin for zkm test conformance checks.
+
+creates_dirs:
+  - notes
+
+conformance:
+  config:
+    source_dir: tests/fixtures/corpus

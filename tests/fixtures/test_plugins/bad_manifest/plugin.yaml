@@ -1,0 +1,13 @@
+name: zkm-bad-manifest
+version: not-semver
+description: Bad manifest for testing.
+
+creates_dirs:
+  - /absolute/path
+  - ../dotdot
+
+config:
+  key1: not-a-dict
+  key2:
+    valid: true
+    unknown_extra: oops

@@ -562,6 +562,53 @@ def cmd_convert(
 
 
 # ---------------------------------------------------------------------------
+# zkm test
+# ---------------------------------------------------------------------------
+
+
+@main.command("test")
+@click.argument("plugin")
+@click.option(
+    "--advisory",
+    is_flag=True,
+    default=False,
+    help="Report findings as warnings and always exit 0 (CI-soft mode).",
+)
+def cmd_test(plugin: str, advisory: bool) -> None:
+    """Check a plugin's conformance with the zkm plugin spec."""
+    from zkm.conformance import run_conformance
+    from zkm.convert import find_plugin
+
+    p = find_plugin(plugin)
+    if p is None:
+        click.echo(f"Error: plugin not installed: '{plugin}'. Run: zkm plugin list", err=True)
+        sys.exit(1)
+
+    report = run_conformance(p)
+
+    fails = [f for f in report.findings if f.level == "fail"]
+    warns = [f for f in report.findings if f.level == "warn"]
+
+    if fails or warns:
+        if fails:
+            click.echo(f"Plugin '{p.name}' — {len(fails)} FAIL, {len(warns)} WARN:")
+        else:
+            click.echo(f"Plugin '{p.name}' — {len(warns)} WARN (no failures):")
+        for finding in report.findings:
+            click.echo(str(finding))
+    else:
+        click.echo(f"Plugin '{p.name}' — conformant ✓")
+
+    if report.dynamic_ran:
+        click.echo("  [dynamic tier ran against conformance fixtures]", err=True)
+    else:
+        click.echo("  [dynamic tier skipped — no conformance.config declared]", err=True)
+
+    if report.failed and not advisory:
+        sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
 # zkm scrub
 # ---------------------------------------------------------------------------
 

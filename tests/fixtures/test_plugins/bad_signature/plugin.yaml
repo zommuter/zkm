@@ -1,0 +1,3 @@
+name: bad-signature
+version: 0.1.0
+description: Plugin with missing progress kwarg in convert().

@@ -1,0 +1,3 @@
+name: no-fixtures
+version: 0.1.0
+description: Conformant plugin with no conformance.config declared.

@@ -56,6 +56,7 @@ class Plugin:
     kind: str = "converter"
     config_keys: dict[str, dict] = field(default_factory=dict)
     creates_dirs: list[str] = field(default_factory=list)
+    conformance: dict = field(default_factory=dict)
 
 
 def load_plugin_manifest(plugin_path: Path) -> Plugin:
@@ -71,6 +72,7 @@ def load_plugin_manifest(plugin_path: Path) -> Plugin:
         kind=data.get("kind", "converter"),
         config_keys=data.get("config") or {},
         creates_dirs=data.get("creates_dirs") or [],
+        conformance=data.get("conformance") or {},
     )
 
 
