@@ -383,3 +383,22 @@ embed docs == md count gate) remains open as TODO `[2c6e]`.
 
 **7d — Index size:** BM25 v2→v4: 194.5 MB → 219.0 MB (+24.5 MB, +12.6% from entity + participant tokens).
 Dense NPZ unchanged at 308.4 MB (embed rebuild pending).
+
+### Step 7 production results — 2026-06-01
+
+**7a — Schema 4 rebuild confirmed:**
+- BM25 version: 4, size: 215.9 MB
+- Dense schema_version: 4 (schema-4 rebuild completed, was schema 3 in prior record)
+- Dense n_docs: 56169, NPZ size: 337.7 MB (+29.3 MB vs schema 3 — entity prefix cap fix added chunks)
+- `zkm doctor`: stale: 178 unindexed (new files since rebuild — run `zkm index` to catch up)
+
+**7c — Production typed-value probe:**
+
+IBAN probe: searched canonical `DE49430609673020978800` (compact, no spaces).
+- Top-1: `2022-05-28-…-zahlung-für-verkauf-von-bitcoins…` — has the canonical verbatim in body (control).
+- **Top-2: `2026-03-24-…-wg-ihre-anfrage-ba00566269…` — body has only spaced `DE49 4306 0967 3020 9788 00` (no match there); entity confirmed: `{type:iban, canonical:"DE49430609673020978800", value:"DE49 4306 0967 3020 9788 00", standard:"ISO 13616"}`.**
+- Top-2 appears in results solely via `entities[].canonical` indexing — **E8 entity-canonical BM25 CONFIRMED on production store**.
+
+Amount probe: `zkm search "75 CHF" --no-dense -k 3` → top-2 = `2026-05-02-…-75-chf-spent-at-kernwarts…`, which has `{type:amount, unit:CHF, value:"75 CHF", canonical:"75"}` in entities[]. Amount entity indexing confirmed.
+
+**Status:** Both 7c probes pass on production store. TODO items `[2c6e]`, `[9e34]`, `[c18c]` closed. E9 follow-up [402c] closed.
