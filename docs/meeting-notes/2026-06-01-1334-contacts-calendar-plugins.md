@@ -119,10 +119,10 @@
 
 ## Action items
 
-- [ ] **[V]** Create `zkm-vcard` plugin repo (`plugins/zkm-vcard/`): ingest-only vCard→md converter — `contacts/<slug>.md` per UID, searchable body, PHOTO→CAS (`zkm.cas.write_object`), UID dedup, populated `scope: contact` `entities[]`, `tags:[]` placeholder, hand-exported `.vcf` fixtures. Contract: no fetch, no identity-merge. <!-- id:e5f9 -->
+- [x] **[V]** Create `zkm-vcard` plugin repo (`plugins/zkm-vcard/`): ingest-only vCard→md converter — `contacts/<slug>.md` per UID, searchable body, PHOTO→CAS (`zkm.cas.write_object`), UID dedup, populated `scope: contact` `entities[]`, `tags:[]` placeholder, hand-exported `.vcf` fixtures. Contract: no fetch, no identity-merge. <!-- id:e5f9 --> **Shipped v0.1.0 2026-06-01 — 23 tests pass.**
 - [ ] **[N]** zkm-ner L1 temporal (`plugins/zkm-ner/`): γ `type: datetime` + `zkm.canonical.datetime` normaliser (ISO 8601, anchored on doc `date`, DE/EN via `dateparser`) + spaCy DATE/TIME mapping. Contract: relative-date fixture resolves to correct ISO against known anchor. <!-- id:805f -->
 - [ ] **[C]** (deferred) `zkm-calendar` plugin (`plugins/zkm-calendar/`): VEVENT→message-like md, dedup-on-UID cross-source, inbox fan-out for mail `.ics`, standards-parser only. Own meeting/build when zkm-vcard ships. <!-- id:cca0 -->
 - [ ] (core, deferred) `zkm fetch` orchestrator (`src/zkm/cli.py`): config maps source → external fetch command + output dir; shells out, deposits standard files, then `zkm convert` ingests. mbsync-equivalent lever in core, not systemd sprawl. <!-- id:473c -->
 - [ ] **[N]** (deferred) Temporal L2+L3 design note (`docs/entity-model.md`): L2 actionability classifier (gated like N9d); L3 Phase-4 manual-merge mention→VEVENT promotion on canonical ISO, provenance-preserving (additive link). <!-- id:6f3a -->
 - [ ] Cross-link zkm-vcard ↔ social-network "identity card" meeting (`TODO.md:81`) so they don't collide. <!-- id:2638 -->
-- [ ] Add `V` (zkm-vcard) and `C` (zkm-calendar) to TODO-prefix table in `CLAUDE.md`. <!-- id:0604 -->
+- [x] Add `V` (zkm-vcard) and `C` (zkm-calendar) to TODO-prefix table in `CLAUDE.md`. <!-- id:0604 --> **Done — CLAUDE.md lines 138–139.**

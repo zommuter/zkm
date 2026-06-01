@@ -75,7 +75,7 @@ Scope: `convert` and `index` (BM25 + embed phases) only. `query`, `clone`, `push
 
 Ingest-only, source-agnostic. Reads a local tree of standard `.vcf` files via `source_dir` (from proton-moresync / Google Takeout / vdirsyncer / any client export). Never authenticates or fetches. Phase 3 by roadmap, but buildable now against hand-exported fixtures.
 
-- [ ] **V1.** Create `plugins/zkm-vcard/` repo: vCard→md converter — `contacts/<slug>.md` per vCard UID, human-readable body (FN/ORG/TITLE/emails/phones/ADR/NOTE), PHOTO→CAS (`zkm.cas.write_object`), UID dedup (like eml message_id), populated `scope: contact` `entities[]` (email_address/rfc5321, phone_number/E.164, org, person/FN, url, social_handle.<platform>, linkedin_profile, github_profile), `tags:[]` placeholder. Contract: no fetch, no identity-merge. See `docs/meeting-notes/2026-06-01-1334-contacts-calendar-plugins.md`. <!-- id:e5f9 -->
+- [x] **V1.** Create `plugins/zkm-vcard/` repo: vCard→md converter — `contacts/<slug>.md` per vCard UID, human-readable body (FN/ORG/TITLE/emails/phones/ADR/NOTE), PHOTO→CAS (`zkm.cas.write_object`), UID dedup (like eml message_id), populated `scope: contact` `entities[]` (email_address/rfc5321, phone_number/E.164, org, person/FN, url, social_handle.<platform>, linkedin_profile, github_profile), `tags:[]` placeholder. Contract: no fetch, no identity-merge. See `docs/meeting-notes/2026-06-01-1334-contacts-calendar-plugins.md`. <!-- id:e5f9 --> **Shipped v0.1.0 2026-06-01 — 23 tests pass.**
 
 **Scope constraints (from meeting):**
 - Contacts are authoritative structured-first data — emit `entities[]` populated, not empty.
