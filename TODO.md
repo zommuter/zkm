@@ -17,6 +17,8 @@ NER lands before whatsapp. `zkm convert <plugin>` runs amenders default-on (`--n
     **Note:** this convert ran with pre-N9c code; in-pipeline POS filter not yet applied. A fresh `zkm convert ner` will bust cache (new version key) and re-extract with POS filter, which will prevent new FPs — required before calling N9c fully clean.
     **Note on multi-word phrase FPs (`'Hallo Tobias'` ×1930 etc.):** decided 2026-05-19 to accept these as-is. Deduped under `(scope,type,value)` they are a closed handful of distinct values; escape hatch = add to `_STOPLIST` if ever annoying. See `docs/meeting-notes/2026-05-19-1610-ner-user-names-drop.md`.
 - [x] **N9c-html: HTML-entity scrub pattern** — `drop_html_entity_artefacts()` added to `zkm_ner/textfilter.py`; wired into `extract()` filter chain; textfilter-v8 cache key; zkm-ner v0.16.0. zkm-eml `_is_scrub_garbage()` already covered the scrub layer (v0.12.0). See `docs/meeting-notes/2026-05-29-0859-embed-oversized-chunk-timeout.md`.
+- [ ] **N-datetime L1.** zkm-ner: new γ `type: datetime` + `zkm.canonical.datetime` normaliser (ISO 8601, resolved against doc `date` as anchor for relatives like "Thursday"/"30. Juni", bilingual DE/EN via `dateparser`) + spaCy DATE/TIME span mapping. Lives in `plugins/zkm-ner/`. Contract: a relative-date fixture in a doc with a known `date` resolves to the correct ISO 8601 canonical. Parallel track to V1, does not block it. See `docs/meeting-notes/2026-06-01-1334-contacts-calendar-plugins.md`. <!-- id:805f -->
+- [ ] **(deferred) Temporal NER L2+L3 design note.** L2 = actionability classifier (which datetimes are real events/deadlines vs incidental noise) — LLM-shaped, research-grade per n9d-gate-c, gated like N9d (candidate-only, evidence before infra). L3 = Phase-4 manual-merge mention→VEVENT promotion (canonical ISO match + fuzzy summary, provenance-preserving, additive link — extends `TODO.md:47` alias-merge from person-aliases to event-promotion, covering the lifecycle: newsletter mentions event → user registers → formal VEVENT appears in calendar → link them). Design note in `docs/entity-model.md` first. **Gate for L2:** open-set noise confirmed (L1 ships and noise level measured). See `docs/meeting-notes/2026-06-01-1334-contacts-calendar-plugins.md`. <!-- id:6f3a -->
 - [ ] **N9e (backlog — no live trigger path).** Closed-loop verifier denylist — append-only JSONL at `<store>/.zkm-state/ner-verifier-denylist.jsonl`; one record per `(value, type)`: `{value, type, verdict, source, model_version, first_seen, heuristic_would, n_observations}`. `source ∈ {verifier, heuristic, manual}`; `verdict ∈ {drop, keep}` (drops-only direction designed; keeps-becoming-sticky deferred — precedence ambiguity). **Gate: (N9d shipped) AND (≥5 verifier-override cases observed in Stage 2 pilot).** **Status 2026-05-12: gate cannot fire — N9d closed via Gate C; verifier did not ship.** Entry remains in backlog for archival reference; no implementation path until/unless a successor verifier project replaces the gate condition. Conflict-resolution for allow+deny overlap unresolved — design meeting required if revived.
   - [~] **N9d-9.** Per-language accuracy lens — **not pursued** (gate closure pre-empts; reopen only if N9d is revived under a different model).
   - [~] **N9d-11.** N9e sketch into `docs/ner.md` — **not pursued** (N9e gate condition is moot; see N9e backlog entry).
@@ -69,6 +71,26 @@ Scope: `convert` and `index` (BM25 + embed phases) only. `query`, `clone`, `push
 3. `zkm index` → `phase` toggles `bm25` → `embed`; `zkm index --no-embed` stays at `bm25`.
 4. SIGKILL the process → next `zkm status` drops stale file with stderr notice.
 5. `zkm status --json | jq` → valid JSON array.
+
+## zkm-vcard (V-prefix) — contacts plugin (decided 2026-06-01-1334-contacts-calendar-plugins.md)
+
+Ingest-only, source-agnostic. Reads a local tree of standard `.vcf` files via `source_dir` (from proton-moresync / Google Takeout / vdirsyncer / any client export). Never authenticates or fetches. Phase 3 by roadmap, but buildable now against hand-exported fixtures.
+
+- [ ] **V1.** Create `plugins/zkm-vcard/` repo: vCard→md converter — `contacts/<slug>.md` per vCard UID, human-readable body (FN/ORG/TITLE/emails/phones/ADR/NOTE), PHOTO→CAS (`zkm.cas.write_object`), UID dedup (like eml message_id), populated `scope: contact` `entities[]` (email_address/rfc5321, phone_number/E.164, org, person/FN, url, social_handle.<platform>, linkedin_profile, github_profile), `tags:[]` placeholder. Contract: no fetch, no identity-merge. See `docs/meeting-notes/2026-06-01-1334-contacts-calendar-plugins.md`. <!-- id:e5f9 -->
+
+**Scope constraints (from meeting):**
+- Contacts are authoritative structured-first data — emit `entities[]` populated, not empty.
+- `scope: contact` entities coexist with `scope: body` NER (zkm-ner amends NOTE field). Dedup key `(scope,type,value)`.
+- NO identity-merge — no auto-linking contact identity to NER mentions or mail participants. Phase 4 manual-merge, human-confirmed pairs only.
+- No fetch, no credentials, no gazetteer/recognition-overlay (forward-flags, not v1 scope).
+- Cross-link with `TODO.md:81` social-network scoping meeting (zkm-vcard front-runs it for structured-export case). <!-- id:2638 -->
+
+## zkm-calendar (C-prefix) — calendar plugin (decided 2026-06-01-1334-contacts-calendar-plugins.md)
+
+**Deferred — own meeting/build when zkm-vcard ships.** Ingest-only, standards-parser only (RFC 5545), never NLP. Build order: zkm-vcard → zkm-calendar.
+
+- [ ] **C1.** (deferred) `plugins/zkm-calendar/` repo: VEVENT→message-like md per `docs/messaging-spec.md` — `message_id`=iCal UID, `date`=DTSTART, `participants[]` from ORGANIZER/ATTENDEE (roles `organizer`/`attendee`/`optional`/`invitee` already defined), body=SUMMARY+DESCRIPTION+LOCATION+time, RRULE series → one `thread_id`, ATTACH→CAS. Dedup-on-UID (RFC 5545 globally unique) merges mail-invite + calendar-tree copies for free; mail `.ics` routed via existing inbox fan-out (content-type claim; no eml↔calendar coupling). Standards-parser only. See `docs/meeting-notes/2026-06-01-1334-contacts-calendar-plugins.md`. <!-- id:cca0 -->
+- [ ] (deferred) **zkm fetch** core orchestrator: config maps `source → external fetch command + output dir`; `zkm fetch <source>` shells out, deposits standard files, `zkm convert` ingests. mbsync-equivalent lever in core, not per-source systemd sprawl. See `docs/meeting-notes/2026-06-01-1334-contacts-calendar-plugins.md`. <!-- id:473c -->
 
 ## Plugin backlog — conversation / AI session sources
 

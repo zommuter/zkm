@@ -119,6 +119,7 @@ Repos in this polyrepo (each tags `vX.Y.Z` independently):
 - `~/src/zkm/` — core
 - `plugins/zkm-eml/` — own git repo
 - `plugins/zkm-photo/`, `zkm-pdf/`, `zkm-scan/`, `zkm-notmuch/`, `zkm-ner/` — own repos
+- `plugins/zkm-vcard/`, `plugins/zkm-calendar/` — own repos (decided 2026-06-01)
 - `examples/zkm-notes/` — not independently versioned; follows core tags
 
 **Bump trigger:** every pyproject `version` change → tag in same commit. Never bump silently. After each bump-and-tag commit, run `uv publish` in the affected repo to release the wheel. Plugin PyPI releases are gated on Session B (entry-point discovery — plugin stubs are at 0.0.1 until then).
@@ -134,6 +135,8 @@ Central `TODO.md` is the single ledger for all plugin-scoped and cross-cutting w
 | `E` | γ schema (cross-cutting core + zkm-ner) |
 | `S` | SIGUSR1/status (core runstate) |
 | `M` | zkm-eml backlog (general) |
+| `V` | zkm-vcard (contacts plugin) |
+| `C` | zkm-calendar (calendar plugin) |
 | — | core / cross-cutting (no prefix) |
 
 **Rule:** when a plugin accumulates ≥3 unchecked items at once that aren't already in a numbered series, assign a single-letter prefix and add it to this table.
