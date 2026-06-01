@@ -200,6 +200,36 @@ def check_manifest(plugin) -> list[Finding]:  # plugin: Plugin
 
 
 # ---------------------------------------------------------------------------
+# Plugin module loading (with venv injection)
+# ---------------------------------------------------------------------------
+
+
+def _inject_plugin_venv(plugin) -> None:
+    """
+    Add the plugin's own .venv site-packages to sys.path so plugin-specific deps
+    (pypdf, pytesseract, vobject, ...) are importable when the plugin module is
+    loaded into the core process via importlib.
+
+    Mirrors the self-injection eml does in its convert.py — done generically here
+    so the conformance validator can load any plugin that ships a proper venv.
+    Does not solve the broader importlib dependency-loading question (deferred
+    backlog item); it only lets the validator load the module.
+    """
+    import sys
+
+    venv_site = list((plugin.path / ".venv").glob("lib/python*/site-packages"))
+    if venv_site:
+        site_str = str(venv_site[0])
+        if site_str not in sys.path:
+            sys.path.insert(0, site_str)
+    src_dir = plugin.path / "src"
+    if src_dir.is_dir():
+        src_str = str(src_dir)
+        if src_str not in sys.path:
+            sys.path.insert(0, src_str)
+
+
+# ---------------------------------------------------------------------------
 # Check 2: interface
 # ---------------------------------------------------------------------------
 
@@ -208,6 +238,7 @@ def check_interface(plugin) -> list[Finding]:  # plugin: Plugin
     from zkm.convert import _load_plugin_module
 
     findings: list[Finding] = []
+    _inject_plugin_venv(plugin)
     try:
         mod = _load_plugin_module(plugin)
     except (FileNotFoundError, ImportError, AttributeError, Exception) as e:
@@ -314,6 +345,7 @@ def run_dynamic(plugin) -> list[Finding]:  # plugin: Plugin
         (tmp_store / "originals").mkdir()
 
         # Load module and invoke convert() directly
+        _inject_plugin_venv(plugin)
         try:
             mod = _load_plugin_module(plugin)
         except Exception as e:

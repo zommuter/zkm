@@ -29,7 +29,8 @@ Both were resolved interactively: conformance-validator interpretation (the runn
 
 - **`python-frontmatter` parses YAML `date:` fields to Python `datetime` objects**, not strings — the validator must handle both types (`isinstance(date_val, datetime)` → check `tzinfo is None`; raw string → check for `T` + tz marker).
 - `run_convert` was unsuitable for the dynamic tier because it re-invokes `find_plugin(name)`, which fails when the plugin is loaded via `load_plugin_manifest` from an arbitrary path (e.g., test fixture dirs). Direct module invocation avoids the round-trip through the plugin registry.
-- Fixture plugins in `tests/fixtures/plugins/` use `load_plugin_manifest` directly in tests (not `find_plugin`) to support intentionally-invalid `name:` fields without match failures.
+- Fixture plugins in `tests/fixtures/test_plugins/` use `load_plugin_manifest` directly in tests (not `find_plugin`) to support intentionally-invalid `name:` fields without match failures. (Dir is `test_plugins/`, not `plugins/`, because the core `.gitignore` rule `plugins/` silently matches any path segment named `plugins`.)
+- **Plugin-venv injection finding:** running `zkm test` against all 7 plugins surfaced that pdf/scan/vcard import their deps (pypdf/pytesseract/vobject) at module top-level *without* injecting their own `.venv` first — unlike eml (which self-injects at `convert.py:14-19`). Loaded into the core venv via importlib, those imports fail. Fix scoped to the validator: a generic `_inject_plugin_venv(plugin)` adds the plugin's `.venv/lib/python*/site-packages` + `src/` to `sys.path` before module load, mirroring eml's self-injection. This is concrete evidence for the deferred "plugin-specific deps via importlib" backlog item — the deeper dependency-loading model (subprocess isolation vs uv-run wrapper) remains out of scope. After the fix all 7 plugins conform.
 
 ## Decisions
 
