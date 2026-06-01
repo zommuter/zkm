@@ -242,3 +242,7 @@
 - [x] **[core] `scripts/seed_dev_store.py`** — copy committed corpus into `$ZKM_STORE`/`/tmp`, run `zkm index --no-embed`, print a sample `zkm query --no-dense` line. Optional `--with-pathological` flag. Contract: searchable BM25 store offline in <1s. (see docs/meeting-notes/2026-05-29-1112-synthetic-test-corpus.md) <!-- id:0af9 -->
 - [x] **[core] Three pathological anchors** in `tests/fixtures/pathological/` + tests: (1) `_chunk_texts` prefix ≤500 (`oversized_entities.md`); (2) `valid:false` skipped by `_tokenize_doc` (`html_entity_ner.md`); (3) subject-only absent from BM25 (`subject_only.md`). README noting these deliberately violate converter output. (see docs/meeting-notes/2026-05-29-1112-synthetic-test-corpus.md) <!-- id:f918 -->
 - [x] **[core] Document cross-repo regen procedure** — eml generator → `tests/fixtures/corpus/` → recommit; staleness signaled by zkm-eml roundtrip test going red. In `docs/` or corpus README. (see docs/meeting-notes/2026-05-29-1112-synthetic-test-corpus.md) <!-- id:c582 -->
+
+## 2026-06
+- [x] **N9c-html: HTML-entity scrub pattern** — `drop_html_entity_artefacts()` added to `zkm_ner/textfilter.py`; wired into `extract()` filter chain; textfilter-v8 cache key; zkm-ner v0.16.0. zkm-eml `_is_scrub_garbage()` already covered the scrub layer (v0.12.0). See `docs/meeting-notes/2026-05-29-0859-embed-oversized-chunk-timeout.md`.
+- [x] **Correct stale discovery:** `discoveries.md` entry "[2026-05-12 zkm] BM25 ignores entities[]" corrected 2026-05-29 (append + project_entities_indexed_since_e8 memory). <!-- id:0c63 -->
