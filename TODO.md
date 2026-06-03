@@ -115,7 +115,7 @@ v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `cha
 
 - [ ] **Plugin-specific deps when loaded via importlib** — option (d) shipped as SB2 (2026-06-03): `_inject_plugin_venv` now called inside `_load_plugin_module` for dev-symlink plugins. Remaining open question: options (a)/(b)/(c) (subprocess isolation / uv-run wrapper / optional extras) for the entry-point install path where `.venv` is absent. Low urgency — entry-point installs already resolve deps via `uv tool install zkm --with zkm-<name>`. Warrants a scoping meeting only if this remaining gap causes problems in practice.
 - [ ] **Re-open derivable-data meeting trigger** — re-open `docs/meeting-notes/2026-05-13-1950-derivable-expensive-data-in-git.md` decision if: first real `zkm clone` to second host makes re-derive wait painful; OR re-derive budget exceeds ~2 h (today: ~50 min).
-- [ ] **Meeting: verb order** — `zkm convert <plugin>` vs `zkm <plugin> convert` / `zkm <plugin> run`; the latter matches git-plugin style and disambiguates status display. Scoped separately after prefix-naming decision landed.
+- [x] **Meeting: verb order** — CLOSED 2026-06-03: keep verb-first (`zkm convert <plugin>`, `zkm scrub <plugin>`, `zkm test <plugin>`). CMD-column disambiguation already solved (`cli.py:972`); plugin-first would need a lazy `MultiCommand` and two grammars. See `docs/meeting-notes/2026-06-03-1547-verb-order-decision.md`.
 
 ## Publishing / distribution (backlog — from 2026-05-12-0844-publish-plugins.md)
 
