@@ -43,7 +43,7 @@ NER lands before whatsapp. `zkm convert <plugin>` runs amenders default-on (`--n
 
 - [ ] **Entity alias / synonym linking (Phase 4 backlog)** — `SBB CFF FFS` (DE/FR/IT names for Swiss Federal Railways) highlights that the same real-world entity can appear under multiple mention strings (abbreviations, translations, official variants). Likewise, persons appear under nicknames, maiden names, or initials. Deferred to Phase 4 alongside manual-merge tooling; design note needed in `docs/entity-model.md` before implementation. No heuristic auto-merge — human-confirmed alias pairs only.
 
-- [ ] Session 15 (scoping, not implementation): meeting on zkm-whatsapp core gaps — (a) non-git source state / `zkm.state` helper, (b) per-store YAML config replacing long env-var lists, (c) stable-ID synthesis contract; deliverable: `docs/meeting-notes/YYYY-MM-DD-whatsapp-scope.md`
+- [x] Session 15 (scoping, not implementation): meeting on zkm-whatsapp core gaps — scoped 2026-06-03, see `docs/meeting-notes/2026-06-03-0952-zkm-whatsapp-scope.md`
 
 ## Phase 2 — mbsync auto-trigger (decided 2026-05-08-mbsync-hook.md)
 
@@ -77,6 +77,19 @@ Ingest-only, source-agnostic. Reads a local tree of standard `.vcf` files via `s
 - NO identity-merge — no auto-linking contact identity to NER mentions or mail participants. Phase 4 manual-merge, human-confirmed pairs only.
 - No fetch, no credentials, no gazetteer/recognition-overlay (forward-flags, not v1 scope).
 - Cross-link with `TODO.md:81` social-network scoping meeting (zkm-vcard front-runs it for structured-export case). <!-- id:2638 -->
+
+## zkm-whatsapp (W-prefix) — chat plugin (decided 2026-06-03-0952-zkm-whatsapp-scope.md)
+
+v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `chat/whatsapp/`. Decryption is an out-of-scope fetch-role step (W-pilot is a hard gate). key_id-based stable IDs, WA-Web-mergeable. Source state = timestamp watermark + dedup-on-key_id.
+
+- [ ] **W-pilot.** Pilot crypt15 decryption: verify wa-crypt-tools (or equiv) decrypts this user's `msgstore.db.crypt15` → plaintext SQLite; spin a separate project if no clean tool. HARD GATE before W1–W6. See `docs/meeting-notes/2026-06-03-0952-zkm-whatsapp-scope.md`. <!-- id:9f05 -->
+- [ ] **W1.** Define per-chat-day transcript doc-type in `docs/messaging-spec.md`: file-level frontmatter + `messages:` key_id manifest; inline-line body shape; deterministic-emission contract. Contract test: re-emit of unchanged day = byte-identical file. See `docs/meeting-notes/2026-06-03-0952-zkm-whatsapp-scope.md`. <!-- id:3970 -->
+- [ ] **W2.** `plugins/zkm-whatsapp/` repo: `plugin.yaml` (name: whatsapp, creates_dirs:[chat/whatsapp/], config source_db+owner_jid) + `convert()` (decrypted msgstore.db → transcript .md via stdlib sqlite3). Idempotent (dedup-on-key_id), atomic writes, source/processor/processor_version set. See `docs/meeting-notes/2026-06-03-0952-zkm-whatsapp-scope.md`. <!-- id:b51a -->
+- [ ] **W3.** Stable-ID synthesis: `message_id=whatsapp:<chat_jid>:<key_id>`, `thread_id=sha256(chat_jid)[:16]`, `in_reply_to` from `message_quoted`, participants from JIDs, no direction. Contract test: same key_id → same message_id across two ingests. See `docs/meeting-notes/2026-06-03-0952-zkm-whatsapp-scope.md`. <!-- id:227d -->
+- [ ] **W4.** Source state: `state.py` → `.zkm-state/zkm-whatsapp.json` timestamp watermark keyed by source_db; document `.zkm-state/zkm-<name>.json` convention in `docs/plugin-spec.md`. Contract: rowid renumber across restore does not skip/dup messages. See `docs/meeting-notes/2026-06-03-0952-zkm-whatsapp-scope.md`. <!-- id:035a -->
+- [ ] **W5.** Deleted-tombstone handling: revoke rows → `[HH:MM] sender: «deleted»` (fixed sentinel, not WhatsApp locale string), key_id preserved in `messages:` manifest. See `docs/meeting-notes/2026-06-03-0952-zkm-whatsapp-scope.md`. <!-- id:4c8a -->
+- [ ] **W6.** Media → inbox+CAS (`write_object` + `.origin.json`) for image/video/audio/document attachments. See `docs/meeting-notes/2026-06-03-0952-zkm-whatsapp-scope.md`. <!-- id:d60c -->
+- [ ] **W7 (deferred design note).** Smarter segmentation (burst/temporal-density or per-thread) as additive re-segmentation; MUST NOT rewrite chat-level thread_id. Trigger: v1 live + concrete retrieval pain from day-boundaries. See `docs/meeting-notes/2026-06-03-0952-zkm-whatsapp-scope.md`. <!-- id:367f -->
 
 ## zkm-calendar (C-prefix) — calendar plugin (decided 2026-06-01-1334-contacts-calendar-plugins.md)
 

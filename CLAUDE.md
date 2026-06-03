@@ -137,6 +137,7 @@ Central `TODO.md` is the single ledger for all plugin-scoped and cross-cutting w
 | `M` | zkm-eml backlog (general) |
 | `V` | zkm-vcard (contacts plugin) |
 | `C` | zkm-calendar (calendar plugin) |
+| `W` | zkm-whatsapp (chat plugin) |
 | — | core / cross-cutting (no prefix) |
 
 **Rule:** when a plugin accumulates ≥3 unchecked items at once that aren't already in a numbered series, assign a single-letter prefix and add it to this table.
