@@ -99,4 +99,4 @@ Contact names: write JID/number as canonical `address`; human name best-effort f
 - [ ] **W5.** Deleted-tombstone handling: revoke rows → `[HH:MM] sender: «deleted»` (fixed sentinel), key_id preserved in `messages:` manifest. <!-- id:4c8a -->
 - [ ] **W6.** Media → inbox+CAS (`write_object` + `.origin.json`) for image/video/audio/document attachments. <!-- id:d60c -->
 - [ ] **W7 (deferred design note).** Smarter segmentation (burst/temporal-density or per-thread) as additive re-segmentation that never rewrites chat-level `thread_id`. Trigger: v1 live + concrete retrieval pain from day-boundaries. <!-- id:367f -->
-- [ ] Add `W` prefix row (zkm-whatsapp) to TODO prefix-convention table in `CLAUDE.md`. <!-- id:890f -->
+- [x] Add `W` prefix row (zkm-whatsapp) to TODO prefix-convention table in `CLAUDE.md`. <!-- id:890f --> **Done — CLAUDE.md line 140.**

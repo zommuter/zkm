@@ -384,7 +384,9 @@ def cmd_plugin_list() -> None:
         click.echo("No plugins installed. Run: zkm plugin add <path-or-url>")
         return
     for p in plugins:
-        click.echo(f"  {p.name:<20} {p.version:<10} {p.path}")
+        origin_str = f"[{p.origin}]"
+        shadow_str = " [shadows installed wheel]" if p.shadows_entry_point else ""
+        click.echo(f"  {p.name:<20} {p.version:<10} {origin_str:<16} {p.path}{shadow_str}")
 
 
 @cmd_plugin.command("remove")

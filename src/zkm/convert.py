@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import getpass
+import importlib.metadata
 import importlib.util
 import inspect
 import os
@@ -14,6 +15,7 @@ import types
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -57,6 +59,8 @@ class Plugin:
     config_keys: dict[str, dict] = field(default_factory=dict)
     creates_dirs: list[str] = field(default_factory=list)
     conformance: dict = field(default_factory=dict)
+    origin: str = "filesystem"
+    shadows_entry_point: bool = False
 
 
 def load_plugin_manifest(plugin_path: Path) -> Plugin:
@@ -81,22 +85,66 @@ def load_plugin_manifest(plugin_path: Path) -> Plugin:
 # ---------------------------------------------------------------------------
 
 
+def _plugin_from_entry_point(ep: Any) -> Plugin | None:
+    """Resolve an importlib EntryPoint to a Plugin, or None on failure."""
+    pkg_name = ep.value
+    try:
+        spec = importlib.util.find_spec(pkg_name)
+    except (ModuleNotFoundError, ValueError):
+        return None
+    if spec is None:
+        return None
+    locations = list(spec.submodule_search_locations or [])
+    if locations:
+        pkg_dir = Path(locations[0])
+    elif spec.origin:
+        pkg_dir = Path(spec.origin).parent
+    else:
+        return None
+    try:
+        p = load_plugin_manifest(pkg_dir)
+        p.origin = "entry-point"
+        return p
+    except Exception as e:
+        print(f"WARN: skipping entry-point plugin {getattr(ep, 'name', pkg_name)!r}: {e}")
+        return None
+
+
 def list_plugins() -> list[Plugin]:
-    """Return all installed plugins, sorted by name."""
+    """Return all installed plugins (entry-points + filesystem), sorted by name.
+
+    Discovery order: entry_points(group='zkm.plugins') union filesystem scan.
+    When the same plugin name appears in both, the filesystem version wins
+    (dev-symlink overrides an installed wheel).
+    """
+    # --- entry-point plugins ---
+    ep_plugins: dict[str, Plugin] = {}
+    for ep in importlib.metadata.entry_points(group="zkm.plugins"):
+        p = _plugin_from_entry_point(ep)
+        if p is not None:
+            ep_plugins[p.name] = p
+
+    # --- filesystem plugins ---
+    fs_plugins: dict[str, Plugin] = {}
     pdir = plugins_dir()
-    if not pdir.exists():
-        return []
-    plugins = []
-    for entry in sorted(pdir.iterdir()):
-        if not (entry.is_dir() or entry.is_symlink()):
-            continue
-        if not (entry / "plugin.yaml").exists():
-            continue
-        try:
-            plugins.append(load_plugin_manifest(entry))
-        except Exception as e:
-            print(f"WARN: skipping {entry.name}: {e}")
-    return plugins
+    if pdir.exists():
+        for entry in sorted(pdir.iterdir()):
+            if not (entry.is_dir() or entry.is_symlink()):
+                continue
+            if not (entry / "plugin.yaml").exists():
+                continue
+            try:
+                p = load_plugin_manifest(entry)
+                p.origin = "filesystem"
+                if p.name in ep_plugins:
+                    p.shadows_entry_point = True
+                fs_plugins[p.name] = p
+            except Exception as e:
+                print(f"WARN: skipping {entry.name}: {e}")
+
+    # filesystem wins on name collision
+    merged = {**ep_plugins, **fs_plugins}
+    return sorted(merged.values(), key=lambda p: p.name)
 
 
 def find_plugin(name: str) -> Plugin | None:

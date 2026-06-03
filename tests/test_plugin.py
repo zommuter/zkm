@@ -132,6 +132,85 @@ def test_remove_nonexistent_raises(isolated_plugins: Path) -> None:
         remove_plugin("notes")
 
 
+def _make_fake_pkg(tmp_path: Path, pkg_name: str, plugin_name: str, version: str = "2.0.0") -> Path:
+    """Create a minimal installable-style package with plugin.yaml in tmp_path."""
+    pkg_dir = tmp_path / pkg_name
+    pkg_dir.mkdir()
+    (pkg_dir / "__init__.py").write_text("")
+    (pkg_dir / "plugin.yaml").write_text(
+        f"name: {plugin_name}\nversion: {version}\ncreates_dirs: []\n"
+    )
+    (pkg_dir / "convert.py").write_text("def convert(s, c, **kw): return []\n")
+    return pkg_dir
+
+
+class _FakeEP:
+    """Minimal stand-in for importlib.metadata.EntryPoint."""
+
+    def __init__(self, name: str, value: str) -> None:
+        self.name = name
+        self.value = value
+
+
+def test_entry_point_plugin_discovered(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    isolated_plugins: Path,
+) -> None:
+    """An entry-point-registered plugin is discovered with origin='entry-point'."""
+    import importlib.metadata
+
+    pkg_dir = _make_fake_pkg(tmp_path, "zkm_ep_testpkg", "ep_testpkg", version="2.0.0")
+    monkeypatch.syspath_prepend(str(tmp_path))
+
+    monkeypatch.setattr(
+        importlib.metadata,
+        "entry_points",
+        lambda group: [_FakeEP("ep_testpkg", "zkm_ep_testpkg")] if group == "zkm.plugins" else [],
+    )
+
+    plugins = list_plugins()
+    ep_plugin = next((p for p in plugins if p.name == "ep_testpkg"), None)
+    assert ep_plugin is not None
+    assert ep_plugin.origin == "entry-point"
+    assert ep_plugin.version == "2.0.0"
+    assert ep_plugin.path == pkg_dir
+
+
+def test_filesystem_shadows_entry_point(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    isolated_plugins: Path,
+    notes_plugin_dir: Path,
+) -> None:
+    """Filesystem plugin wins over a same-name entry-point; shadows_entry_point is set."""
+    import importlib.metadata
+
+    # Create entry-point version of "notes" at version 9.9.9
+    _make_fake_pkg(tmp_path, "zkm_notes_wheel", "notes", version="9.9.9")
+    monkeypatch.syspath_prepend(str(tmp_path))
+
+    monkeypatch.setattr(
+        importlib.metadata,
+        "entry_points",
+        lambda group: [_FakeEP("notes", "zkm_notes_wheel")] if group == "zkm.plugins" else [],
+    )
+
+    # Filesystem version of notes (real plugin, version != 9.9.9)
+    add_plugin(str(notes_plugin_dir))
+
+    plugins = list_plugins()
+    notes = next(p for p in plugins if p.name == "notes")
+    assert notes.origin == "filesystem"
+    assert notes.shadows_entry_point is True
+    assert notes.version != "9.9.9"
+
+    # find_plugin must return the filesystem version
+    found = find_plugin("notes")
+    assert found is not None
+    assert found.origin == "filesystem"
+
+
 # ---------------------------------------------------------------------------
 # .env loading
 # ---------------------------------------------------------------------------
