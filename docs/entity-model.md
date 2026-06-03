@@ -78,6 +78,7 @@ Scopes are open-vocabulary; each plugin declares which scopes it emits via `plug
 | Scope | Producing plugin | Status | Meaning |
 |---|---|---|---|
 | `body` | zkm-ner (default) | Shipped v0.1.0 | Entities extracted from the document body |
+| `contact` | zkm-vcard | Shipped v0.1.0 | Structured vCard fields (FN, EMAIL, TEL, ORG, URL, social handles) — authoritative, plugin-emitted |
 | `signature` | zkm-eml (N9g-pre) | Planned | Entities from email signature block |
 | `salutation` | zkm-eml (N9g-pre) | Planned | Entities from greeting / salutation line |
 
