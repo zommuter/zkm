@@ -115,7 +115,6 @@ v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `cha
 
 - [ ] **Plugin-specific deps when loaded via importlib** — option (d) shipped as SB2 (2026-06-03): `_inject_plugin_venv` now called inside `_load_plugin_module` for dev-symlink plugins. Remaining open question: options (a)/(b)/(c) (subprocess isolation / uv-run wrapper / optional extras) for the entry-point install path where `.venv` is absent. Low urgency — entry-point installs already resolve deps via `uv tool install zkm --with zkm-<name>`. Warrants a scoping meeting only if this remaining gap causes problems in practice.
 - [ ] **Re-open derivable-data meeting trigger** — re-open `docs/meeting-notes/2026-05-13-1950-derivable-expensive-data-in-git.md` decision if: first real `zkm clone` to second host makes re-derive wait painful; OR re-derive budget exceeds ~2 h (today: ~50 min).
-- [x] **Meeting: verb order** — CLOSED 2026-06-03: keep verb-first (`zkm convert <plugin>`, `zkm scrub <plugin>`, `zkm test <plugin>`). CMD-column disambiguation already solved (`cli.py:972`); plugin-first would need a lazy `MultiCommand` and two grammars. See `docs/meeting-notes/2026-06-03-1547-verb-order-decision.md`.
 
 ## Publishing / distribution (backlog — from 2026-05-12-0844-publish-plugins.md)
 
@@ -123,7 +122,6 @@ v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `cha
 
 - [~] **ASAP: PyPI publishing** — Stage 1 complete (2026-05-13): core `zkm` 0.5.0 published; 6 plugin names reserved as 0.0.1 stubs. Stage 2 (OIDC) + Session B (real plugin code) remaining. See `docs/meeting-notes/2026-05-13-1325-pypi-publish-canary.md`.
 - [~] **Session B (Class 3 meeting): plugin discovery via entry-point groups** — design meeting held 2026-06-03, decisions recorded. See `docs/meeting-notes/2026-06-03-1403-session-b-plugin-entry-points.md`. Implementation items SB1–SB6 below.
-- [x] **SB5 (rollout).** Repackage + entry-point + publish remaining 5 real wheels (ner, pdf, photo, scan, notmuch) mirroring eml pilot. Done 2026-06-03: all 5 repackaged, versioned (ner→0.18.0, pdf→0.4.0, photo→0.4.0, scan→0.3.0, notmuch→0.3.0), tagged, wheels built. **Publish pending**: requires per-project PyPI tokens (OIDC still blocked). <!-- id:42ba -->
 - [ ] **SB6 (follow-up meeting).** CLI semantics: `zkm plugin add/remove` wording, remove-refusal on pip-installed plugins, documented `uv tool install --with` install path. Trigger: entry-point path used in anger after SB4/SB5. See meeting note. <!-- id:a3fe -->
 - [ ] **Stage 2: OIDC Trusted Publisher + `.github/workflows/release.yml` in all 7 repos** — tokenless CI publish; closes auto-publish loop with the post-commit auto-tag TODO. Per-project tokens available (created after first publish).
   - [~] **Ambiguity: bare first/last names in user_names are not unique** — Resolved 2026-05-19: `user_names` mechanism dropped entirely (N15a). See `docs/meeting-notes/2026-05-19-1610-ner-user-names-drop.md`.
