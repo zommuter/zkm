@@ -7,6 +7,8 @@ from pathlib import Path
 import pytest
 
 from zkm.convert import (
+    Plugin,
+    _load_plugin_module,
     add_plugin,
     append_env,
     find_plugin,
@@ -209,6 +211,53 @@ def test_filesystem_shadows_entry_point(
     found = find_plugin("notes")
     assert found is not None
     assert found.origin == "filesystem"
+
+
+def test_load_plugin_module_injects_venv(tmp_path: Path) -> None:
+    """_load_plugin_module injects plugin's .venv site-packages before exec_module.
+
+    The plugin's convert.py imports a marker module that lives only in the
+    plugin's fake .venv — not in the core venv.  Without SB2 this raises
+    ModuleNotFoundError; with SB2 the import succeeds.
+    """
+    import sys
+
+    # Determine the running Python version string (e.g. "python3.14")
+    pyver = f"python{sys.version_info.major}.{sys.version_info.minor}"
+
+    # Build a fake plugin dir with a .venv that contains _sb2_marker_dep
+    plugin_dir = tmp_path / "zkm-sb2test"
+    plugin_dir.mkdir()
+    (plugin_dir / "plugin.yaml").write_text(
+        "name: sb2test\nversion: 0.0.1\ncreates_dirs: []\n"
+    )
+    site_packages = plugin_dir / ".venv" / "lib" / pyver / "site-packages"
+    site_packages.mkdir(parents=True)
+    (site_packages / "_sb2_marker_dep.py").write_text("MARKER = 'injected'\n")
+    (plugin_dir / "convert.py").write_text(
+        "import _sb2_marker_dep\ndef convert(s, c, **kw): return []\n"
+    )
+
+    plugin = Plugin(
+        name="sb2test",
+        version="0.0.1",
+        description="",
+        path=plugin_dir,
+    )
+
+    # Guard: the marker module must NOT already be importable from the core venv
+    assert "_sb2_marker_dep" not in sys.modules
+
+    mod = _load_plugin_module(plugin)
+    assert hasattr(mod, "convert")
+    # The marker module was importable because core injected the plugin venv
+    assert "_sb2_marker_dep" in sys.modules or hasattr(mod, "__spec__")
+
+    # Cleanup: remove from sys.modules and sys.path so other tests are unaffected
+    sys.modules.pop("_sb2_marker_dep", None)
+    site_str = str(site_packages)
+    if site_str in sys.path:
+        sys.path.remove(site_str)
 
 
 # ---------------------------------------------------------------------------

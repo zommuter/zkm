@@ -10,6 +10,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import types
 from collections.abc import Callable
@@ -450,10 +451,31 @@ def run_reprocess(
     return [Path(p) for p in (result or [])]
 
 
+def _inject_plugin_venv(plugin: Plugin) -> None:
+    """Inject plugin's .venv site-packages and src/ into sys.path (idempotent).
+
+    Needed when a dev-symlink plugin (filesystem-discovered) is loaded into the
+    core zkm venv via importlib — the core venv lacks plugin-only deps such as
+    pypdf, pytesseract, vobject, exifread.  Entry-point installs (`uv tool install
+    zkm --with zkm-<name>`) already have deps resolved and are unaffected.
+    """
+    venv_site = list((plugin.path / ".venv").glob("lib/python*/site-packages"))
+    if venv_site:
+        site_str = str(venv_site[0])
+        if site_str not in sys.path:
+            sys.path.insert(0, site_str)
+    src_dir = plugin.path / "src"
+    if src_dir.is_dir():
+        src_str = str(src_dir)
+        if src_str not in sys.path:
+            sys.path.insert(0, src_str)
+
+
 def _load_plugin_module(plugin: Plugin) -> types.ModuleType:
     convert_py = plugin.path / "convert.py"
     if not convert_py.exists():
         raise FileNotFoundError(f"{convert_py} not found")
+    _inject_plugin_venv(plugin)
     spec_obj = importlib.util.spec_from_file_location(f"zkm_plugin_{plugin.name}", convert_py)
     if spec_obj is None or spec_obj.loader is None:
         raise ImportError(f"Could not load {convert_py}")
