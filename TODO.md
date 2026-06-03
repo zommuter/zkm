@@ -43,8 +43,6 @@ NER lands before whatsapp. `zkm convert <plugin>` runs amenders default-on (`--n
 
 - [ ] **Entity alias / synonym linking (Phase 4 backlog)** — `SBB CFF FFS` (DE/FR/IT names for Swiss Federal Railways) highlights that the same real-world entity can appear under multiple mention strings (abbreviations, translations, official variants). Likewise, persons appear under nicknames, maiden names, or initials. Deferred to Phase 4 alongside manual-merge tooling; design note needed in `docs/entity-model.md` before implementation. No heuristic auto-merge — human-confirmed alias pairs only.
 
-- [x] Session 15 (scoping, not implementation): meeting on zkm-whatsapp core gaps — scoped 2026-06-03, see `docs/meeting-notes/2026-06-03-0952-zkm-whatsapp-scope.md`
-
 ## Phase 2 — mbsync auto-trigger (decided 2026-05-08-mbsync-hook.md)
 
 - [ ] from 2026-06-05: review journald evidence for convert-overlap; decide on lock if observed.
