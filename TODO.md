@@ -9,7 +9,7 @@ D1: vCard KEY → pgpy fingerprint entity + CAS bytes. D2: zkm-eml Tier A (signe
 
 - [x] **PGP1.** Add `zkm.canonical.fingerprint(s)` + `fingerprint` entity type + join-grade note in `docs/entity-model.md`. Files: `src/zkm/canonical.py`, `tests/test_canonical.py`, `docs/entity-model.md`. See `docs/meeting-notes/2026-06-04-1002-pgp-keys-signature-validity.md`. — covered by tests (tests/test_canonical.py, 8 new cases, 507 passing) on 2026-06-04 <!-- id:734f -->
 - [x] **PGP2.** zkm-eml Tier A+B: detect `multipart/signed` leaf, CAS-preserve (no inbox fan-out), parse auth headers → `signed:` + `auth_results:` frontmatter. Fixture: PGP/MIME .eml w/ Authentication-Results. Version bump. See `docs/meeting-notes/2026-06-04-1002-pgp-keys-signature-validity.md`. — 12 tests, 175 passing, v0.14.0 on 2026-06-04 <!-- id:4649 -->
-- [ ] **PGP3.** zkm-vcard KEY+pgpy: branch on KEY form, `write_object` + `key:` pointer + `fingerprint` entity. Add pgpy dep. Fixture: .vcf w/ embedded KEY. Version bump. See `docs/meeting-notes/2026-06-04-1002-pgp-keys-signature-validity.md`. <!-- id:961b -->
+- [x] **PGP3.** zkm-vcard KEY+pgpy: branch on KEY form, `write_object` + `key:` pointer + `fingerprint` entity. Add pgpy dep. Fixture: .vcf w/ embedded KEY. Version bump. See `docs/meeting-notes/2026-06-04-1002-pgp-keys-signature-validity.md`. — 4 new tests, 32 total, v0.3.0 on 2026-06-04 <!-- id:961b -->
 - [x] **PGP4 (design-note).** Forward-flag eml inline `application/pgp-keys` + `Autocrypt:` as Phase-4 2nd fingerprint producer in `docs/entity-model.md`. — landed as part of PGP1 on 2026-06-04 <!-- id:d54f -->
 
 ## Phase 2.5 — NER (decided 2026-05-10-1148-entity-extraction.md)
