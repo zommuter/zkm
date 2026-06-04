@@ -92,7 +92,7 @@ Contact names: write JID/number as canonical `address`; human name best-effort f
 
 ## Action items
 - [ ] **W-pilot.** Pilot crypt15 decryption: verify wa-crypt-tools (or equiv) decrypts this user's `msgstore.db.crypt15` → plaintext SQLite; spin a separate project if no clean tool. HARD GATE before plugin build. <!-- id:9f05 -->
-- [ ] **W1.** Define per-chat-day transcript doc-type in `docs/messaging-spec.md`: file-level frontmatter schema + `messages:` key_id manifest; inline-line body shape; deterministic-emission contract. Contract test: re-emit of unchanged day = byte-identical file. <!-- id:3970 -->
+- [x] **W1.** Define per-chat-day transcript doc-type in `docs/messaging-spec.md`: file-level frontmatter schema + `messages:` key_id manifest; inline-line body shape; deterministic-emission contract. Contract test: re-emit of unchanged day = byte-identical file. <!-- id:3970 -->
 - [ ] **W2.** `plugins/zkm-whatsapp/` repo: `plugin.yaml` (name: whatsapp, creates_dirs:[chat/whatsapp/], config source_db+owner_jid) + `convert()` (decrypted msgstore.db → transcript .md via stdlib sqlite3). Contract: idempotent (dedup-on-key_id), atomic writes, source/processor/processor_version set. <!-- id:b51a -->
 - [ ] **W3.** Stable-ID synthesis: `message_id=whatsapp:<chat_jid>:<key_id>`, `thread_id=sha256(chat_jid)[:16]`, `in_reply_to` from `message_quoted`, participants from JIDs, no direction. Contract test: same key_id → same message_id across two ingests. <!-- id:227d -->
 - [ ] **W4.** Source state: `state.py` → `.zkm-state/zkm-whatsapp.json` timestamp watermark keyed by source_db; document `.zkm-state/zkm-<name>.json` convention in `docs/plugin-spec.md`. Contract: rowid renumber across restore does not skip/dup messages. <!-- id:035a -->
