@@ -1,3 +1,5 @@
+- [ ] check out **honcho** and other memory tools hermes agent uses for zkm
+
 # zkm — Phase 2 TODO
 
 See `CLAUDE.md` for architecture overview. See `docs/phase2-plan.md` for sequencing.
