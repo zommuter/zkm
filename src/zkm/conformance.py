@@ -66,7 +66,15 @@ def validate_frontmatter(meta: dict, plugin_name: str) -> list[Finding]:
     """
     findings: list[Finding] = []
 
+    # Per-chat-day transcript doc-type: thread_id present at file level, no message_id.
+    # Exemptions per docs/messaging-spec.md: sha256 omitted (no single original byte source);
+    # date is YYYY-MM-DD (day only, store locale TZ).
+    _is_chat_day = "thread_id" in meta and "message_id" not in meta
+    _exempt_from_required = {"sha256"} if _is_chat_day else set()
+
     for key in FRONTMATTER_REQUIRED:
+        if key in _exempt_from_required:
+            continue
         if key not in meta:
             findings.append(Finding("fail", "frontmatter", f"missing required field '{key}'"))
 
@@ -91,7 +99,10 @@ def validate_frontmatter(meta: dict, plugin_name: str) -> list[Finding]:
         else:
             # Raw string — check for ISO 8601 with tz markers
             date_str = str(date_val)
-            if "T" not in date_str or (
+            _date_only_re = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+            if _is_chat_day and _date_only_re.match(date_str):
+                pass  # per-chat-day: YYYY-MM-DD is valid (docs/messaging-spec.md)
+            elif "T" not in date_str or (
                 not date_str.endswith("Z")
                 and "+" not in date_str[10:]
                 and date_str.count("-") < 3  # negative UTC offset has extra "-"
