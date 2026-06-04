@@ -3,6 +3,15 @@
 See `CLAUDE.md` for architecture overview. See `docs/phase2-plan.md` for sequencing.
 Completed Phase 1 tasks archived in `docs/phase1-done.md`.
 
+## OpenPGP key & signature tracking (decided 2026-06-04-1002-pgp-keys-signature-validity.md)
+
+D1: vCard KEY → pgpy fingerprint entity + CAS bytes. D2: zkm-eml Tier A (signed: pgp-mime/smime) + Tier B (auth_results: dkim/spf/dmarc from provider headers). D3: fingerprint = join-grade value-type, NOT person-merge license. Build order: core → eml → vcard.
+
+- [ ] **PGP1.** Add `zkm.canonical.fingerprint(s)` + `fingerprint` entity type + join-grade note in `docs/entity-model.md`. Files: `src/zkm/canonical.py`, `tests/test_canonical.py`, `docs/entity-model.md`. See `docs/meeting-notes/2026-06-04-1002-pgp-keys-signature-validity.md`. <!-- id:734f -->
+- [ ] **PGP2.** zkm-eml Tier A+B: detect `multipart/signed` leaf, CAS-preserve (no inbox fan-out), parse auth headers → `signed:` + `auth_results:` frontmatter. Fixture: PGP/MIME .eml w/ Authentication-Results. Version bump. See `docs/meeting-notes/2026-06-04-1002-pgp-keys-signature-validity.md`. <!-- id:4649 -->
+- [ ] **PGP3.** zkm-vcard KEY+pgpy: branch on KEY form, `write_object` + `key:` pointer + `fingerprint` entity. Add pgpy dep. Fixture: .vcf w/ embedded KEY. Version bump. See `docs/meeting-notes/2026-06-04-1002-pgp-keys-signature-validity.md`. <!-- id:961b -->
+- [ ] **PGP4 (design-note).** Forward-flag eml inline `application/pgp-keys` + `Autocrypt:` as Phase-4 2nd fingerprint producer in `docs/entity-model.md`. See `docs/meeting-notes/2026-06-04-1002-pgp-keys-signature-validity.md`. <!-- id:d54f -->
+
 ## Phase 2.5 — NER (decided 2026-05-10-1148-entity-extraction.md)
 
 NER lands before whatsapp. `zkm convert <plugin>` runs amenders default-on (`--no-amenders` to skip). Session 9d extraction-cache transitions from design-only to implementation alongside zkm-ner.
