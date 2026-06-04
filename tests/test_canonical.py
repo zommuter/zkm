@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from zkm.canonical import amount, email, iban, iso8601, phone
-
+from zkm.canonical import amount, email, fingerprint, iban, iso8601, phone
 
 # ---------------------------------------------------------------------------
 # iban
@@ -151,3 +150,72 @@ def test_iso8601_datetime_without_timezone() -> None:
 def test_iso8601_unrecognised_passthrough() -> None:
     # Unknown format: returned unchanged
     assert iso8601("May 8 2026") == "May 8 2026"
+
+
+# ---------------------------------------------------------------------------
+# fingerprint
+# ---------------------------------------------------------------------------
+
+_V4 = "A" * 40
+_V6 = "B" * 64
+
+
+def test_fingerprint_v4_compact() -> None:
+    canon, standard, valid = fingerprint(_V4)
+    assert canon == _V4
+    assert standard == "openpgp-v4"
+    assert valid is True
+
+
+def test_fingerprint_v4_colon_separated() -> None:
+    colon_form = ":".join(_V4[i : i + 2] for i in range(0, 40, 2))
+    canon, standard, valid = fingerprint(colon_form)
+    assert canon == _V4
+    assert standard == "openpgp-v4"
+    assert valid is True
+
+
+def test_fingerprint_v4_space_separated() -> None:
+    spaced = " ".join(_V4[i : i + 4] for i in range(0, 40, 4))
+    canon, standard, valid = fingerprint(spaced)
+    assert canon == _V4
+    assert standard == "openpgp-v4"
+    assert valid is True
+
+
+def test_fingerprint_v4_lowercase() -> None:
+    canon, standard, valid = fingerprint(_V4.lower())
+    assert canon == _V4
+    assert standard == "openpgp-v4"
+    assert valid is True
+
+
+def test_fingerprint_v4_0x_prefix() -> None:
+    canon, standard, valid = fingerprint("0x" + _V4)
+    assert canon == _V4
+    assert standard == "openpgp-v4"
+    assert valid is True
+
+
+def test_fingerprint_v6() -> None:
+    canon, standard, valid = fingerprint(_V6)
+    assert canon == _V6
+    assert standard == "openpgp-v6"
+    assert valid is True
+
+
+def test_fingerprint_bad_hex_returns_raw() -> None:
+    raw = "not-a-fingerprint"
+    canon, standard, valid = fingerprint(raw)
+    assert canon == raw
+    assert standard is None
+    assert valid is False
+
+
+def test_fingerprint_wrong_length_returns_invalid() -> None:
+    # 32 hex chars — valid hex but wrong length (not v4/v6)
+    raw = "C" * 32
+    canon, standard, valid = fingerprint(raw)
+    assert canon == raw
+    assert standard is None
+    assert valid is False

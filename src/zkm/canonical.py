@@ -6,11 +6,12 @@ Types where canonicalisation is undefined or lossy (person, org, place, email lo
 have no entry here; callers treat the raw value as canonical for those.
 
 Standards referenced:
-    iban   — ISO 13616
-    amount — ISO 4217 (fiat), crypto_ticker (crypto)
-    email  — RFC 5321 (domain case-insensitive; local-part case-sensitive, not normalised)
-    phone  — ITU-T E.164
-    iso8601 — ISO 8601
+    iban      — ISO 13616
+    amount    — ISO 4217 (fiat), crypto_ticker (crypto)
+    email     — RFC 5321 (domain case-insensitive; local-part case-sensitive, not normalised)
+    phone     — ITU-T E.164
+    iso8601   — ISO 8601
+    openpgp   — RFC 4880 (v4 SHA-1 fingerprint) / RFC 9580 (v6)
 """
 
 from __future__ import annotations
@@ -18,12 +19,14 @@ from __future__ import annotations
 import re
 from datetime import date, datetime
 
-
 # ---------------------------------------------------------------------------
 # IBAN — ISO 13616
 # ---------------------------------------------------------------------------
 
 _IBAN_STRIP = re.compile(r"[\s\-]")
+
+_FP_SEP = re.compile(r"[\s:]")
+_HEX_RE = re.compile(r"^[0-9A-F]+$")
 
 
 def iban(s: str) -> str:
@@ -225,3 +228,35 @@ def iso8601(s: str) -> str:
         d, mo, y = m.groups()
         return f"{y}-{int(mo):02d}-{int(d):02d}"
     return s
+
+
+# ---------------------------------------------------------------------------
+# OpenPGP fingerprint — RFC 4880 (v4, 40 hex chars) / RFC 9580 (v6, 64 hex chars)
+# ---------------------------------------------------------------------------
+
+
+def fingerprint(s: str) -> tuple[str, str | None, bool]:
+    """Normalise an OpenPGP fingerprint to uppercase hex with no separators.
+
+    Returns (canonical, standard, valid):
+      - valid=True  → canonical is uppercase hex, standard is "openpgp-v4" (40) or "openpgp-v6" (64)
+      - valid=False → canonical is the stripped raw input, standard is None
+
+    Accepts common formatting variants:
+      "AB:CD:EF:…"      (colon-separated GPG output)
+      "0xABCD…"         (0x prefix)
+      "ab cd ef …"      (space-separated)
+
+    "4F1C 5A3B …" (40 hex chars) → ("4F1C5A3B…", "openpgp-v4", True)
+    "AB:CD:…"    (64 hex chars) → ("ABCD…",     "openpgp-v6", True)
+    "not-a-key"              → ("not-a-key",    None,         False)
+    """
+    stripped = _FP_SEP.sub("", s.strip()).upper()
+    if stripped.startswith("0X"):
+        stripped = stripped[2:]
+    if _HEX_RE.match(stripped):
+        if len(stripped) == 40:
+            return stripped, "openpgp-v4", True
+        if len(stripped) == 64:
+            return stripped, "openpgp-v6", True
+    return s.strip(), None, False

@@ -68,8 +68,15 @@ As of zkm-ner v0.8.0, every entity carries a `scope` (provenance), optional `can
 | `invoice_id` | — | — | `body` | Low |
 | `tracking_id` | — | — | `body` | Low |
 | `registration_code` | Yes for EAN-13/ISBN-13 (digits only) | `ISBN-13` / `EAN-13` where applicable | `body` | Low |
+| `fingerprint` | Yes (uppercase hex, no separators) | `openpgp-v4` / `openpgp-v6` | `contact` | Med |
 
 When `canonical` is present, both the raw `value` and the `canonical` form are indexed (see `src/zkm/index.py`, `src/zkm/embed.py`). When `valid: false`, the canonical failed its checksum; the raw value is stored as-is and flagged for review.
+
+#### Fingerprint as join-grade value-type (D3)
+
+`fingerprint` is the first **join-grade value-type**: a v4/v6 OpenPGP fingerprint is a collision-resistant crypto UID, so an exact-match `(scope, type, value)` query safely links all key-occurrences across documents (e.g. vCard `KEY` → email `multipart/signed` leaf). This is the only type where cross-document linking is correct without human confirmation.
+
+This is explicitly **NOT** a person-merge licence. Knowing two documents share a fingerprint does not mean the associated person identities should be fused — shared keys, forwarded keys, and keys-about-others are real cases. Person identity stays Phase-4 manual-merge; fingerprint matches will rank above name matches there, but only as a stronger candidate signal, not as an automatic conclusion.
 
 ### Provenance scopes
 
@@ -83,6 +90,15 @@ Scopes are open-vocabulary; each plugin declares which scopes it emits via `plug
 | `salutation` | zkm-eml (N9g-pre) | Planned | Entities from greeting / salutation line |
 
 New scopes may be introduced by future plugins without a schema migration; `zkm.amendments` applies a graceful-read (missing scope defaults to `body`).
+
+#### Forward-flag: future `fingerprint` producers (PGP4 design note)
+
+v1 produces `fingerprint` entities only from vCard `KEY` fields (`scope: contact`, zkm-vcard). Two additional producers are forward-flagged for Phase 4:
+
+- **Inline `application/pgp-keys` MIME parts** in email — a second `fingerprint` entity at `scope: body` (or a new `scope: attachment`), enabling the join: newsletter → attached key → vCard contact.
+- **`Autocrypt:` headers** — provider-injected key material; fingerprint extractable from the base64 payload without re-verifying.
+
+Neither requires code changes in v1. When either producer ships, the shared `(scope, type, value)` dedup space automatically links occurrences across all three sources. No schema change needed.
 
 ## WebUI sketch (Phase 3)
 
