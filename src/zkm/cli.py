@@ -532,6 +532,18 @@ def cmd_convert(
                 if bar is not None:
                     bar.close()
 
+        # Run amenders inside the RunSession so `zkm status` shows progress during NER.
+        plugin_obj = find_plugin(plugin)
+        is_amender = plugin_obj is not None and plugin_obj.kind == "amender"
+
+        if not cancelled and not no_amenders and not is_amender:
+            for amender in list_amenders():
+                try:
+                    run_convert(amender.name, sdir)
+                    click.echo(f"Amended via '{amender.name}'")
+                except Exception as e:
+                    click.echo(f"WARN: amender '{amender.name}' failed: {e}", err=True)
+
     if cancelled:
         click.echo("", err=True)  # ensure newline after any in-place status
         click.echo(
@@ -540,23 +552,12 @@ def cmd_convert(
             err=True,
         )
 
-    # Run amenders after a body-producer plugin (default-on, skipped with --no-amenders).
-    plugin_obj = find_plugin(plugin)
-    is_amender = plugin_obj is not None and plugin_obj.kind == "amender"
-
     n = len(created)
     if not is_amender:
         verb = "Reprocessed" if reprocess_mode else "Converted"
         click.echo(f"{verb} {n} file(s) via plugin '{plugin}'")
         for p in created:
             click.echo(f"  + {p.relative_to(sdir)}")
-    if not cancelled and not no_amenders and not is_amender:
-        for amender in list_amenders():
-            try:
-                run_convert(amender.name, sdir)
-                click.echo(f"Amended via '{amender.name}'")
-            except Exception as e:
-                click.echo(f"WARN: amender '{amender.name}' failed: {e}", err=True)
 
     if not no_commit:
         click.echo("Staging changes...", err=True)
