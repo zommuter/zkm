@@ -53,3 +53,29 @@ def test_init_auto_backend_fallback(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr("shutil.which", lambda _: None)
     init_store(tmp_path, backend="auto")
     assert "binary_backend=none" in (tmp_path / ".zkm-config").read_text()
+
+
+class TestEnsureGitignorePatterns:
+    def test_appends_missing(self, tmp_path: Path) -> None:
+        from zkm.cli import _ensure_gitignore_patterns
+
+        gi = tmp_path / ".gitignore"
+        gi.write_text("*.swp\n")
+        _ensure_gitignore_patterns(tmp_path, ["inbox/foo.db", "inbox/foo.db.crypt15"])
+        lines = gi.read_text().splitlines()
+        assert "inbox/foo.db" in lines
+        assert "inbox/foo.db.crypt15" in lines
+
+    def test_skips_already_present(self, tmp_path: Path) -> None:
+        from zkm.cli import _ensure_gitignore_patterns
+
+        gi = tmp_path / ".gitignore"
+        gi.write_text("*.swp\ninbox/foo.db\n")
+        _ensure_gitignore_patterns(tmp_path, ["inbox/foo.db"])
+        assert gi.read_text().count("inbox/foo.db") == 1
+
+    def test_creates_gitignore_if_absent(self, tmp_path: Path) -> None:
+        from zkm.cli import _ensure_gitignore_patterns
+
+        _ensure_gitignore_patterns(tmp_path, ["inbox/foo.db"])
+        assert "inbox/foo.db" in (tmp_path / ".gitignore").read_text()

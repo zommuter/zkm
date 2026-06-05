@@ -203,6 +203,17 @@ class TestBadManifest:
         findings = check_manifest(plugin)
         assert any("key1" in f.message and f.level == "fail" for f in findings)
 
+    def test_absolute_gitignore_pattern_flagged(self, tmp_path):
+        from zkm.convert import load_plugin_manifest
+        from zkm.conformance import check_manifest
+
+        (tmp_path / "plugin.yaml").write_text(
+            "name: p\nversion: 0.1.0\ncreates_dirs: []\ngitignore_patterns:\n  - /inbox/bad\n"
+        )
+        plugin = load_plugin_manifest(tmp_path)
+        findings = check_manifest(plugin)
+        assert any("leading /" in f.message for f in findings if f.level == "fail")
+
 
 class TestBadSignature:
     def test_fails(self):

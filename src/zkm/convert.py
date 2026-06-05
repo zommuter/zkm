@@ -59,6 +59,7 @@ class Plugin:
     kind: str = "converter"
     config_keys: dict[str, dict] = field(default_factory=dict)
     creates_dirs: list[str] = field(default_factory=list)
+    gitignore_patterns: list[str] = field(default_factory=list)
     conformance: dict = field(default_factory=dict)
     origin: str = "filesystem"
     shadows_entry_point: bool = False
@@ -77,6 +78,7 @@ def load_plugin_manifest(plugin_path: Path) -> Plugin:
         kind=data.get("kind", "converter"),
         config_keys=data.get("config") or {},
         creates_dirs=data.get("creates_dirs") or [],
+        gitignore_patterns=data.get("gitignore_patterns") or [],
         conformance=data.get("conformance") or {},
     )
 

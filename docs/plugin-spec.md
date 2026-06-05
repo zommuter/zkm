@@ -30,6 +30,13 @@ license: MIT
 creates_dirs:
   - mail
 
+# Glob patterns to add to the store .gitignore on first convert run (optional).
+# Use for source files deposited into creates_dirs by external tools (e.g. Syncthing)
+# that should not be tracked in git.
+gitignore_patterns:
+  - inbox/whatsapp/msgstore.db
+  - inbox/whatsapp/msgstore.db.crypt15
+
 # Config keys this plugin reads from zkm-config.yaml (bare snake_case)
 config:
   host:

@@ -207,13 +207,28 @@ def _git_run(store: Path, *args: str) -> None:
     subprocess.run(list(args), cwd=store, check=True)
 
 
-def _git_add(cwd: Path) -> None:
-    """Run git add -A; emit a tagged journald event on .git/index.lock contention.
+def _ensure_gitignore_patterns(store: Path, patterns: list[str]) -> None:
+    """Append any missing patterns to the store .gitignore."""
+    gi = store / ".gitignore"
+    existing = gi.read_text() if gi.exists() else ""
+    missing = [p for p in patterns if p not in existing.splitlines()]
+    if missing:
+        with gi.open("a") as f:
+            f.write("\n".join(missing) + "\n")
+
+
+def _git_add(cwd: Path, paths: list[str] | None = None) -> None:
+    """Run git add; emit a tagged journald event on .git/index.lock contention.
+
+    When paths is given, only those files/directories are staged (defence against
+    accidentally staging source files deposited by Syncthing or other tools into
+    inbox/ sub-dirs that overlap with creates_dirs).
 
     Watchpoint: review journald evidence 2026-06-11 (4 weeks after 2026-05-14).
     Query: journalctl -t zkm-index-lock-watch
     """
-    result = subprocess.run(["git", "add", "-A"], cwd=cwd, stderr=subprocess.PIPE)
+    cmd = ["git", "add"] + (paths if paths else ["-A"])
+    result = subprocess.run(cmd, cwd=cwd, stderr=subprocess.PIPE)
     if result.returncode != 0:
         stderr_text = result.stderr.decode(errors="replace")
         if "index.lock" in stderr_text:
@@ -545,7 +560,16 @@ def cmd_convert(
 
     if not no_commit:
         click.echo("Staging changes...", err=True)
-        _git_add(sdir)
+        if plugin_obj is not None and plugin_obj.gitignore_patterns:
+            _ensure_gitignore_patterns(sdir, plugin_obj.gitignore_patterns)
+        if plugin_obj is not None and plugin_obj.creates_dirs:
+            # Scope git add to the plugin's declared output dirs + specific created
+            # files. This prevents accidentally staging source files deposited by
+            # Syncthing or other external tools into inbox/ sub-dirs.
+            add_paths = [str(p.relative_to(sdir)) for p in created] + plugin_obj.creates_dirs
+            _git_add(sdir, add_paths)
+        else:
+            _git_add(sdir)
         result = subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=sdir)
         if result.returncode != 0:
             if reprocess_mode:
