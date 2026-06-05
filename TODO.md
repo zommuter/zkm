@@ -85,8 +85,6 @@ Ingest-only, source-agnostic. Reads a local tree of standard `.vcf` files via `s
 
 **v0.2.0 hardening shipped (2026-06-03):** V1 encoding (zkm.encoding.decode_bytes, latin1/cp1252 detection), V2 canonical consolidation (drop _canon_email, phone fallback), V3 reprocess() (re-derive scope:contact, preserve scope:body), V4 scope:contact in entity-model.md, V5 failure counter. See `docs/meeting-notes/2026-06-03-1603-vcard-hardening-series.md`.
 
-- [x] **V6: run zkm-vcard against live proton-moresync backup.** Point `source_dir` at `~/proton-backup/contacts/` in zkm config; run `zkm convert zkm-vcard`; verify 100 contacts ingest cleanly (scope:contact entities, no encoding errors). First real-data smoke test of the full proton-moresync → ~/proton-backup → zkm pipeline. <!-- id:530f -->
-
 ## zkm-whatsapp (W-prefix) — chat plugin (decided 2026-06-03-0952-zkm-whatsapp-scope.md)
 
 v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `chat/whatsapp/`. Decryption is an out-of-scope fetch-role step (W-pilot is a hard gate). key_id-based stable IDs, WA-Web-mergeable. Source state = timestamp watermark + dedup-on-key_id.
