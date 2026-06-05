@@ -52,7 +52,6 @@ NER lands before whatsapp. `zkm convert <plugin>` runs amenders default-on (`--n
 ## Phase 2 — mbsync auto-trigger (decided 2026-05-08-mbsync-hook.md)
 
 - [ ] from 2026-06-05: review journald evidence for convert-overlap; decide on lock if observed.
-- [x] **A-bug: auto-commit stage scope too broad.** Root cause: `git add -A` in the auto-commit staged source files outside the plugin's `creates_dirs`. **Fixed 2026-06-05 (v0.13.0):** scoped `git add` to `creates_dirs` + specific converted paths; added `gitignore_patterns` plugin spec field; whatsapp plugin declares `msgstore.db*` as gitignored. <!-- id:abug1 -->
 - [~] **zkm-eml signature stripping** — promoted 2026-05-12 to first-class action item: see **N9g-pre** above. (Original framing 2026-05-10-1640-n9b: heuristic detection of email signature blocks before markdown render; addresses popularity skew of personal contact details. Re-scoped from "stripping" to "typed extraction" in N9g-pre.)
 
 ## Phase 2 — SIGUSR1 progress + `zkm status` (decided 2026-05-08-1913-sigusr1-status.md)
