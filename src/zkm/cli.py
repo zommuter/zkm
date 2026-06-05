@@ -538,11 +538,40 @@ def cmd_convert(
 
         if not cancelled and not no_amenders and not is_amender:
             for amender in list_amenders():
+                _abar: list[tqdm | None] = [None]
+
+                def _amender_progress(
+                    current: int,
+                    total: int | None,
+                    message: str = "",
+                    *,
+                    _name: str = amender.name,
+                ) -> None:
+                    session.tick(current, total, phase=_name, message=message)
+                    if not show_progress:
+                        return
+                    if _abar[0] is None:
+                        _abar[0] = tqdm(
+                            total=total, unit="item", leave=False,
+                            file=sys.stderr, bar_format=_BAR_FORMAT,
+                        )
+                    elif total is not None and _abar[0].total != total:
+                        _abar[0].total = total
+                        _abar[0].refresh()
+                    delta = current - _abar[0].n
+                    if delta > 0:
+                        _abar[0].update(delta)
+                    if message:
+                        _abar[0].set_postfix_str(message[:60])
+
                 try:
-                    run_convert(amender.name, sdir)
+                    run_convert(amender.name, sdir, progress=_amender_progress)
                     click.echo(f"Amended via '{amender.name}'")
                 except Exception as e:
                     click.echo(f"WARN: amender '{amender.name}' failed: {e}", err=True)
+                finally:
+                    if _abar[0] is not None:
+                        _abar[0].close()
 
     if cancelled:
         click.echo("", err=True)  # ensure newline after any in-place status
