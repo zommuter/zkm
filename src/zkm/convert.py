@@ -459,11 +459,26 @@ def _inject_plugin_venv(plugin: Plugin) -> None:
     pypdf, pytesseract, vobject, exifread.  Entry-point installs (`uv tool install
     zkm --with zkm-<name>`) already have deps resolved and are unaffected.
     """
+    import logging
+
     venv_site = list((plugin.path / ".venv").glob("lib/python*/site-packages"))
     if venv_site:
-        site_str = str(venv_site[0])
-        if site_str not in sys.path:
-            sys.path.insert(0, site_str)
+        site_path = venv_site[0]
+        venv_pyver = site_path.parent.name  # e.g. "python3.12"
+        running_pyver = f"python{sys.version_info.major}.{sys.version_info.minor}"
+        if venv_pyver != running_pyver:
+            logging.getLogger(__name__).warning(
+                "plugin '%s': .venv built for %s but running %s — skipping venv inject; "
+                "run `uv sync` in %s to rebuild",
+                plugin.name,
+                venv_pyver,
+                running_pyver,
+                plugin.path,
+            )
+        else:
+            site_str = str(site_path)
+            if site_str not in sys.path:
+                sys.path.insert(0, site_str)
     src_dir = plugin.path / "src"
     if src_dir.is_dir():
         src_str = str(src_dir)
