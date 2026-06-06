@@ -100,7 +100,6 @@ v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `cha
 
 - [ ] **C3 (deferred): calendar thread-index files** — `calendar/threads/<thread_id>.md` per series. RRULE not expanded in v1, so threads are singletons; deferred to when multi-VEVENT series (override instances) are ingested or a retrieval pain point surfaces. See `docs/meeting-notes/2026-06-05-1300-c1-zkm-calendar-build.md`. <!-- id:9fb8 -->
 - [ ] (deferred) **zkm fetch** core orchestrator: config maps `source → external fetch command + output dir`; `zkm fetch <source>` shells out, deposits standard files, `zkm convert` ingests. mbsync-equivalent lever in core, not per-source systemd sprawl. See `docs/meeting-notes/2026-06-01-1334-contacts-calendar-plugins.md`. <!-- id:473c -->
-- [x] **C2 (done 2026-06-06):** pointed zkm-calendar at live proton-moresync backup (`~/proton-backup/calendar`); 124 events ingested cleanly (spec said 123 — backup grew by 1 since spec written); idempotency verified. See `docs/meeting-notes/2026-06-06-1555-c2-zkm-calendar-smoke-test.md`. <!-- id:64ef -->
 
 ## Plugin backlog — conversation / AI session sources
 
