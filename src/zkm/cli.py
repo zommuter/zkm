@@ -419,6 +419,129 @@ def cmd_plugin_remove(name: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# zkm fetch
+# ---------------------------------------------------------------------------
+
+
+@main.command("fetch")
+@click.argument("source", required=False, default=None)
+@click.option(
+    "--store",
+    "store_override",
+    default=None,
+    metavar="PATH",
+    help="Store path (default: $ZKM_STORE or ~/knowledge)",
+)
+@click.option(
+    "--no-convert",
+    is_flag=True,
+    help="Skip auto-convert even when a plugin is configured for this source",
+)
+@click.option(
+    "--list",
+    "do_list",
+    is_flag=True,
+    help="List configured sources and exit",
+)
+def cmd_fetch(
+    source: str | None,
+    store_override: str | None,
+    no_convert: bool,
+    do_list: bool,
+) -> None:
+    """Run configured external fetch command(s) to deposit files into the store.
+
+    Configure sources in zkm-config.yaml:
+
+    \b
+      core:
+        fetch:
+          sources:
+            myproton:
+              command: proton-moresync sync ~/vcf/
+              plugin: vcard   # optional: run zkm convert after fetch
+    """
+    import shutil
+
+    from zkm.config import load_config
+
+    sdir = Path(store_override) if store_override else store_path()
+    _require_store(sdir)
+
+    cfg = load_config(sdir)
+    sources: dict = cfg.core_value("fetch", "sources") or {}
+
+    if do_list:
+        if not sources:
+            click.echo("No fetch sources configured.")
+        else:
+            for name, spec in sources.items():
+                cmd = spec.get("command", "(no command)") if isinstance(spec, dict) else "(invalid)"
+                plugin = spec.get("plugin", "") if isinstance(spec, dict) else ""
+                plugin_str = f"  → zkm convert {plugin}" if plugin else ""
+                click.echo(f"  {name}: {cmd}{plugin_str}")
+        return
+
+    if not sources:
+        click.echo(
+            "No fetch sources configured. Add to zkm-config.yaml:\n\n"
+            "  core:\n"
+            "    fetch:\n"
+            "      sources:\n"
+            "        mysource:\n"
+            "          command: <your-fetch-command>\n"
+            "          plugin: <plugin-name>   # optional",
+            err=True,
+        )
+        sys.exit(1)
+
+    if source is not None and source not in sources:
+        known = ", ".join(sorted(sources))
+        click.echo(f"Error: unknown source '{source}'. Known: {known}", err=True)
+        sys.exit(1)
+
+    targets = {source: sources[source]} if source else dict(sources)
+
+    any_error = False
+    for name, spec in targets.items():
+        if not isinstance(spec, dict):
+            click.echo(f"WARN: source '{name}' config must be a YAML mapping — skipping.", err=True)
+            continue
+
+        command = spec.get("command", "").strip()
+        if not command:
+            click.echo(f"WARN: source '{name}' has no command configured — skipping.", err=True)
+            continue
+
+        click.echo(f"Fetching '{name}'...")
+        result = subprocess.run(command, shell=True, cwd=sdir)  # noqa: S602  # user-trusted config
+        if result.returncode != 0:
+            click.echo(f"Error: fetch '{name}' exited {result.returncode}", err=True)
+            any_error = True
+            continue
+        click.echo(f"Fetched '{name}'.")
+
+        plugin = spec.get("plugin", "").strip()
+        if plugin and not no_convert:
+            zkm_bin = shutil.which("zkm") or sys.argv[0]
+            click.echo(f"Running: zkm convert {plugin}")
+            convert_result = subprocess.run(
+                [zkm_bin, "convert", plugin, "--store", str(sdir)]
+            )
+            if convert_result.returncode != 0:
+                click.echo(
+                    f"WARN: zkm convert {plugin} exited {convert_result.returncode}",
+                    err=True,
+                )
+                any_error = True
+        elif plugin:
+            click.echo(f"Skipped auto-convert. Run: zkm convert {plugin}")
+
+    if any_error:
+        sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
 # zkm convert
 # ---------------------------------------------------------------------------
 

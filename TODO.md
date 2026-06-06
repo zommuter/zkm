@@ -99,7 +99,7 @@ v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `cha
 **Deferred — own meeting/build when zkm-vcard ships.** Ingest-only, standards-parser only (RFC 5545), never NLP. Build order: zkm-vcard → zkm-calendar.
 
 - [ ] **C3 (deferred): calendar thread-index files** — `calendar/threads/<thread_id>.md` per series. RRULE not expanded in v1, so threads are singletons; deferred to when multi-VEVENT series (override instances) are ingested or a retrieval pain point surfaces. See `docs/meeting-notes/2026-06-05-1300-c1-zkm-calendar-build.md`. <!-- id:9fb8 -->
-- [ ] (deferred) **zkm fetch** core orchestrator: config maps `source → external fetch command + output dir`; `zkm fetch <source>` shells out, deposits standard files, `zkm convert` ingests. mbsync-equivalent lever in core, not per-source systemd sprawl. See `docs/meeting-notes/2026-06-01-1334-contacts-calendar-plugins.md`. <!-- id:473c -->
+- [x] (core) `zkm fetch` orchestrator (`src/zkm/cli.py`): config maps source → external fetch command + output dir; shells out, deposits standard files, then `zkm convert` ingests. mbsync-equivalent lever in core, not systemd sprawl. <!-- id:473c --> **Shipped v0.14.0 2026-06-06.**
 
 ## Plugin backlog — conversation / AI session sources
 
