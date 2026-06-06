@@ -2,7 +2,7 @@
 
 ## Overview
 
-Each converter is a standalone git repo, installed into `plugins/` via `zkm plugin add <git-url>`. The tool repo gitignores `plugins/` — plugins are not vendored.
+Each converter is a standalone git repo. Two install paths: released wheels via `uv tool install zkm --with zkm-<name>` (entry-point origin, recommended for end users); dev/local via `zkm plugin add <git-url>` or `zkm plugin add ./path` (filesystem origin, for development and custom plugins). The tool repo gitignores `plugins/` — plugins are not vendored.
 
 ## Plugin structure
 

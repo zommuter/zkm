@@ -352,13 +352,17 @@ def cmd_plugin() -> None:
 )
 @click.option("--no-prompt", is_flag=True, help="Skip interactive .env prompting")
 def cmd_plugin_add(source: str, store_override: str | None, no_prompt: bool) -> None:
-    """Install a plugin from a local PATH or git URL."""
+    """Add a local or git plugin for development (symlink / clone).
+
+    For released plugins use: uv tool install zkm --with zkm-<name>
+    """
     from zkm.convert import add_plugin, prompt_required_config
     from zkm.store import store_path
 
     try:
         plugin = add_plugin(source)
         click.echo(f"Installed plugin '{plugin.name}' {plugin.version} from {source}")
+        click.echo("Tip: for released plugins use: uv tool install zkm --with zkm-<name>")
     except FileExistsError as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
@@ -413,7 +417,7 @@ def cmd_plugin_remove(name: str) -> None:
     try:
         remove_plugin(name)
         click.echo(f"Removed plugin '{name}'")
-    except LookupError as e:
+    except (LookupError, ValueError) as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
 

@@ -52,7 +52,10 @@ See `docs/concurrent-runs.md` for the concurrent-run guard (`ZKM_BYPASS_RUN_GUAR
 
 ## Plugin system
 
-Each converter is a separate repo, installed via `zkm plugin add <git-url>`.
+Each converter is a separate repo. Two install paths:
+
+- **Released wheel** (end-user): `uv tool install zkm --with zkm-<name>` (entry-point origin; deps resolved by uv into zkm's sealed env). Removing: re-run `uv tool install zkm --with <other-plugins>` omitting the one to drop. `zkm plugin remove` **refuses** on wheel-origin plugins to prevent destructive rmtree into site-packages.
+- **Dev/local** (development): `zkm plugin add ./path` (symlink) or `zkm plugin add <git-url>` (clone) — filesystem origin. Removing: `zkm plugin remove <name>`.
 
 ```
 plugins/zkm-imap/
@@ -61,7 +64,7 @@ plugins/zkm-imap/
 └── README.md
 ```
 
-Plugins declare which subdirs they create (e.g., `mail/`) and what config they need. Non-secret config lives in `$ZKM_STORE/zkm-config.yaml` (committed); secrets in `$ZKM_STORE/.zkm-secrets.yaml` (gitignored, chmod 0600). Plugin discovery: scan `plugins/*/plugin.yaml`.
+Plugins declare which subdirs they create (e.g., `mail/`) and what config they need. Non-secret config lives in `$ZKM_STORE/zkm-config.yaml` (committed); secrets in `$ZKM_STORE/.zkm-secrets.yaml` (gitignored, chmod 0600). **Plugin discovery: union of `importlib.metadata.entry_points(group="zkm.plugins")` + `plugins/*/plugin.yaml` filesystem scan; dedup by name; dev/filesystem wins over installed wheel (shadowing).**
 
 **Local install** (during development): `zkm plugin add ./examples/zkm-notes` creates a symlink in `plugins/`. Git URL install uses `git clone`. The installed plugins directory can be overridden with `$ZKM_PLUGINS_DIR`.
 

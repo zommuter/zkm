@@ -134,6 +134,60 @@ def test_remove_nonexistent_raises(isolated_plugins: Path) -> None:
         remove_plugin("notes")
 
 
+def test_remove_entry_point_plugin_refuses(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    isolated_plugins: Path,
+) -> None:
+    """remove_plugin refuses wheel-origin plugins; package dir is NOT deleted."""
+    import importlib.metadata
+
+    pkg_dir = _make_fake_pkg(tmp_path, "zkm_ep_wheel", "ep_wheel")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.setattr(
+        importlib.metadata,
+        "entry_points",
+        lambda group: [_FakeEP("ep_wheel", "zkm_ep_wheel")] if group == "zkm.plugins" else [],
+    )
+
+    with pytest.raises(ValueError, match="wheel-installed"):
+        remove_plugin("ep_wheel")
+
+    assert pkg_dir.exists(), "remove_plugin must not delete the package dir for a wheel-origin plugin"
+
+
+def test_remove_filesystem_plugin_shadowing_wheel(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    isolated_plugins: Path,
+    notes_plugin_dir: Path,
+) -> None:
+    """Removing a filesystem plugin that shadows a wheel peels the dev layer; wheel survives."""
+    import importlib.metadata
+
+    wheel_pkg_dir = _make_fake_pkg(tmp_path, "zkm_notes_wheel2", "notes", version="9.9.9")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.setattr(
+        importlib.metadata,
+        "entry_points",
+        lambda group: [_FakeEP("notes", "zkm_notes_wheel2")] if group == "zkm.plugins" else [],
+    )
+
+    add_plugin(str(notes_plugin_dir))
+    symlink = isolated_plugins / "zkm-notes"
+    assert symlink.is_symlink()
+
+    # Remove should peel the filesystem layer (symlink) without error
+    remove_plugin("notes")
+    assert not symlink.exists(), "symlink should be removed"
+
+    # Wheel is still discoverable
+    plugins = list_plugins()
+    wheel = next((p for p in plugins if p.name == "notes"), None)
+    assert wheel is not None and wheel.origin == "entry-point"
+    assert wheel_pkg_dir.exists(), "wheel package dir must not be touched"
+
+
 def _make_fake_pkg(tmp_path: Path, pkg_name: str, plugin_name: str, version: str = "2.0.0") -> Path:
     """Create a minimal installable-style package with plugin.yaml in tmp_path."""
     pkg_dir = tmp_path / pkg_name

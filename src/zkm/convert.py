@@ -205,6 +205,11 @@ def remove_plugin(name: str) -> None:
     plugin = find_plugin(name)
     if plugin is None:
         raise LookupError(f"Plugin not installed: {name}")
+    if plugin.origin == "entry-point":
+        raise ValueError(
+            f"'{plugin.name}' is a wheel-installed plugin and cannot be removed via zkm.\n"
+            f"Re-install without it: uv tool install zkm --with <other-plugins>"
+        )
     if plugin.path.is_symlink():
         plugin.path.unlink()
     else:

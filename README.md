@@ -50,18 +50,23 @@ git repo, `zkm-config.yaml` for committed config, and a gitignored
 
 ### 3. Install a plugin
 
-Plugins convert sources into markdown. Install the bundled example or any
-git-hosted plugin:
+Plugins convert sources into markdown. Two install paths:
 
+**Released plugins** (recommended for end users):
 ```bash
-# bundled plain-text/markdown importer (development)
+uv tool install zkm --with zkm-eml --with zkm-photo   # add one or more
+```
+
+**Dev / local plugins** (for development or custom plugins):
+```bash
+# bundled plain-text/markdown importer
 zkm plugin add ./examples/zkm-notes
 
 # or a git-hosted plugin
 zkm plugin add https://github.com/yourname/zkm-myplugin
 ```
 
-List installed plugins:
+List installed plugins (shows origin: `entry-point` or filesystem path):
 
 ```bash
 zkm plugin list
@@ -184,11 +189,13 @@ plugin.yaml    # name, version, config_schema, creates_dirs
 convert.py     # def convert(store_path, config, *, progress=None) -> list[Path]
 ```
 
-Install locally during development:
+Install locally during development (creates a symlink in `plugins/`):
 
 ```bash
-zkm plugin add ./my-plugin     # creates a symlink in plugins/
+zkm plugin add ./my-plugin
 ```
+
+For released plugins: `uv tool install zkm --with zkm-<name>`
 
 ## Store layout
 
