@@ -907,7 +907,7 @@ def cmd_index(store_override: str | None, no_progress: bool, no_embed: bool, ful
                 save_embed_store,
             )
 
-            ep, mdl, key = resolve_embed_config(sdir)
+            ep, mdl, key, stall_timeout = resolve_embed_config(sdir)
             if not ep:
                 click.echo(
                     "Dense index skipped (set ZKM_EMBED_ENDPOINT to enable).", err=True
@@ -942,6 +942,7 @@ def cmd_index(store_override: str | None, no_progress: bool, no_embed: bool, ful
                         model=mdl,
                         api_key=key,
                         progress=embed_progress,
+                        stall_timeout=stall_timeout,
                     )
                     if embed_bar is not None:
                         embed_bar.close()
@@ -1176,7 +1177,7 @@ def cmd_doctor(store_override: str | None) -> None:
     else:
         click.echo(f"{'embed docs':<{col}}0  (not built — run: zkm index)")
 
-    ep, mdl, key = resolve_embed_config(sdir)
+    ep, mdl, key, _stall_timeout = resolve_embed_config(sdir)
     if ep:
         try:
             headers: dict[str, str] = {"Content-Type": "application/json"}

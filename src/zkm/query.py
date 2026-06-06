@@ -369,7 +369,7 @@ def search_hybrid_traced(
     if es is None:
         return bm25_hits[:top_k], SearchTrace(len(bm25_hits), 0, "no_embed_store", False)
 
-    ep, mdl, key = resolve_embed_config(store)
+    ep, mdl, key, _stall = resolve_embed_config(store)
     if not ep:
         return bm25_hits[:top_k], SearchTrace(len(bm25_hits), 0, "no_endpoint", False)
 
@@ -439,7 +439,7 @@ def search_with_expansion_traced(
     if es is None:
         return bm25_rrf_hits[:top_k], SearchTrace(len(bm25_rrf_hits), 0, "no_embed_store", True, keywords, hyp_text, expand_reason)
 
-    e_ep, e_mdl, e_key = resolve_embed_config(store)
+    e_ep, e_mdl, e_key, _stall = resolve_embed_config(store)
     if not e_ep:
         return bm25_rrf_hits[:top_k], SearchTrace(len(bm25_rrf_hits), 0, "no_endpoint", True, keywords, hyp_text, expand_reason)
 

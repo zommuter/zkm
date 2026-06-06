@@ -55,6 +55,7 @@ _CORE_DEFAULTS: dict[str, Any] = {
         "chunk_chars": 2000,
         "chunk_overlap": 200,
         "key": "",
+        "stall_timeout": 1800.0,
     },
     "expand": {
         "timeout": 30.0,
@@ -198,6 +199,7 @@ _ENV_KEY_MAP: dict[str, tuple[str, str]] = {
     "ZKM_EMBED_KEY": ("core.embed", "key"),
     "ZKM_EMBED_CHUNK_CHARS": ("core.embed", "chunk_chars"),
     "ZKM_EMBED_CHUNK_OVERLAP": ("core.embed", "chunk_overlap"),
+    "ZKM_EMBED_STALL_TIMEOUT": ("core.embed", "stall_timeout"),
     "ZKM_LLM_EXPAND_ENDPOINT": ("core.expand", "endpoint"),
     "ZKM_LLM_EXPAND_MODEL": ("core.expand", "model"),
     "ZKM_LLM_EXPAND_KEY": ("core.expand", "key"),

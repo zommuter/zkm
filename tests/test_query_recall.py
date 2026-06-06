@@ -117,7 +117,7 @@ def test_search_hybrid_trace_no_endpoint(
     _write_and_index(store, [("notes/doc.md", "electricity bill")])
     _make_embed_store(store, ["notes/doc.md"], np.eye(1, 4))
     # Patch resolve_embed_config to return empty endpoint (simulating disabled dense)
-    monkeypatch.setattr("zkm.query.resolve_embed_config", lambda store, **kw: ("", "bge-m3", ""))
+    monkeypatch.setattr("zkm.query.resolve_embed_config", lambda store, **kw: ("", "bge-m3", "", 1800.0))
     hits, trace = search_hybrid_traced(store, "electricity", top_k=5, dense=True)
     assert any("doc" in h.path for h in hits)
     assert trace.dense_skipped_reason == "no_endpoint"

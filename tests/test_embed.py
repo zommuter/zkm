@@ -59,7 +59,7 @@ def test_resolve_embed_config_yaml(tmp_path: Path) -> None:
     data = yaml.safe_load(cfg_path.read_text()) or {}
     data.setdefault("core", {})["embed"] = {"endpoint": "http://myhost:9090", "model": "my-model"}
     cfg_path.write_text(yaml.dump(data, default_flow_style=False))
-    ep, mdl, key = resolve_embed_config(store)
+    ep, mdl, key, _ = resolve_embed_config(store)
     assert ep == "http://myhost:9090"
     assert mdl == "my-model"
     assert key == ""
@@ -68,7 +68,7 @@ def test_resolve_embed_config_yaml(tmp_path: Path) -> None:
 def test_resolve_embed_config_override(tmp_path: Path) -> None:
     store = tmp_path / "store"
     init_store(store, backend="none")
-    ep, mdl, key = resolve_embed_config(store, endpoint="http://override:1234", model="m")
+    ep, mdl, _key, _ = resolve_embed_config(store, endpoint="http://override:1234", model="m")
     assert ep == "http://override:1234"
     assert mdl == "m"
 
@@ -76,7 +76,7 @@ def test_resolve_embed_config_override(tmp_path: Path) -> None:
 def test_resolve_embed_config_unset_gives_default_endpoint(tmp_path: Path) -> None:
     store = tmp_path / "store"
     init_store(store, backend="none")
-    ep, mdl, _ = resolve_embed_config(store)
+    ep, mdl, _, _ = resolve_embed_config(store)
     assert ep == "http://localhost:8080"
     assert mdl == "bge-m3"
 
@@ -688,3 +688,59 @@ def test_build_embed_store_skips_doc_on_persistent_failure(tmp_path: Path) -> No
         )
 
     assert "notes/ok.md" in es.paths
+
+
+def test_build_embed_store_stall_timeout_raises_on_persistent_failure(tmp_path: Path) -> None:
+    """When every batch fails and stall_timeout fires, EmbedUnavailable is raised."""
+    store = tmp_path / "store"
+    init_store(store, backend="none")
+    doc = _make_doc(store, "notes/a.md", body="text to embed", mtime_ns=1)
+
+    def always_fail(url, headers, json, timeout):  # noqa: A002
+        raise Exception("simulated transient server error")
+
+    # Patch time.monotonic to simulate stall detection after the first failed batch:
+    # - call 1 (last_success init): 0.0
+    # - call 2 (top-of-loop check): 0.001 (< stall_timeout, don't abort yet)
+    # - call 3 (after-failure check): 9999.0 (> stall_timeout, abort)
+    mono_seq = [0.0, 0.001, 9999.0]
+
+    with patch("zkm.embed._EMBED_RETRY_SLEEPS", (0,)), \
+         patch("zkm.embed._EMBED_BATCH", 1), \
+         patch("httpx.post", side_effect=always_fail), \
+         patch("zkm.embed.time.monotonic", side_effect=mono_seq):
+        with pytest.raises(EmbedUnavailable, match="stalled"):
+            build_embed_store(
+                store, [doc], prev_es=None, endpoint="http://localhost:8080",
+                model="bge-m3", api_key="", stall_timeout=1800.0,
+            )
+
+
+def test_build_embed_store_stall_timeout_not_tripped_on_success(tmp_path: Path) -> None:
+    """A run where every batch succeeds never trips the stall timeout, even if tiny."""
+    store = tmp_path / "store"
+    init_store(store, backend="none")
+    docs = [_make_doc(store, f"notes/{i}.md", body=f"text {i}", mtime_ns=i) for i in range(3)]
+
+    def always_succeed(url, headers, json, timeout):  # noqa: A002
+        resp = MagicMock()
+        resp.json.return_value = _fake_embed_response(len(json["input"]), 4)
+        resp.raise_for_status = MagicMock()
+        return resp
+
+    with patch("zkm.embed._EMBED_BATCH", 1), \
+         patch("httpx.post", side_effect=always_succeed):
+        es = build_embed_store(
+            store, docs, prev_es=None, endpoint="http://localhost:8080",
+            model="bge-m3", api_key="", stall_timeout=1800.0,
+        )
+
+    assert len(set(es.paths)) == 3
+
+
+def test_embed_stall_timeout_default_from_config(tmp_path: Path) -> None:
+    """embed.stall_timeout defaults to 1800.0 and is returned by resolve_embed_config."""
+    store = tmp_path / "store"
+    init_store(store, backend="none")
+    _, _, _, stall = resolve_embed_config(store)
+    assert stall == 1800.0

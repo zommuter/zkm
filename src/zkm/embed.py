@@ -58,16 +58,18 @@ def resolve_embed_config(
     endpoint: str | None = None,
     model: str | None = None,
     api_key: str | None = None,
-) -> tuple[str, str, str]:
+) -> tuple[str, str, str, float]:
     """Resolve embed config from overrides → store config → defaults.
 
-    Returns (endpoint, model, key). Endpoint is empty string when not configured.
+    Returns (endpoint, model, key, stall_timeout). Endpoint is empty string
+    when not configured. stall_timeout=0 disables the stall guard.
     """
     cfg = load_config(store)
     ep = endpoint or cfg.core_value("embed", "endpoint") or _DEFAULT_ENDPOINT
     mdl = model or cfg.core_value("embed", "model") or _DEFAULT_MODEL
     key = api_key if api_key is not None else (cfg.core_value("embed", "key") or "")
-    return ep, mdl, key
+    stall = float(cfg.core_value("embed", "stall_timeout") or 1800.0)
+    return ep, mdl, key, stall
 
 
 def embed_texts(
@@ -263,6 +265,10 @@ def build_embed_store(
     timeout: float = 180.0,
     checkpoint_every: int = 100,
     progress=None,  # ProgressCallback | None
+    # Time (seconds) since the last *successful* batch before aborting. 0 = disabled.
+    # Distinguishes persistent 500-wall (no successes for N minutes) from a slow-but-healthy
+    # long rebuild (timer resets on every success). Default 1800 s (30 min).
+    stall_timeout: float = 1800.0,
 ) -> EmbedStore:
     """Build or incrementally update an EmbedStore for the given docs.
 
@@ -327,7 +333,22 @@ def build_embed_store(
             headers["Authorization"] = f"Bearer {api_key}"
         done = 0
         skipped_paths: list[str] = []
+        last_success = time.monotonic()
+
+        def _check_stall() -> None:
+            if stall_timeout and time.monotonic() - last_success > stall_timeout:
+                if checkpoint_every:
+                    _save_partial(
+                        store, acc_paths, acc_mtimes, acc_chunk_indices, acc_vecs, model
+                    )
+                raise EmbedUnavailable(
+                    f"embed stalled: no successful batch in {stall_timeout:.0f}s"
+                    f" (server likely in persistent-500 state);"
+                    f" {done}/{n} texts embedded, partial progress checkpointed"
+                )
+
         for batch_start in range(0, n, _EMBED_BATCH):
+            _check_stall()
             batch_texts = flat_texts[batch_start : batch_start + _EMBED_BATCH]
             batch_meta = flat_meta[batch_start : batch_start + _EMBED_BATCH]
             batch_vecs: np.ndarray = np.empty(0)
@@ -335,6 +356,7 @@ def build_embed_store(
             for attempt, sleep_s in enumerate(_EMBED_RETRY_SLEEPS):
                 try:
                     if sleep_s:
+                        _check_stall()
                         time.sleep(sleep_s)
                     batch_vecs = _post_embed_batch(url, headers, model, batch_texts, timeout)
                     last_exc = None
@@ -376,12 +398,14 @@ def build_embed_store(
                 skipped_paths.extend(batch_doc_paths)
                 if checkpoint_every:
                     _save_partial(store, acc_paths, acc_mtimes, acc_chunk_indices, acc_vecs, model)
+                _check_stall()
                 continue
             for (doc, ci), vec in zip(batch_meta, batch_vecs):
                 acc_paths.append(doc.rel_path)
                 acc_mtimes.append(doc.mtime_ns)
                 acc_chunk_indices.append(ci)
                 acc_vecs.append(vec)
+            last_success = time.monotonic()
             done += len(batch_texts)
             if progress is not None:
                 progress(done, n, batch_meta[-1][0].rel_path.split("/")[-1])
