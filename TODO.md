@@ -50,7 +50,7 @@ NER lands before whatsapp. `zkm convert <plugin>` runs amenders default-on (`--n
 
 ## Phase 2 — mbsync auto-trigger (decided 2026-05-08-mbsync-hook.md)
 
-- [ ] **A-gitignore: `~/knowledge/.gitignore` missing `*.lock`** — store initialized before 2026-05-14; `.json.lock` sidecar files are being committed. Fix: add `*.lock` to `~/knowledge/.gitignore` + `git -C ~/knowledge rm --cached -r --ignore-unmatch '*.lock'`. Template already correct (`store.py:_GITIGNORE`). <!-- id:9047 -->
+- [x] **A-gitignore: `~/knowledge/.gitignore` missing `*.lock`** — store initialized before 2026-05-14; `.json.lock` sidecar files are being committed. Fix: add `*.lock` to `~/knowledge/.gitignore` + `git -C ~/knowledge rm --cached -r --ignore-unmatch '*.lock'`. Template already correct (`store.py:_GITIGNORE`). Done 2026-06-06. <!-- id:9047 -->
 - [ ] **A-index-stuck: investigate 2026-06-01 8h+ index run** — pid 6888 started 2026-06-01T08:00:37, still blocking at 15:44 (7+ hours). Likely hung on embed phase (known 500-wall issue). Add timeout or dead-man's check to `zkm index`. <!-- id:141a -->
 - [~] **zkm-eml signature stripping** — promoted 2026-05-12 to first-class action item: see **N9g-pre** above. (Original framing 2026-05-10-1640-n9b: heuristic detection of email signature blocks before markdown render; addresses popularity skew of personal contact details. Re-scoped from "stripping" to "typed extraction" in N9g-pre.)
 
