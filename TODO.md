@@ -102,9 +102,13 @@ v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `cha
 
 ## Plugin backlog — conversation / AI session sources
 
-- [ ] **`zkm-claude-code`** — import Claude Code session transcripts (`.claude/projects/*/transcripts/*.json` or similar). Key fields: session ID, timestamp, project path, messages. Stable ID: session ID + message index. Source state: git-commit watermark on transcript dir or mtime-based. Scope and trigger path need a scoping session before implementation.
-- [ ] **`zkm-claude-ai`** — import claude.ai conversation exports (JSON or markdown). Same stable-ID and amendment concerns as zkm-claude-code; likely shares core parsing logic. **Scoping note (2026-05-10 meeting):** the interesting corpus is `conversations.json` + per-project conversation IDs (not `docs[]` — those are a round-trip backup of disk content, see `~/.claude/projects/-home-tobias-src-zkm/memory/zkm_claude_plugin.md`). Hold a dedicated scoping meeting before implementation to decide start order (zkm-claude-ai vs zkm-claude-code first).
-- [ ] **Other AI provider sessions** (ChatGPT exports, Gemini, etc.) — deferred until zkm-claude-code lands and the session-import pattern is proven. N=2 for a shared `zkm.session` helper module requires at least two providers implemented.
+**Scoped (decided 2026-06-06-1617-zkm-claude-ai-claude-code-scoping.md):** build claude-ai first; claude-code second (extends with event-record filtering + sidecar reassembly); zkm.session code extraction deferred to the claude-code build session (N=2 trigger). Other providers deferred until N=2 proves the pattern.
+
+- [ ] **Build `zkm-claude-ai` plugin** (own repo `plugins/zkm-claude-ai/`). One .md per conversation under `sessions/claude-ai/`; dedup on conversation `uuid`; `.zkm-state/zkm-claude-ai.json` watermark on `updated_at`; block-stub rendering (text+thinking included, tool stubs, no payloads — deliberate privacy posture); skip empty conversations; messaging-spec frontmatter. See `docs/meeting-notes/2026-06-06-1617-zkm-claude-ai-claude-code-scoping.md`. <!-- id:1c5b -->
+- [ ] **Document session-import conceptual contract** in `docs/messaging-spec.md` + plugin README: `message_id` format, `thread_id`, 2-participant model, block-stub rules. So `zkm-claude-code` can mirror without code dependency. See meeting note above. <!-- id:5590 -->
+- [ ] **Add test fixture + conformance** for `zkm-claude-ai`: small committed `conversations.json` slice (placeholder/redacted per published-repos-must-be-generic rule) + `conformance.config.source_dir`; roundtrip test against `validate_frontmatter()`. <!-- id:dd21 -->
+- [ ] **`zkm-claude-code`** — build session is the N=2 trigger for `zkm.session` extraction. Compare the two real renderers; extend with event-record filtering + sidecar reassembly (`subagents/`, `tool-results/*.txt`). Module name not pre-committed. See `docs/meeting-notes/2026-06-06-1617-zkm-claude-ai-claude-code-scoping.md`. <!-- id:4d93 -->
+- [ ] **Other AI provider sessions** (ChatGPT exports, Gemini, etc.) — deferred until zkm-claude-code lands and the session-import pattern is proven. N=2 for a shared `zkm.session` helper requires at least two providers implemented.
 
 ## Plugin backlog — social networks
 
