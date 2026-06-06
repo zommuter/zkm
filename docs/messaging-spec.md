@@ -113,6 +113,74 @@ Raw originals (`.eml`, chat export JSON, etc.) SHOULD be stored at `originals/<s
 
 Use `message_id` as the primary dedup key (more stable than `sha256` for sources that allow minor re-encoding). Keep `sha256` in frontmatter to satisfy the base plugin contract; compute it over the raw original bytes or a stable canonical form.
 
+## Per-conversation transcript doc-type
+
+AI session plugins with naturally bounded conversations (claude.ai, ChatGPT, etc.) produce
+**per-conversation transcripts**. A conversation has an intrinsic start/end and a stable UUID.
+
+> Reference design: [zkm-claude-ai / zkm-claude-code scoping meeting 2026-06-06](meeting-notes/2026-06-06-1617-zkm-claude-ai-claude-code-scoping.md).
+
+### File layout
+
+```
+sessions/<platform>/
+├── 2026-01-02_simple_text_conversation_00000002.md
+└── ...
+```
+
+Filename: `<YYYY-MM-DD>_<slug>_<uuid8>.md`. Slugify the conversation name; UUID prefix is 8 chars.
+
+### Frontmatter schema
+
+```yaml
+source: claude-ai
+date: 2026-01-02T09:00:00+00:00       # created_at with timezone
+title: "Simple text conversation"
+thread_id: 00000000-0000-0000-0000-000000000002   # conversation UUID
+participants:
+  - address: human
+    role: human
+  - address: assistant
+    role: assistant
+message_count: 2
+updated_at: 2026-01-02T09:05:00+00:00
+summary: "Anthropic-generated summary"  # omit if empty
+tags: []
+sha256: <sha256 of conversation JSON>
+processor: claude-ai
+processor_version: "0.1.0"
+```
+
+**Notes:**
+- `thread_id` is the platform-native conversation UUID (stable, not derived).
+- `message_id` is NOT in the file-level frontmatter. Conceptual per-message format:
+  `claude-ai:<conv_uuid>:<msg_uuid>` — for cross-reference in body text and future tooling.
+- `participants` uses fixed roles `human` / `assistant`; `address` is the lowercase role string.
+- `sha256` is computed over the stable JSON representation of the conversation.
+- `summary` is provenance-marked as Anthropic-generated; never a zkm-derived field.
+
+### Content block rendering (D3 — deliberate privacy posture)
+
+| Block type | Rendered as |
+|---|---|
+| `text` | Verbatim body text |
+| `thinking` | `> [thinking]` blockquote |
+| `tool_use` | `[→ tool_name: {short input ≤80 chars}]` |
+| `tool_result` | `[← result (name): N bytes]` — **no payload** |
+| `token_budget` | Skipped |
+| `attachments[].extracted_content` | Verbatim (user-pasted content, owns its own provenance) |
+| `files[]` | `[attachment: filename]` pointer note |
+
+MCP tool results and file payloads MUST NOT enter the store. Stub format is `name+size only`.
+
+### Deduplication
+
+Use the conversation `uuid` as the primary dedup key. Re-import when `updated_at` is newer.
+State file: `<store>/.zkm-state/zkm-claude-ai.json` — maps source path → `{by_uuid: {uuid: updated_at}}`.
+Correctness comes from UUID-dedup via frontmatter scan; watermark is a speed optimisation.
+
+---
+
 ## Per-chat-day transcript doc-type
 
 Chat plugins operating on a *conversation snapshot* (e.g. a SQLite backup) produce
@@ -234,4 +302,5 @@ platform-level stable ID) is used for dedup.
 | `zkm-threema` | Threema Safe export | per-chat-day | JSON export |
 | `zkm-signal` | Signal SQLite DB | per-chat-day | Requires phone access |
 | `zkm-telegram` | Telegram JSON export | per-chat-day | Built-in export feature |
-| `zkm-chatlog` | AI chat exports | per-message or per-chat-day | Format-dependent |
+| `zkm-claude-ai` | claude.ai `conversations.json` | per-conversation | Singleton thread; no `message_id` at file level |
+| `zkm-claude-code` | Claude Code `~/.claude/projects/*.jsonl` | per-conversation | Extends claude-ai with event-record filtering + sidecar reassembly |
