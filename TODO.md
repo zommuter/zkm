@@ -117,9 +117,14 @@ v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `cha
 - [ ] **SOC1.** Build `zkm-social` plugin skeleton: `plugin.yaml` (`creates_dirs: [contacts, originals/contacts]`), `convert(store_path, config) -> list[Path]` with per-network parser dispatch. Code at `plugins/zkm-social/` (fievel:src/zkm-plugins/zkm-social.git); needs GitHub remote + user review. <!-- id:56ac -->
 - [ ] **SOC2.** GitHub parser module (lane B): fetch `api.github.com/users/<login>`, map login/name/bio/company/location/blog/avatar → `contacts/<slug>.md`, typed `entities[]` at `scope:profile.github`, avatar → CAS, dedup-keyed on profile URL. Code at `plugins/zkm-social/_github.py`; needs GitHub remote + user review. <!-- id:017f -->
 - [ ] **SOC3.** LinkedIn parser module (lane A): parse a browser-saved LinkedIn profile (HTML/PDF/MHTML) for name/headline/current-employer/location/photo/profile-URL; emit `contacts/<slug>.md` at `scope:profile.linkedin`, photo → CAS, dedup-keyed on normalized profile URL. Code at `plugins/zkm-social/_linkedin.py`; needs GitHub remote + user review. <!-- id:7f55 -->
+- [ ] **SOC-github-remote.** Create `github.com/zommuter/zkm-social` repo; add `github` remote to `plugins/zkm-social/`; push. Gate for marking SOC1–3 done (user review + GitHub remote required). <!-- id:e395 -->
 - [ ] **SOC4** (sequenced follow-on, after SOC1–3 prove the doc shape). Browser extension / bookmarklet capture front-end: one-click capture of the rendered profile into the `zkm-social` source dir. Contract: capture button → file in source dir → existing ingest path produces the note. <!-- id:dfa4 -->
 - [ ] **SOC5** (deferred — separate scoping meeting). Activity-feed doc-type: posts/reactions/comments/being-tagged. Overlaps `messaging-spec.md`. Reopen when a concrete feed use-case appears. <!-- id:a580 -->
 - [ ] **SOC6** (deferred — gated escalation). Bulk / lead-gen multi-subject capture. Gate: concrete use-case + ToS clearance + deliberate decision to cross the single-subject boundary. <!-- id:3de4 -->
+
+## Workflow / process backlog
+
+- [ ] **Meeting: parallel-agent workflow for new plugin repos.** The parallel worktree approach (isolation per agent → merge back to main) does not map cleanly onto new plugin repos that are gitignored by the parent. In the 2026-06-10 session, SOC1–3 agents committed directly to a shared local repo with no remote, and TODOs were falsely marked done. Questions: (1) should new plugin scaffolding always include a fievel remote before any parallel work starts? (2) should the workflow include an explicit "push to remote" gate before the TODO-update step? (3) is the correct pattern to have SOC agents work on branches of the plugin repo and merge, or is sequential commit-to-main acceptable once a remote exists? <!-- id:0b03 -->
 
 ## Amendment contract backlog
 
