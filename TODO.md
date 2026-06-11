@@ -122,6 +122,7 @@ v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `cha
 ## Workflow / process backlog
 
 - [ ] (Forward-flag, deferred — D4) Design a TODO-mutating script/tool that enforces the `@{u}` done-gate at `[x]`-write time. Gate: next todo-update skill revision OR second enforcement need. <!-- id:f1cf -->
+- [ ] **`zkm index` self-scope + gaming lockfile** — re-exec under `systemd-run --user --scope --unit=zkm-index --collect` when `$INVOCATION_ID` unset; check `/tmp/zomni-gamemode.lock` at startup and exit cleanly if present (prevents mbsync-triggered runs starting while gaming); handle "scope exists but is frozen" case on re-exec (join frozen scope → blocks until thawed, or fail cleanly). Enables `systemctl --user freeze/thaw zkm-index.scope` from zomni-gamemode toggle. See zomni `docs/meeting-notes/2026-06-11-1328-memory-swap-failsafe-llama-swap.md` <!-- id:f631 -->
 
 ## Amendment contract backlog
 
