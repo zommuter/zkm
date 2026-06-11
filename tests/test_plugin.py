@@ -526,6 +526,53 @@ def test_progress_not_passed_to_plugin_without_kwarg(
     assert called == []  # callback not invoked — plugin doesn't know about it
 
 
+def test_created_forwarded_only_to_plugin_that_declares_it(
+    isolated_plugins: Path, store: Path, tmp_path_factory: pytest.TempPathFactory
+) -> None:
+    """run_convert passes created= only when the plugin's convert() declares the param."""
+    import json
+
+    # Plugin that does NOT declare created= — must not receive it (no TypeError)
+    plain_dir = tmp_path_factory.mktemp("plain_plugin")
+    (plain_dir / "plugin.yaml").write_text(
+        "name: plain\nversion: 0.1.0\ncreates_dirs: []\nconfig: {}\n"
+    )
+    (plain_dir / "convert.py").write_text(
+        "from pathlib import Path\n"
+        "def convert(store_path: Path, config: dict) -> list[Path]:\n"
+        "    return []\n"
+    )
+
+    # Plugin that DOES declare created= — writes received value to a sidecar file
+    aware_dir = tmp_path_factory.mktemp("aware_plugin")
+    (aware_dir / "plugin.yaml").write_text(
+        "name: aware\nversion: 0.1.0\ncreates_dirs: []\nconfig: {}\n"
+    )
+    (aware_dir / "convert.py").write_text(
+        "import json\n"
+        "from pathlib import Path\n"
+        "def convert(store_path: Path, config: dict, *, created=None) -> list[Path]:\n"
+        "    sidecar = store_path / 'aware_received.json'\n"
+        "    sidecar.write_text(json.dumps([str(p) for p in created] if created is not None else None))\n"
+        "    return []\n"
+    )
+
+    add_plugin(str(plain_dir))
+    add_plugin(str(aware_dir))
+
+    sentinel = [store / "foo.md"]
+
+    # plain plugin — must not raise TypeError despite receiving created kwarg to run_convert
+    result = run_convert("plain", store, created=sentinel)
+    assert result == []
+
+    # aware plugin — must receive the sentinel list (written to sidecar file)
+    run_convert("aware", store, created=sentinel)
+    received_raw = (store / "aware_received.json").read_text()
+    received = json.loads(received_raw)
+    assert received == [str(store / "foo.md")]
+
+
 def test_reprocess_outdated_skips_current_version(
     isolated_plugins: Path, store: Path, tmp_path: Path, notes_plugin_dir: Path
 ) -> None:

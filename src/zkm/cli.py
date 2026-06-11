@@ -692,7 +692,7 @@ def cmd_convert(
                         _abar[0].set_postfix_str(message[:60])
 
                 try:
-                    run_convert(amender.name, sdir, progress=_amender_progress)
+                    run_convert(amender.name, sdir, progress=_amender_progress, created=created)
                     click.echo(f"Amended via '{amender.name}'")
                 except Exception as e:
                     click.echo(f"WARN: amender '{amender.name}' failed: {e}", err=True)

@@ -348,12 +348,16 @@ def run_convert(
     store_path: Path,
     extra_env: dict[str, str] | None = None,
     progress: ProgressCallback | None = None,
+    created: "list[Path] | None" = None,
 ) -> list[Path]:
     """
     Load plugin by name, resolve config, and call its convert() function.
 
     extra_env: additional key/value pairs that supplement (not replace) .env.
     progress: optional callback(current, total, message) called by the plugin.
+    created: when provided and the plugin's convert() declares a 'created'
+        parameter, pass this list so the plugin can restrict its sweep to only
+        the files the triggering convert created (amender scoping, id:63bb).
     Returns the list of created/updated paths as reported by the plugin.
     """
     plugin = find_plugin(name)
@@ -389,6 +393,8 @@ def run_convert(
     kwargs: dict = {}
     if progress is not None and _supports_progress(mod.convert):
         kwargs["progress"] = progress
+    if created is not None and _supports_created(mod.convert):
+        kwargs["created"] = created
     result = mod.convert(store_path, config, **kwargs)
     return [Path(p) for p in (result or [])]
 
@@ -512,6 +518,14 @@ def _supports_progress(fn: object) -> bool:
     """Return True if fn declares a 'progress' keyword parameter."""
     try:
         return "progress" in inspect.signature(fn).parameters  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return False
+
+
+def _supports_created(fn: object) -> bool:
+    """Return True if fn declares a 'created' keyword parameter (amender scoping)."""
+    try:
+        return "created" in inspect.signature(fn).parameters  # type: ignore[arg-type]
     except (TypeError, ValueError):
         return False
 
