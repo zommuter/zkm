@@ -70,6 +70,18 @@ Plugins declare which subdirs they create (e.g., `mail/`) and what config they n
 
 **Dev plugin repos** (e.g., `zkm-eml`, `zkm-photo`) live directly under `plugins/<repo-name>/` as full independent git repos. They are gitignored from the parent repo. Discovery finds them via `plugin.yaml` with no symlink needed — don't run `zkm plugin add` against a path already inside `plugins/` (creates a redundant `zkm-<name> → ./plugins/<name>` self-link).
 
+**New-plugin dispatch convention** (decided 2026-06-11, see `docs/meeting-notes/2026-06-11-0835-parallel-agent-workflow-new-plugin-repos.md`):
+1. **Remote-first before dispatch-or-done.** A new plugin repo may start as a local-only `git init` skeleton, but MUST have its remote created and `git push -u origin main` landed *before* either (a) parallel agents are dispatched against it, or (b) any of its TODO items is marked `[x]`. Remote creation (bare repo on fievel via SSH, or GitHub repo creation) is a human-confirmed step in the main session — never inside a dispatched child agent.
+2. **Skeleton-first baseline barrier.** The skeleton stage (e.g. SOC1 `git init` + initial commit) is a hard barrier before any parallel fan-out. `git worktree add` requires an existing baseline commit; fan-out only after the first commit exists.
+3. **D6.4 worktree-per-item applies verbatim** thereafter: Workflow tool, each parser-agent in its own worktree+branch off the baseline, commits in-worktree, returns `{branch, diary_fragment, todo_item_id, done_summary, contract_met}`, main merges `--no-ff` and pushes. See `docs/meeting-notes/2026-06-04-1048-subagent-parallel-class1.md` for the full D6.4 contract.
+
+**Plugin-done gate** (decided 2026-06-11): Before any plugin-scoped TODO item is marked `[x]`, the main session verifies the plugin's HEAD is pushed to its upstream:
+```bash
+git -C plugins/<name> rev-parse HEAD
+git -C plugins/<name> rev-parse @{u}   # must resolve + must equal HEAD
+```
+Fails closed: no upstream configured, or HEAD ahead of upstream → item stays open. Uses `@{u}` (tracking upstream), so it is remote-name-agnostic (works for fievel `origin` and github remotes alike). Universal for ALL plugin-scoped item closes, established repos included.
+
 See `docs/plugin-spec.md` for the full interface contract. See `examples/zkm-notes/` for a working reference implementation.
 
 ## Store layout (minimal skeleton)
