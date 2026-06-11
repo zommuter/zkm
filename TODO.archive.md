@@ -294,3 +294,5 @@
 - [x] Document universal plugin-done predicate (D3) in `CLAUDE.md` "Plugin system" section, including exact `@{u}` check command. <!-- id:425d -->
 - [x] Update memory `feedback_todo_not_done_until_pushed` to name the mechanical `@{u}` check command (rule is now a command, not just prose). <!-- id:75f5 -->
 - [x] from 2026-06-11: review `journalctl -t zkm-index-lock-watch` for lock-contention events; decide on stronger protection if any observed. **Done 2026-06-11: 1 event in 4 weeks — no action. See docs/meeting-notes/2026-06-11-0858-journalctl-lock-contention-review.md.**
+- [x] **`zkm-claude-code`** — built (v0.1.0). `zkm.session` extracted (N=2 trigger). 27 tests pass. Pushed to fievel:src/zkm-plugins/zkm-claude-code.git. See `plugins/zkm-claude-code/`. <!-- id:4d93 -->
+- [x] **zkm-claude-code: default source_dir scans store instead of ~/.claude/projects** — Fixed in v0.1.1: store-internal guard + nonexistent-path graceful return. See `docs/meeting-notes/2026-06-11-0945-claude-code-source-dir-guard.md`. <!-- id:5643 -->
