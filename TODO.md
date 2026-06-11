@@ -60,7 +60,7 @@ Scope: `convert` and `index` (BM25 + embed phases) only. `query`, `clone`, `push
 
 - [ ] **Future re-evaluation trigger — local DB with git-tracked autoexport-on-write** — possible architectural pivot from sidecar-files-on-disk. Re-open if any one trigger fires: (a) concurrent-write bugs in sidecars become frequent; (b) WebUI read-write workload makes file-level locking visibly painful; (c) cross-machine sync stops being purely `git pull`-based. See `~/.claude/projects/-home-tobias-src-zkm/memory/project_db_pivot_trigger.md`.
 - [ ] **`zkm queue` design meeting (Phase 3 daemon precursor)** — when attach semantics become a real ask (N=2 consumers wanting `--wait-for-busy`), open a meeting on a queue manager: PID-file → in-memory daemon queue; fail-fast → `attach/wait/wait-rerun` modes; `zkm status` polling → WebSocket push (Phase 3 WebUI alignment). Floor any successor must preserve: the v1 contract in `~/.claude/projects/-home-tobias-src-zkm/memory/project_concurrent_run_guard_contract.md`.
-- [ ] from 2026-06-11: review `journalctl -t zkm-index-lock-watch` for lock-contention events; decide on stronger protection if any observed.
+- [x] from 2026-06-11: review `journalctl -t zkm-index-lock-watch` for lock-contention events; decide on stronger protection if any observed. **Done 2026-06-11: 1 event in 4 weeks — no action. See docs/meeting-notes/2026-06-11-0858-journalctl-lock-contention-review.md.**
 
 **Verification checklist** (313 tests passing, 2026-05-08):
 1. `zkm convert zkm-eml` in terminal A → `zkm status` in terminal B shows one row with fresh `last_updated`.
