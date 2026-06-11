@@ -37,7 +37,6 @@ NER lands before whatsapp. `zkm convert <plugin>` runs amenders default-on (`--n
 **Status: γ rollout COMPLETE (E1–E13).** Typed-slot `entities[]`, `(scope,type,value)` dedup, `zkm.canonical`, suspicious dispatch, 8 value-type extractors, P2 index integration, docs contract tables, and zkm-eml signature/salutation γ-scopes all shipped (largely 2026-05-12). E13 (N9g re-eval) closed moot 2026-05-21 — see item below. E14 (TODO bookkeeping) was the only never-run item — reconciled 2026-05-21, see `docs/meeting-notes/2026-05-21-0816-gamma-schema-gap-audit.md` and `docs/field-test-bge-m3.md` step 7.
 
 - [~] **E13: N9g re-evaluation** — CLOSED MOOT 2026-05-21. Audit confirmed: (1) pattern-overlay overlap filter prevents spaCy from mislabelling value-type strings (amounts, IBANs, etc.); (2) N9c POS filter + `_COMMONNOUN_STOPLIST` handles common-noun FPs; (3) `_SALUTATION_BLOCKLIST` covers sign-off/salutation FPs; (4) `drop_structural_artefacts` + `drop_section_link_artefacts` cover structural pollution; (5) E12 shipped signature-scope extraction. No standalone "general body-NER cleanup" workstream remains. See `docs/meeting-notes/2026-05-12-1500-entity-vs-datamining.md`.
-- [x] **E9 follow-up: 7c typed-value query probe.** Verified: `zkm search <IBAN>` returns source doc via entities[]. <!-- id:e4fe -->
 
 **Named deferrals (with triggers):**
 - P3 typed query language — defer until γ + P2 live ≥1 month AND ≥1 concrete typed-query request.
@@ -154,4 +153,3 @@ Items migrated from the orphan per-plugin TODO file (pre-polyrepo-split artefact
 ## Test corpus / fixture infrastructure (decided 2026-05-29-1112-synthetic-test-corpus.md)
 
 **Status: COMPLETE (2026-06-01).** Committed `.md` corpus (`tests/fixtures/corpus/`, 6 docs + CORPUS_MANIFEST.json), three pathological anchors (`tests/fixtures/pathological/`), `scripts/seed_dev_store.py`, `tests/conftest.py` `store`+`make_note` fixtures, corpus README with regen procedure, zkm-eml generator (`generate_corpus.py`) + roundtrip test (`test_corpus_roundtrip.py`), `zkm test <plugin>` conformance validator. See `docs/meeting-notes/2026-05-29-1112-synthetic-test-corpus.md`.
-- [x] Re-run `zkm index` on real store to fix BM25 watermark mismatch (real store index stale; watermark mismatch found during E9 probe 2026-06-10). See `docs/meeting-notes/2026-06-10-2024-zkm-c1-parallel-dispatch.md`. <!-- id:d45a -->
