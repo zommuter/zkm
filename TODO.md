@@ -104,7 +104,7 @@ v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `cha
 **Scoped (decided 2026-06-06-1617-zkm-claude-ai-claude-code-scoping.md):** claude-ai ✓; claude-code ✓ (v0.1.0, 2026-06-11); `zkm.session` extracted (N=2 done, `src/zkm/session.py`). Other providers deferred until session-import pattern proven with two real plugins.
 
 - [x] **`zkm-claude-code`** — built (v0.1.0). `zkm.session` extracted (N=2 trigger). 27 tests pass. Pushed to fievel:src/zkm-plugins/zkm-claude-code.git. See `plugins/zkm-claude-code/`. <!-- id:4d93 -->
-- [ ] **zkm-claude-code: default source_dir scans store instead of ~/.claude/projects** — `zkm convert claude-code` without config picked up `chat/whatsapp` and other store subdirs instead of `~/.claude/projects`. Root cause: the `default:` in `plugin.yaml` is not being applied (or `_find_project_dirs` is running against the store path). Fix: verify the default is plumbed through `run_convert`, add a guard that rejects store-internal paths, and add a test covering the no-config invocation.
+- [x] **zkm-claude-code: default source_dir scans store instead of ~/.claude/projects** — Fixed in v0.1.1: store-internal guard + nonexistent-path graceful return. See `docs/meeting-notes/2026-06-11-0945-claude-code-source-dir-guard.md`. <!-- id:5643 -->
 - [ ] **Other AI provider sessions** (ChatGPT exports, Gemini, etc.) — deferred until zkm-claude-code lands and the session-import pattern is proven. N=2 for a shared `zkm.session` helper requires at least two providers implemented.
 
 ## Plugin backlog — social networks
