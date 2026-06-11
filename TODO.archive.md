@@ -289,3 +289,7 @@
 - [x] **Meeting: social-network profile scraping scope** — meeting held 2026-06-06; scoped in `docs/meeting-notes/2026-06-06-1656-social-network-profile-scraping-scope.md`. <!-- id:838c -->
 - [x] **E9 follow-up: 7c typed-value query probe.** Verified: `zkm search <IBAN>` returns source doc via entities[]. <!-- id:e4fe -->
 - [x] Re-run `zkm index` on real store to fix BM25 watermark mismatch (real store index stale; watermark mismatch found during E9 probe 2026-06-10). See `docs/meeting-notes/2026-06-10-2024-zkm-c1-parallel-dispatch.md`. <!-- id:d45a -->
+- [x] **Meeting: parallel-agent workflow for new plugin repos.** Decisions D1–D4 recorded 2026-06-11. See `docs/meeting-notes/2026-06-11-0835-parallel-agent-workflow-new-plugin-repos.md`. <!-- id:0b03 -->
+- [x] Document new-plugin dispatch convention (D1 + D2) in `CLAUDE.md` "Plugin system" section (remote-first before dispatch-or-done; skeleton-first baseline barrier; D6.4 worktree-per-item). <!-- id:e6eb -->
+- [x] Document universal plugin-done predicate (D3) in `CLAUDE.md` "Plugin system" section, including exact `@{u}` check command. <!-- id:425d -->
+- [x] Update memory `feedback_todo_not_done_until_pushed` to name the mechanical `@{u}` check command (rule is now a command, not just prose). <!-- id:75f5 -->

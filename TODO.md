@@ -123,10 +123,6 @@ v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `cha
 
 ## Workflow / process backlog
 
-- [x] **Meeting: parallel-agent workflow for new plugin repos.** Decisions D1–D4 recorded 2026-06-11. See `docs/meeting-notes/2026-06-11-0835-parallel-agent-workflow-new-plugin-repos.md`. <!-- id:0b03 -->
-- [x] Document new-plugin dispatch convention (D1 + D2) in `CLAUDE.md` "Plugin system" section (remote-first before dispatch-or-done; skeleton-first baseline barrier; D6.4 worktree-per-item). <!-- id:e6eb -->
-- [x] Document universal plugin-done predicate (D3) in `CLAUDE.md` "Plugin system" section, including exact `@{u}` check command. <!-- id:425d -->
-- [x] Update memory `feedback_todo_not_done_until_pushed` to name the mechanical `@{u}` check command (rule is now a command, not just prose). <!-- id:75f5 -->
 - [ ] (Forward-flag, deferred — D4) Design a TODO-mutating script/tool that enforces the `@{u}` done-gate at `[x]`-write time. Gate: next todo-update skill revision OR second enforcement need. <!-- id:f1cf -->
 
 ## Amendment contract backlog
