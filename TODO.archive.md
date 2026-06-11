@@ -293,3 +293,4 @@
 - [x] Document new-plugin dispatch convention (D1 + D2) in `CLAUDE.md` "Plugin system" section (remote-first before dispatch-or-done; skeleton-first baseline barrier; D6.4 worktree-per-item). <!-- id:e6eb -->
 - [x] Document universal plugin-done predicate (D3) in `CLAUDE.md` "Plugin system" section, including exact `@{u}` check command. <!-- id:425d -->
 - [x] Update memory `feedback_todo_not_done_until_pushed` to name the mechanical `@{u}` check command (rule is now a command, not just prose). <!-- id:75f5 -->
+- [x] from 2026-06-11: review `journalctl -t zkm-index-lock-watch` for lock-contention events; decide on stronger protection if any observed. **Done 2026-06-11: 1 event in 4 weeks — no action. See docs/meeting-notes/2026-06-11-0858-journalctl-lock-contention-review.md.**
