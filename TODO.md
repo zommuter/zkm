@@ -154,4 +154,4 @@ Items migrated from the orphan per-plugin TODO file (pre-polyrepo-split artefact
 ## Test corpus / fixture infrastructure (decided 2026-05-29-1112-synthetic-test-corpus.md)
 
 **Status: COMPLETE (2026-06-01).** Committed `.md` corpus (`tests/fixtures/corpus/`, 6 docs + CORPUS_MANIFEST.json), three pathological anchors (`tests/fixtures/pathological/`), `scripts/seed_dev_store.py`, `tests/conftest.py` `store`+`make_note` fixtures, corpus README with regen procedure, zkm-eml generator (`generate_corpus.py`) + roundtrip test (`test_corpus_roundtrip.py`), `zkm test <plugin>` conformance validator. See `docs/meeting-notes/2026-05-29-1112-synthetic-test-corpus.md`.
-- [ ] Re-run `zkm index` on real store to fix BM25 watermark mismatch (real store index stale; watermark mismatch found during E9 probe 2026-06-10). See `docs/meeting-notes/2026-06-10-2024-zkm-c1-parallel-dispatch.md`. <!-- id:d45a -->
+- [x] Re-run `zkm index` on real store to fix BM25 watermark mismatch (real store index stale; watermark mismatch found during E9 probe 2026-06-10). See `docs/meeting-notes/2026-06-10-2024-zkm-c1-parallel-dispatch.md`. <!-- id:d45a -->
