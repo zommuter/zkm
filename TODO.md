@@ -125,6 +125,7 @@ v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `cha
 
 ## Amendment contract backlog
 
+- [ ] **Scope amender runs to files created by the triggering plugin** — `zkm convert claude-code` currently triggers NER on the entire store (all of `chat/whatsapp/`, `mail/`, etc.), even though only `sessions/claude-code/*.md` were created. Amenders should receive the `created` list from the triggering convert and restrict their sweep to those files (plus any files whose amendments sidecar is missing). Full-store sweeps should only happen when running `zkm convert ner` directly. Design: pass `created: list[Path]` to `run_convert(amender, …)` or add a `run_amend(amender, files)` entry-point. <!-- id:63bb -->
 - [ ] **Meeting: amendment replace-mode** — set-union merge (current) is correct for additive enrichment but cannot remove stale entities when extractor quality improves. `zkm scrub <plugin>` is the current workaround (N9b + future N9c). Trigger for meeting: a third amender wants single-producer-per-field semantics, OR N9c surfaces a need not solvable by scrub. See `docs/meeting-notes/2026-05-10-2142-n9b-scrub-cli.md` for design context.
 
 ## Plugin dependency loading (backlog)
