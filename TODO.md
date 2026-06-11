@@ -103,7 +103,7 @@ v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `cha
 
 **Scoped (decided 2026-06-06-1617-zkm-claude-ai-claude-code-scoping.md):** build claude-ai first; claude-code second (extends with event-record filtering + sidecar reassembly); zkm.session code extraction deferred to the claude-code build session (N=2 trigger). Other providers deferred until N=2 proves the pattern.
 
-- [ ] **`zkm-claude-code`** — build session is the N=2 trigger for `zkm.session` extraction. Compare the two real renderers; extend with event-record filtering + sidecar reassembly (`subagents/`, `tool-results/*.txt`). Module name not pre-committed. See `docs/meeting-notes/2026-06-06-1617-zkm-claude-ai-claude-code-scoping.md`. <!-- id:4d93 -->
+- [x] **`zkm-claude-code`** — built (v0.1.0). `zkm.session` extracted (N=2 trigger). 27 tests pass. Pushed to fievel:src/zkm-plugins/zkm-claude-code.git. See `plugins/zkm-claude-code/`. <!-- id:4d93 -->
 - [ ] **Other AI provider sessions** (ChatGPT exports, Gemini, etc.) — deferred until zkm-claude-code lands and the session-import pattern is proven. N=2 for a shared `zkm.session` helper requires at least two providers implemented.
 
 ## Plugin backlog — social networks
