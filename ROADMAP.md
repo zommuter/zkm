@@ -31,33 +31,11 @@ the gate (N9c/N9d accepted-as-is decisions stand).
 ## Items
 
 - [x] Refuse to start convert/scrub/index while the gamemode lock is present [ROUTINE] <!-- id:1098 -->
-  - **Acceptance**: When the lock file exists (path from `$ZKM_GAMEMODE_LOCK`,
-    default `/tmp/zomni-gamemode.lock`), entering `RunSession` for
-    `convert`/`scrub`/`index` raises a ClickException with **exit code 75**
-    and a message naming the lock path, BEFORE any PID file is written.
-    `ZKM_BYPASS_RUN_GUARD=1` bypasses this check too (same bypass as the
-    concurrent-run guard). `zkm doctor` prints a `gamemode lock` row when the
-    lock is present (informational, does not flip doctor's exit code).
-    User-observable: `touch /tmp/zomni-gamemode.lock && zkm index` exits 75
-    immediately instead of competing with a game for CPU/RAM.
-  - **Tests**: `tests/test_gamemode_guard.py`, marked `# roadmap:1098`.
-    RED spec: `test_default_lock_path_constant`,
-    `test_runsession_refuses_when_gamemode_lock_present`,
-    `test_refusal_exits_75_and_writes_no_pid_file`,
-    `test_default_used_when_env_unset`,
-    `test_cli_index_exits_75_when_lock_present`,
-    `test_doctor_reports_gamemode_lock`.
-    Already-green GUARDs (do not break):
-    `test_env_var_overrides_default_lock_path`,
-    `test_bypass_run_guard_also_bypasses_gamemode_lock`.
-  - **Done-check**: `uv run pytest tests/test_gamemode_guard.py` (then full
-    `uv run pytest` green)
-  - **Context**: `src/zkm/runstate.py` (`RunSession.__enter__`, the
-    `ConcurrentRunError` exit-75 pattern), `src/zkm/cli.py` `cmd_doctor`.
-    First half of TODO id:f631. Hermeticity: conftest gains an autouse fixture
-    pointing `ZKM_GAMEMODE_LOCK` at a nonexistent tmp path (already added with
-    the red tests) — mirror of the `ZKM_BYPASS_DIRTY_CHECK` pattern.
-    See ARCHITECTURE.md §D7 and §Conventions (exit codes).
+  (executor 2026-06-12; review-verified 2026-06-12: spec tests byte-identical
+  to checkpoint, 6 RED→green confirmed by running them against the checkpoint
+  tree. `GAMEMODE_LOCK_DEFAULT` in `runstate.py`, guard inside
+  `RunSession.__enter__` before PID write, doctor row informational.
+  ARCHITECTURE.md §D7 updated. First half of TODO id:f631.)
 
 - [x] Self-scope `zkm index` under systemd-run for freeze/thaw control [HARD — strong model] <!-- id:62f3 -->
   (done in handoff C5, 2026-06-12: `src/zkm/selfscope.py` + cmd_index hook;
@@ -86,45 +64,80 @@ the gate (N9c/N9d accepted-as-is decisions stand).
   - **Done-check**: `uv run pytest tests/test_selfscope.py` (then full suite)
 
 - [x] Skip the amender pass when the triggering convert created zero files [ROUTINE] <!-- id:dd89 -->
-  - **Acceptance**: After a non-amender `zkm convert <plugin>` that returns an
-    empty created list (and was not cancelled), the CLI does NOT invoke any
-    amender; it prints `Skipping amenders (0 files created)` to stderr.
-    Amenders still run when ≥1 file was created, and explicit
-    `zkm convert ner` (amender as primary) is unaffected. User-observable:
-    a no-op mbsync-triggered `zkm convert eml` returns in seconds instead of
-    sweeping the store through zkm-ner's capability-unaware path.
-  - **Tests**: `tests/test_cli_amenders.py` — marked `# roadmap:dd89`
-    (currently RED): `test_zero_created_skips_amenders`,
-    `test_zero_created_prints_skip_notice`; plus already-green regression
-    guards `test_nonzero_created_still_runs_amenders`,
-    `test_cancelled_convert_skips_amenders` (protect against
-    over-implementation — do not break them).
-  - **Done-check**: `uv run pytest tests/test_cli_amenders.py` (then full suite)
-  - **Context**: `src/zkm/cli.py` `cmd_convert` amender loop (the
-    `if not cancelled and not no_amenders and not is_amender:` block).
-    Amender-contract hardening takes precedence over new amender types
-    (ARCHITECTURE.md §D5). NOTE the encoded judgment call (REVIEW_ME.md):
-    skipping also skips zkm-ner's whole-store `apply_queue` drain on zero-file
-    converts; queued amendments then wait for the next non-empty convert or an
-    explicit `zkm convert ner`.
+  (executor 2026-06-12; review-verified 2026-06-12: spec tests byte-identical
+  to checkpoint, 2 RED→green confirmed against the checkpoint tree; both
+  GUARDs still green. `not created` branch + skip notice in `cmd_convert`.
+  Encoded judgment call — queued amendments wait when zero files are created —
+  spawned the id:83c7 observability item below.)
 
 - [x] Conformance: warn when an amender's convert() lacks the `created` parameter [ROUTINE] <!-- id:e1fc -->
-  - **Acceptance**: `zkm test <amender-plugin>` emits a **warn**-level
-    interface finding (not fail) when a plugin with `kind: amender` has a
-    `convert()` that neither declares a `created` keyword parameter nor
-    `**kwargs` — such amenders silently full-sweep the store on every
-    triggered run. Converter-kind plugins are unaffected. The finding message
-    names `created` and points at docs/plugin-spec.md.
-  - **Tests**: `tests/test_conformance.py::TestAmenderCreatedParam`, marked
-    `# roadmap:e1fc`. RED spec: `test_amender_without_created_param_warns`,
-    `test_amender_created_finding_is_warn_not_fail`. Already-green GUARDs:
-    `test_amender_with_created_param_no_warning`,
-    `test_converter_without_created_param_no_warning`.
-  - **Done-check**: `uv run pytest tests/test_conformance.py` (then full suite)
-  - **Context**: `src/zkm/conformance.py` `check_interface` (follow the
-    existing `progress`-parameter check pattern); `_supports_created` in
-    `src/zkm/convert.py`. Also add one line to `docs/plugin-spec.md`'s amender
-    section documenting the expectation. ARCHITECTURE.md §D5.
+  (executor 2026-06-12; review-verified 2026-06-12: spec tests byte-identical
+  to checkpoint, 2 RED→green confirmed against the checkpoint tree; both
+  GUARDs still green. Warn-level finding in `check_interface` +
+  docs/plugin-spec.md §Frontmatter amendments paragraph.)
+
+- [ ] Surface the pending amendment queue in `zkm doctor` and the zero-created skip notice [ROUTINE] <!-- id:83c7 -->
+  - **Acceptance**: When `<store>/.zkm-state/amendments/` holds ≥1 pending
+    record (any emitter subdir), `zkm doctor` prints an `amendment queue` row
+    with the total pending count and a per-emitter breakdown, e.g.
+    `amendment queue 3  (ner: 2, notmuch: 1)` — informational only (does not
+    flip doctor's exit code; mirrors the `gamemode lock` row). No row when the
+    queue is empty or absent. Additionally, the id:dd89 skip notice appends
+    the pending count when the queue is non-empty:
+    `Skipping amenders (0 files created; N queued amendment(s) pending)`;
+    the queue-empty message stays byte-identical to today's. User-observable:
+    after a no-op mbsync convert, `zkm doctor` shows whether enrichment is
+    still waiting — the observation half of the id:dd89 trade-off (queued
+    amendments wait for the next non-empty convert or an explicit
+    `zkm convert ner`).
+  - **Tests**: `tests/test_doctor_amendment_queue.py`, marked
+    `# roadmap:83c7`. RED spec:
+    `test_doctor_reports_pending_amendment_queue`,
+    `test_doctor_queue_row_keeps_exit_code`,
+    `test_zero_created_notice_mentions_queued_amendments`.
+    Already-green GUARDs (do not break):
+    `test_doctor_no_queue_row_when_queue_empty`,
+    `test_skip_notice_unchanged_when_queue_empty`.
+  - **Done-check**: `uv run pytest tests/test_doctor_amendment_queue.py`
+    (then full suite)
+  - **Context**: `src/zkm/amendments.py` (`_QUEUE_DIR = ".zkm-state/amendments"`;
+    queue files are `<emitter>/<sha1>.json`); `src/zkm/cli.py` `cmd_doctor`
+    (informational-row pattern: `gamemode lock`) and `cmd_convert` (skip notice
+    from id:dd89). Count = number of `*.json` files under the queue root — do
+    NOT parse or validate record contents (cheap row, not a linter). Defer any
+    new import inside the function (CLI import-speed convention).
+    TODO.md §Amendment contract backlog; ARCHITECTURE.md §D5/§D7 and the
+    "observe before preventing" heuristic.
+
+- [ ] `zkm doctor --entities`: census of `valid: false` entity slots [ROUTINE] <!-- id:1a6f -->
+  - **Acceptance**: `zkm doctor --entities` sweeps the frontmatter of all
+    store `.md` files (same exclusions as the existing md-files count: skip
+    paths containing `.zkm-index` or `.git` parts) and prints a
+    `suspicious entities` row: total count of `entities[]` slots carrying
+    `valid: false`, plus a per-type breakdown, e.g.
+    `suspicious entities 3  (iban: 2, date: 1)`. With the flag the row prints
+    even when the count is 0. Slots with `valid: true` or no `valid` key are
+    NOT counted; files with malformed frontmatter are skipped silently
+    (doctor is a health report, not a linter). Without `--entities`, doctor
+    performs no frontmatter sweep and prints no such row (the sweep is
+    O(store) and parses every file — opt-in by design). The row never changes
+    doctor's exit code. User-observable: the TODO.md deferral triggers
+    ("entity-DB checksum-fail policy at ≥50 `valid: false` entries";
+    "`valid: false` forward-flag after ≥1 month observation") finally have a
+    counter to read.
+  - **Tests**: `tests/test_doctor_entities.py`, marked `# roadmap:1a6f`.
+    RED spec: `test_doctor_entities_counts_valid_false`,
+    `test_doctor_entities_reports_zero_with_flag`,
+    `test_doctor_entities_keeps_exit_code`.
+    Already-green GUARD (do not break):
+    `test_doctor_default_has_no_entities_row`.
+  - **Done-check**: `uv run pytest tests/test_doctor_entities.py`
+    (then full suite)
+  - **Context**: `src/zkm/cli.py` `cmd_doctor` (reuse the `md_count` rglob
+    filter); `python-frontmatter` is already a dependency. γ schema:
+    `entities[]` slots are dicts with an optional `valid` bool — see
+    docs/entity-model.md and `src/zkm/canonical.py`. ARCHITECTURE.md §D6 and
+    the "observe before preventing" heuristic.
 
 ## Pointers (NOT executor items — wrong repo or gated)
 

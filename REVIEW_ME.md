@@ -32,3 +32,16 @@ Max ~10 open boxes; the reviewer prunes resolved ones each review turn.
   fievel/pixel must never break on account of a zomni-only feature; (b) when
   `zkm-index.scope` already exists (frozen or active) the new run exits 75
   rather than joining/blocking on the frozen scope.
+
+- [ ] tests/test_doctor_amendment_queue.py (roadmap:83c7, seeded in review
+  2026-06-12) — interpretation: pending-queue visibility is a *cheap count*
+  (number of queue .json files, never parsed/validated) shown in `zkm doctor`
+  and appended to the dd89 skip notice. Alternative (auto-drain the queue on
+  zero-created converts) was rejected — it would undo the dd89 speed win.
+
+- [ ] tests/test_doctor_entities.py (roadmap:1a6f, seeded in review
+  2026-06-12) — interpretation: the `valid: false` census is opt-in
+  (`--entities` flag) because it parses every md file's frontmatter; the
+  default doctor run stays sweep-free. Counter exists to let the TODO.md
+  triggers (">=50 valid:false entries" policy gate; 1-month forward-flag
+  observation) actually fire — observe before preventing.
