@@ -23,3 +23,7 @@ queue row in doctor + skip-notice count — observation half of the dd89
 trade-off) and id:1a6f (doctor --entities valid:false census — gives the two
 TODO deferral triggers a readable counter) with 6 new RED specs + 3 GUARDs in
 tests/test_doctor_amendment_queue.py and tests/test_doctor_entities.py.
+
+## 2026-06-12 18:46 — reviewer (claude-fable-5)
+
+review: id:1098+dd89+e1fc verified genuine (0 gaming flags, 558 green); seeded id:83c7 (amendment-queue visibility in doctor) + id:1a6f (doctor --entities census), 6 RED specs
