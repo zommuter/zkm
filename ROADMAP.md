@@ -109,7 +109,7 @@ the gate (N9c/N9d accepted-as-is decisions stand).
     TODO.md §Amendment contract backlog; ARCHITECTURE.md §D5/§D7 and the
     "observe before preventing" heuristic.
 
-- [ ] `zkm doctor --entities`: census of `valid: false` entity slots [ROUTINE] <!-- id:1a6f -->
+- [x] `zkm doctor --entities`: census of `valid: false` entity slots [ROUTINE] <!-- id:1a6f -->
   - **Acceptance**: `zkm doctor --entities` sweeps the frontmatter of all
     store `.md` files (same exclusions as the existing md-files count: skip
     paths containing `.zkm-index` or `.git` parts) and prints a

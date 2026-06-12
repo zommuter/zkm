@@ -1277,7 +1277,13 @@ def cmd_status(as_json: bool, follow: bool, leave_if_done: bool, wait: bool, sto
     metavar="PATH",
     help="Store path (default: $ZKM_STORE or ~/knowledge)",
 )
-def cmd_doctor(store_override: str | None) -> None:
+@click.option(
+    "--entities",
+    is_flag=True,
+    default=False,
+    help="Sweep frontmatter and report valid:false entity slots (O(store)).",
+)
+def cmd_doctor(store_override: str | None, entities: bool) -> None:
     """Diagnose the knowledge store: index counts and endpoint reachability."""
     import json as _json
 
@@ -1431,6 +1437,28 @@ def cmd_doctor(store_override: str | None) -> None:
                 err=True,
             )
             ok = False
+
+    if entities:
+        import frontmatter as _fm
+
+        _ent_counts: dict[str, int] = {}
+        for _md in sdir.rglob("*.md"):
+            if ".zkm-index" in _md.parts or ".git" in _md.parts:
+                continue
+            try:
+                _post = _fm.load(_md)
+            except Exception:  # noqa: BLE001
+                continue
+            for _slot in _post.metadata.get("entities") or []:
+                if isinstance(_slot, dict) and _slot.get("valid") is False:
+                    _etype = _slot.get("type", "unknown")
+                    _ent_counts[_etype] = _ent_counts.get(_etype, 0) + 1
+        _etotal = sum(_ent_counts.values())
+        if _ent_counts:
+            _ebreakdown = ", ".join(f"{k}: {v}" for k, v in sorted(_ent_counts.items()))
+            click.echo(f"{'suspicious entities':<{col}}{_etotal}  ({_ebreakdown})")
+        else:
+            click.echo(f"{'suspicious entities':<{col}}{_etotal}")
 
     if not ok:
         sys.exit(1)
