@@ -108,7 +108,7 @@ the gate (N9c/N9d accepted-as-is decisions stand).
     converts; queued amendments then wait for the next non-empty convert or an
     explicit `zkm convert ner`.
 
-- [ ] Conformance: warn when an amender's convert() lacks the `created` parameter [ROUTINE] <!-- id:e1fc -->
+- [x] Conformance: warn when an amender's convert() lacks the `created` parameter [ROUTINE] <!-- id:e1fc -->
   - **Acceptance**: `zkm test <amender-plugin>` emits a **warn**-level
     interface finding (not fail) when a plugin with `kind: amender` has a
     `convert()` that neither declares a `created` keyword parameter nor

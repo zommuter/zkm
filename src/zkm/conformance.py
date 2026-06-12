@@ -253,6 +253,28 @@ def check_interface(plugin) -> list[Finding]:  # plugin: Plugin
     except (TypeError, ValueError) as e:
         findings.append(Finding("fail", "interface", f"cannot inspect convert() signature: {e}"))
 
+    # Amenders: warn if convert() lacks 'created' kwarg and no **kwargs catch-all.
+    # Without 'created', the amender silently full-sweeps the store on every triggered run.
+    # See docs/plugin-spec.md §Frontmatter amendments and ARCHITECTURE.md §D5.
+    if getattr(plugin, "kind", None) == "amender":
+        try:
+            sig = inspect.signature(mod.convert)
+            has_created = "created" in sig.parameters
+            has_var_keyword = any(
+                p.kind == inspect.Parameter.VAR_KEYWORD
+                for p in sig.parameters.values()
+            )
+            if not has_created and not has_var_keyword:
+                findings.append(Finding(
+                    "warn", "interface",
+                    "amender convert() lacks 'created' keyword parameter — it will "
+                    "full-sweep the store on every triggered run; add "
+                    "'created=None' to enable scoped amending "
+                    "(see docs/plugin-spec.md §Frontmatter amendments)",
+                ))
+        except (TypeError, ValueError):
+            pass  # signature already checked above
+
     # scrub() — optional; if present check shape
     if hasattr(mod, "scrub"):
         try:

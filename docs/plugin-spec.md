@@ -196,6 +196,8 @@ For plugins that handle conversations (email, chat, SMS), see [docs/messaging-sp
 
 ## Frontmatter amendments
 
+Amender plugins SHOULD declare `created=None` as a keyword argument in `convert()`. When present, `zkm convert <primary>` passes only the files created by the triggering convert, enabling a scoped amend instead of a full store sweep. Without `created`, the amender sweeps the entire store on every triggered run. `zkm test <amender>` emits a warn-level finding when `created` is absent.
+
 The md *body* is single-writer — the producing plugin owns it and must not be modified by other plugins. The md *frontmatter*, however, is multi-writer: source plugins write initial placeholder values (`tags: []`, `entities: []`) and *amender* plugins extend those values by emitting amendment records. The merge engine (`zkm.amendments`, landing in Session 10) reads the amendment queue and merges records into frontmatter atomically. This mirrors the multi-producer pattern of `.origin.json` sidecars but operates on md frontmatter instead of CAS objects.
 
 ### Per-field merge rules
