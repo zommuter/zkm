@@ -4,7 +4,7 @@
 See `CLAUDE.md` for architecture overview. See `docs/phase2-plan.md` for sequencing.
 Completed Phase 1 tasks archived in `docs/phase1-done.md`.
 
-- [ ] Relay: 2 open ROADMAP items (id:83c7 amendment-queue visibility, id:1a6f doctor --entities census — seeded in review 2026-06-12; id:1098+id:dd89+id:e1fc review-verified closed) <!-- id:826b -->
+- [x] Relay: id:83c7 + id:1a6f closed (executor 2026-06-12; 564 tests passing) — covered by tests on 2026-06-12 <!-- id:826b -->
 
 ## OpenPGP key & signature tracking (decided 2026-06-04-1002-pgp-keys-signature-validity.md)
 
