@@ -32,6 +32,17 @@ def _no_gamemode_lock(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("ZKM_GAMEMODE_LOCK", str(tmp_path / "no-such-gamemode.lock"))
 
 
+@pytest.fixture(autouse=True)
+def _no_self_scope(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Disable systemd-run self-scoping (roadmap:62f3) for all tests.
+
+    An os.execvpe re-exec inside pytest/CliRunner would replace the test
+    process. test_selfscope.py opts back in explicitly and monkeypatches the
+    exec/systemctl layer instead.
+    """
+    monkeypatch.setenv("ZKM_NO_SELF_SCOPE", "1")
+
+
 @pytest.fixture()
 def store(tmp_path: Path) -> Path:
     sdir = tmp_path / "store"

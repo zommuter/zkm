@@ -965,6 +965,11 @@ def cmd_index(store_override: str | None, no_progress: bool, no_embed: bool, ful
     from tqdm import tqdm
 
     from zkm.index import build_index, save_index, write_watermark
+    from zkm.selfscope import maybe_reexec_under_scope
+
+    # Re-exec under a freezable systemd user scope (no-op without systemd;
+    # does not return when it re-execs). See zkm/selfscope.py (roadmap:62f3).
+    maybe_reexec_under_scope()
 
     sdir = Path(store_override) if store_override else store_path()
     if not (sdir / ".git").exists():

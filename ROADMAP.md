@@ -59,7 +59,11 @@ the gate (N9c/N9d accepted-as-is decisions stand).
     the red tests) — mirror of the `ZKM_BYPASS_DIRTY_CHECK` pattern.
     See ARCHITECTURE.md §D7 and §Conventions (exit codes).
 
-- [ ] Self-scope `zkm index` under systemd-run for freeze/thaw control [HARD — strong model] <!-- id:62f3 -->
+- [x] Self-scope `zkm index` under systemd-run for freeze/thaw control [HARD — strong model] <!-- id:62f3 -->
+  (done in handoff C5, 2026-06-12: `src/zkm/selfscope.py` + cmd_index hook;
+  10 tests in `tests/test_selfscope.py` green; smoke-verified on zomni —
+  journal shows zkm-index.scope starting the re-exec'd command. Judgment
+  calls flagged in REVIEW_ME.md.)
   - **Why HARD**: environment-dependent (systemd user manager presence,
     `INVOCATION_ID` semantics differ between service and scope units, Termux/
     Raspbian fallback), re-exec must be loop-proof and absolutely must not fire
