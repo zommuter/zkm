@@ -27,3 +27,7 @@ tests/test_doctor_amendment_queue.py and tests/test_doctor_entities.py.
 ## 2026-06-12 18:46 — reviewer (claude-fable-5)
 
 review: id:1098+dd89+e1fc verified genuine (0 gaming flags, 558 green); seeded id:83c7 (amendment-queue visibility in doctor) + id:1a6f (doctor --entities census), 6 RED specs
+
+[2026-06-12 executor sonnet-4-6] Worked id:83c7 and id:1a6f in one session.
+id:83c7: added `amendment queue` informational row to cmd_doctor (rglob *.json count, per-emitter breakdown via parent.name); updated zero-created skip notice in cmd_convert to append pending count when queue non-empty. 5/5 tests green (3 RED→green + 2 GUARDs). id:1a6f: added `--entities` flag to cmd_doctor; deferred frontmatter sweep (O(store), opt-in) counts valid:false entity slots per type; prints informational `suspicious entities` row always with the flag (0 when none found). 4/4 tests green (3 RED→green + 1 GUARD). Full suite 564 passing, 0 failing.
+Friction: none — both items well-scoped; queue dir layout and γ entity schema were clear from amendments.py and ROADMAP context.
