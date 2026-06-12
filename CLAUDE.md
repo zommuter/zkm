@@ -1,8 +1,23 @@
 # zkm — ze knowledge manager
 
-Personal knowledge management CLI. Converts heterogeneous sources into a git-tracked markdown tree, indexes with BM25, queries with optional LLM augmentation.
+Personal knowledge management CLI. Converts heterogeneous sources into a git-tracked markdown tree, indexes with BM25 + dense hybrid search, queries with optional LLM augmentation.
 
 **Tool repo** (`~/src/zkm/`). Knowledge store lives separately at `$ZKM_STORE` (default: `~/knowledge/`).
+
+See `ARCHITECTURE.md` for design decisions with rationale and rejected alternatives.
+See `ROADMAP.md` for the executor-facing task queue; `TODO.md` is the broader ledger.
+
+## Commands
+
+```bash
+uv sync                      # dev environment (Python 3.11+, uv-managed)
+uv run pytest                # full test suite (hermetic — no network, no real store)
+uv run pytest -k <expr>      # one test / one roadmap item's done-check
+uv run ruff check <changed files>  # lint (E, F, I, UP; line-length 100).
+                             # NOTE: the repo has pre-existing ruff debt in old
+                             # files — keep files YOU touch clean; do not mass-fix.
+uv run zkm --help            # CLI entry point (zkm = zkm.cli:main)
+```
 
 ## Architecture
 
@@ -195,8 +210,44 @@ See `docs/temporal-queries.md`.
 - Memory compaction (LLM-summarized entity files)
 - Cross-reference graph (backlinks)
 
+## Gotchas (hard-won; do not rediscover)
+
+- **`plugins/` is normally EMPTY in a fresh clone/worktree** — the ~9 plugin
+  repos are independent git repos that live there only on the dev machine. The
+  core test suite (529+ tests) MUST pass with no plugins present; never write a
+  core test that imports or shells out to a plugin repo.
+- **Dirty-tree guard** (`zkm.devcheck.assert_clean`): state-modifying commands
+  refuse to run when the zkm source repo (or the invoked plugin's repo) has
+  uncommitted tracked changes. Tests bypass it via an autouse conftest fixture
+  setting `ZKM_BYPASS_DIRTY_CHECK=1`; manual dev runs need the same env var.
+- **Concurrent-run guard** exits with code **75** (`EX_TEMPFAIL`) when a
+  conflicting `convert`/`scrub`/`index` is already running (PID files under
+  `<store>/.zkm-state/running/`). Bypass: `ZKM_BYPASS_RUN_GUARD=1`. See
+  `docs/concurrent-runs.md`. Exit 75 is the repo-wide "temporary, retry later"
+  convention — reuse it for new refuse-to-start guards.
+- **Amender scoping** (id:63bb, 2026-06-11): `zkm convert <plugin>` passes
+  `created: list[Path]` to amenders whose `convert()` declares the param
+  (capability-probed via `inspect.signature`, same pattern as `progress`).
+  Explicit `zkm convert ner` (created=None) still full-sweeps. Don't break the
+  capability probe — plugins without the param must keep working.
+- **Heavy imports are deferred** inside CLI functions (`tqdm`, `httpx`, plugin
+  modules) to keep `zkm --help` fast. Follow that pattern in new commands.
+- **`git add` is scoped** to the plugin's `creates_dirs` + created files during
+  auto-commit — never widen to `-A` for plugin converts (Syncthing deposits
+  source files into `inbox/` sub-dirs that must not be staged).
+- **Tests are hermetic**: `tmp_path` stores via the `store` fixture
+  (`init_store(backend="none")`), no network, no `~/knowledge`. Fixture corpus
+  in `tests/fixtures/corpus/` (committed; regen procedure in its README).
+- **OS / tooling**: Manjaro — `pamac`, never `pacman -S`. Python via `uv` only
+  (`uv sync`, `uv run`); never bare pip into system Python.
+
 ## Related
 
 - **DiffMem** — git-as-temporal-index inspiration
 - **memsearch** — potential Phase 2 embedding backend (markdown-first, Milvus Lite)
 - **Zelegator** — intent router, Phase 3 integration target
+
+## Relay contract <!-- fables-executor contract v1 -->
+
+This repo is managed by a reviewer/executor relay. Load the `fables-executor` skill
+(`/fables-executor`) before working on any item, then follow its rules exactly.
