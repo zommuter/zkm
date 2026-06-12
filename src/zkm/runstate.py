@@ -25,6 +25,9 @@ _FIBONACCI: frozenset[int] = frozenset((1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 
 # Commands that must not run concurrently due to the sidecar read-modify-write race.
 _MUTUAL_EXCLUSIVE: frozenset[str] = frozenset({"convert", "scrub"})
 
+# Default path for the gamemode lock file (overridden by $ZKM_GAMEMODE_LOCK).
+GAMEMODE_LOCK_DEFAULT: Path = Path("/tmp/zomni-gamemode.lock")
+
 
 class ConcurrentRunError(click.ClickException):
     """Raised when a conflicting zkm process is already running (EX_TEMPFAIL)."""
@@ -120,6 +123,11 @@ class RunSession:
         running_dir.mkdir(parents=True, exist_ok=True)
 
         if os.environ.get("ZKM_BYPASS_RUN_GUARD") != "1":
+            lock_env = os.environ.get("ZKM_GAMEMODE_LOCK")
+            lock_path = Path(lock_env) if lock_env is not None else GAMEMODE_LOCK_DEFAULT
+            if lock_path.exists():
+                raise ConcurrentRunError(f"gamemode lock present: {lock_path} — remove to resume")
+
             my_first = self._args[0] if self._args else ""
             for row in _scan_running_dir(running_dir):
                 if _conflicts_with(self._command, my_first, row):

@@ -1387,7 +1387,14 @@ def cmd_doctor(store_override: str | None) -> None:
     else:
         click.echo(f"{'expand model':<{col}}(not configured)")
 
-    from zkm.runstate import _scan_running_dir
+    import os as _os
+
+    from zkm.runstate import GAMEMODE_LOCK_DEFAULT, _scan_running_dir
+    lock_env = _os.environ.get("ZKM_GAMEMODE_LOCK")
+    lock_path = Path(lock_env) if lock_env is not None else GAMEMODE_LOCK_DEFAULT
+    if lock_path.exists():
+        click.echo(f"{'gamemode lock':<{col}}{lock_path}  (present — jobs will refuse)")
+
     running_dir = sdir / ".zkm-state" / "running"
     concurrent = _count_concurrent_keys(_scan_running_dir(running_dir))
     for (cmd, arg), count in concurrent.items():

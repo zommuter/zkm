@@ -30,7 +30,7 @@ the gate (N9c/N9d accepted-as-is decisions stand).
 
 ## Items
 
-- [ ] Refuse to start convert/scrub/index while the gamemode lock is present [ROUTINE] <!-- id:1098 -->
+- [x] Refuse to start convert/scrub/index while the gamemode lock is present [ROUTINE] <!-- id:1098 -->
   - **Acceptance**: When the lock file exists (path from `$ZKM_GAMEMODE_LOCK`,
     default `/tmp/zomni-gamemode.lock`), entering `RunSession` for
     `convert`/`scrub`/`index` raises a ClickException with **exit code 75**
