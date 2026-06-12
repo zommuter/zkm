@@ -663,7 +663,9 @@ def cmd_convert(
         plugin_obj = find_plugin(plugin)
         is_amender = plugin_obj is not None and plugin_obj.kind == "amender"
 
-        if not cancelled and not no_amenders and not is_amender:
+        if not cancelled and not no_amenders and not is_amender and not created:
+            click.echo("Skipping amenders (0 files created)", err=True)
+        elif not cancelled and not no_amenders and not is_amender:
             for amender in list_amenders():
                 _abar: list[tqdm | None] = [None]
 

@@ -85,7 +85,7 @@ the gate (N9c/N9d accepted-as-is decisions stand).
     `os.execvpe` — no real systemd calls in tests).
   - **Done-check**: `uv run pytest tests/test_selfscope.py` (then full suite)
 
-- [ ] Skip the amender pass when the triggering convert created zero files [ROUTINE] <!-- id:dd89 -->
+- [x] Skip the amender pass when the triggering convert created zero files [ROUTINE] <!-- id:dd89 -->
   - **Acceptance**: After a non-amender `zkm convert <plugin>` that returns an
     empty created list (and was not cancelled), the CLI does NOT invoke any
     amender; it prints `Skipping amenders (0 files created)` to stderr.
