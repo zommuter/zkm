@@ -76,7 +76,7 @@ the gate (N9c/N9d accepted-as-is decisions stand).
   GUARDs still green. Warn-level finding in `check_interface` +
   docs/plugin-spec.md §Frontmatter amendments paragraph.)
 
-- [ ] Surface the pending amendment queue in `zkm doctor` and the zero-created skip notice [ROUTINE] <!-- id:83c7 -->
+- [x] Surface the pending amendment queue in `zkm doctor` and the zero-created skip notice [ROUTINE] <!-- id:83c7 -->
   - **Acceptance**: When `<store>/.zkm-state/amendments/` holds ≥1 pending
     record (any emitter subdir), `zkm doctor` prints an `amendment queue` row
     with the total pending count and a per-emitter breakdown, e.g.

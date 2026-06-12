@@ -664,7 +664,17 @@ def cmd_convert(
         is_amender = plugin_obj is not None and plugin_obj.kind == "amender"
 
         if not cancelled and not no_amenders and not is_amender and not created:
-            click.echo("Skipping amenders (0 files created)", err=True)
+            from zkm.amendments import _QUEUE_DIR as _AQ_DIR
+
+            _queue_root = sdir / _AQ_DIR
+            _pending = sum(1 for _ in _queue_root.rglob("*.json")) if _queue_root.exists() else 0
+            if _pending:
+                click.echo(
+                    f"Skipping amenders (0 files created; {_pending} queued amendment(s) pending)",
+                    err=True,
+                )
+            else:
+                click.echo("Skipping amenders (0 files created)", err=True)
         elif not cancelled and not no_amenders and not is_amender:
             for amender in list_amenders():
                 _abar: list[tqdm | None] = [None]
@@ -1396,6 +1406,19 @@ def cmd_doctor(store_override: str | None) -> None:
     lock_path = Path(lock_env) if lock_env is not None else GAMEMODE_LOCK_DEFAULT
     if lock_path.exists():
         click.echo(f"{'gamemode lock':<{col}}{lock_path}  (present — jobs will refuse)")
+
+    from zkm.amendments import _QUEUE_DIR as _AQ_DIR
+
+    _queue_root = sdir / _AQ_DIR
+    if _queue_root.exists():
+        _counts: dict[str, int] = {}
+        for _qf in _queue_root.rglob("*.json"):
+            _emitter = _qf.parent.name
+            _counts[_emitter] = _counts.get(_emitter, 0) + 1
+        _total = sum(_counts.values())
+        if _total:
+            _breakdown = ", ".join(f"{k}: {v}" for k, v in sorted(_counts.items()))
+            click.echo(f"{'amendment queue':<{col}}{_total}  ({_breakdown})")
 
     running_dir = sdir / ".zkm-state" / "running"
     concurrent = _count_concurrent_keys(_scan_running_dir(running_dir))
