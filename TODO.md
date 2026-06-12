@@ -4,8 +4,6 @@
 See `CLAUDE.md` for architecture overview. See `docs/phase2-plan.md` for sequencing.
 Completed Phase 1 tasks archived in `docs/phase1-done.md`.
 
-- [x] Relay: id:83c7 + id:1a6f closed (executor 2026-06-12; 564 tests passing) — covered by tests on 2026-06-12 <!-- id:826b -->
-
 ## OpenPGP key & signature tracking (decided 2026-06-04-1002-pgp-keys-signature-validity.md)
 
 D1: vCard KEY → pgpy fingerprint entity + CAS bytes. D2: zkm-eml Tier A (signed: pgp-mime/smime) + Tier B (auth_results: dkim/spf/dmarc from provider headers). D3: fingerprint = join-grade value-type, NOT person-merge license. Build order: core → eml → vcard.
@@ -115,13 +113,15 @@ v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `cha
 - [ ] **SOC1.** Build `zkm-social` plugin skeleton: `plugin.yaml` (`creates_dirs: [contacts, originals/contacts]`), `convert(store_path, config) -> list[Path]` with per-network parser dispatch. Code at `plugins/zkm-social/` (fievel:src/zkm-plugins/zkm-social.git); needs GitHub remote + user review. <!-- id:56ac -->
 - [ ] **SOC2.** GitHub parser module (lane B): fetch `api.github.com/users/<login>`, map login/name/bio/company/location/blog/avatar → `contacts/<slug>.md`, typed `entities[]` at `scope:profile.github`, avatar → CAS, dedup-keyed on profile URL. Code at `plugins/zkm-social/_github.py`; needs GitHub remote + user review. <!-- id:017f -->
 - [ ] **SOC3.** LinkedIn parser module (lane A): parse a browser-saved LinkedIn profile (HTML/PDF/MHTML) for name/headline/current-employer/location/photo/profile-URL; emit `contacts/<slug>.md` at `scope:profile.linkedin`, photo → CAS, dedup-keyed on normalized profile URL. Code at `plugins/zkm-social/_linkedin.py`; needs GitHub remote + user review. <!-- id:7f55 -->
-- [ ] **SOC-github-remote.** Create `github.com/zommuter/zkm-social` repo; add `github` remote to `plugins/zkm-social/`; push. Gate for marking SOC1–3 done (user review + GitHub remote required). <!-- id:e395 -->
+- [x] **SOC-github-remote.** Create `github.com/zommuter/zkm-social` repo; add `github` remote to `plugins/zkm-social/`; push. Gate for marking SOC1–3 done (user review + GitHub remote required). — done 2026-06-12 (relay handoff turn: repo created PRIVATE, remote linked, main+tags pushed, ls-remote verified; flip visibility with `gh repo edit zommuter/zkm-social --visibility public` when adequate) <!-- id:e395 -->
 - [ ] **SOC4** (sequenced follow-on, after SOC1–3 prove the doc shape). Browser extension / bookmarklet capture front-end: one-click capture of the rendered profile into the `zkm-social` source dir. Contract: capture button → file in source dir → existing ingest path produces the note. <!-- id:dfa4 -->
 - [ ] **SOC5** (deferred — separate scoping meeting). Activity-feed doc-type: posts/reactions/comments/being-tagged. Overlaps `messaging-spec.md`. Reopen when a concrete feed use-case appears. <!-- id:a580 -->
 - [ ] **SOC6** (deferred — gated escalation). Bulk / lead-gen multi-subject capture. Gate: concrete use-case + ToS clearance + deliberate decision to cross the single-subject boundary. <!-- id:3de4 -->
 
 ## Workflow / process backlog
 
+- [ ] **conformance.run_dynamic path-resolution bug** — `run_dynamic` resolves ALL `conformance.config` values as plugin-relative paths (conformance.py ~line 345), clobbering non-path values; zkm-social cannot declare `network: linkedin`, so `zkm test social` dynamic check is impossible. Fix: only path-resolve values whose resolved path exists, or mark path keys in plugin.yaml. Found during 2026-06-12 relay handoff (zkm-social child, also in shared inbox). <!-- id:a285 -->
+- [ ] **Install tesseract on zomni** — `pamac install tesseract tesseract-data-deu tesseract-data-eng`; zkm-scan's OCR integration tests currently skip (poppler present, tesseract missing); needed before any real `zkm convert scan` run. Found during 2026-06-12 relay handoff. <!-- id:8dcf -->
 - [ ] (Forward-flag, deferred — D4) Design a TODO-mutating script/tool that enforces the `@{u}` done-gate at `[x]`-write time. Gate: next todo-update skill revision OR second enforcement need. <!-- id:f1cf -->
 - [ ] **`zkm index` self-scope + gaming lockfile** — re-exec under `systemd-run --user --scope --unit=zkm-index --collect` when `$INVOCATION_ID` unset; check `/tmp/zomni-gamemode.lock` at startup and exit cleanly if present. **Both ROADMAP sub-items now done**: id:62f3 (self-scope, handoff C5 2026-06-12) ✓ + id:1098 (lockfile guard, executor 2026-06-12) ✓ — tests green; awaiting user verification to close this item. <!-- id:f631 -->
 
