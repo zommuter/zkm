@@ -40,14 +40,16 @@ the gate (N9c/N9d accepted-as-is decisions stand).
     lock is present (informational, does not flip doctor's exit code).
     User-observable: `touch /tmp/zomni-gamemode.lock && zkm index` exits 75
     immediately instead of competing with a game for CPU/RAM.
-  - **Tests**: `tests/test_gamemode_guard.py` — all marked `# roadmap:1098`
-    (currently RED): `test_runsession_refuses_when_gamemode_lock_present`,
+  - **Tests**: `tests/test_gamemode_guard.py`, marked `# roadmap:1098`.
+    RED spec: `test_default_lock_path_constant`,
+    `test_runsession_refuses_when_gamemode_lock_present`,
     `test_refusal_exits_75_and_writes_no_pid_file`,
-    `test_env_var_overrides_default_lock_path`,
-    `test_default_lock_path_constant`,
-    `test_bypass_run_guard_also_bypasses_gamemode_lock`,
+    `test_default_used_when_env_unset`,
     `test_cli_index_exits_75_when_lock_present`,
     `test_doctor_reports_gamemode_lock`.
+    Already-green GUARDs (do not break):
+    `test_env_var_overrides_default_lock_path`,
+    `test_bypass_run_guard_also_bypasses_gamemode_lock`.
   - **Done-check**: `uv run pytest tests/test_gamemode_guard.py` (then full
     `uv run pytest` green)
   - **Context**: `src/zkm/runstate.py` (`RunSession.__enter__`, the
@@ -109,8 +111,9 @@ the gate (N9c/N9d accepted-as-is decisions stand).
     `**kwargs` — such amenders silently full-sweep the store on every
     triggered run. Converter-kind plugins are unaffected. The finding message
     names `created` and points at docs/plugin-spec.md.
-  - **Tests**: `tests/test_conformance.py` additions marked `# roadmap:e1fc`
-    (currently RED): `test_amender_without_created_param_warns`,
+  - **Tests**: `tests/test_conformance.py::TestAmenderCreatedParam`, marked
+    `# roadmap:e1fc`. RED spec: `test_amender_without_created_param_warns`,
+    `test_amender_created_finding_is_warn_not_fail`. Already-green GUARDs:
     `test_amender_with_created_param_no_warning`,
     `test_converter_without_created_param_no_warning`.
   - **Done-check**: `uv run pytest tests/test_conformance.py` (then full suite)

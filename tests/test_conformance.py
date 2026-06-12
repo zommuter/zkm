@@ -204,8 +204,8 @@ class TestBadManifest:
         assert any("key1" in f.message and f.level == "fail" for f in findings)
 
     def test_absolute_gitignore_pattern_flagged(self, tmp_path):
-        from zkm.convert import load_plugin_manifest
         from zkm.conformance import check_manifest
+        from zkm.convert import load_plugin_manifest
 
         (tmp_path / "plugin.yaml").write_text(
             "name: p\nversion: 0.1.0\ncreates_dirs: []\ngitignore_patterns:\n  - /inbox/bad\n"
@@ -256,3 +256,63 @@ class TestNoFixtures:
         report = run_conformance(plugin)
         assert not report.failed
         assert not report.dynamic_ran
+
+
+# ---------------------------------------------------------------------------
+# Amender 'created' parameter expectation (ROADMAP id:e1fc — currently RED)
+# roadmap:e1fc
+# ---------------------------------------------------------------------------
+
+
+def _make_tmp_plugin(tmp_path, *, kind: str, convert_src: str):
+    """Build a throwaway plugin dir and return its loaded manifest."""
+    from zkm.convert import load_plugin_manifest
+
+    kind_line = f"kind: {kind}\n" if kind else ""
+    (tmp_path / "plugin.yaml").write_text(
+        f"name: tmpfix\nversion: 0.1.0\ndescription: fixture\n{kind_line}"
+    )
+    (tmp_path / "convert.py").write_text(convert_src)
+    return load_plugin_manifest(tmp_path)
+
+
+_CONVERT_NO_CREATED = (
+    "def convert(store_path, config, *, progress=None):\n    return []\n"
+)
+_CONVERT_WITH_CREATED = (
+    "def convert(store_path, config, *, progress=None, created=None):\n    return []\n"
+)
+
+
+class TestAmenderCreatedParam:
+    # roadmap:e1fc — RED spec
+    def test_amender_without_created_param_warns(self, tmp_path):
+        from zkm.conformance import check_interface
+
+        plugin = _make_tmp_plugin(tmp_path, kind="amender", convert_src=_CONVERT_NO_CREATED)
+        warns = [f for f in check_interface(plugin) if f.level == "warn"]
+        assert any("created" in f.message for f in warns), (
+            "amender convert() without 'created' kwarg must produce a warn-level finding"
+        )
+
+    # roadmap:e1fc — GUARD (green pre-implementation; pins warn-not-fail + scoping)
+    def test_amender_with_created_param_no_warning(self, tmp_path):
+        from zkm.conformance import check_interface
+
+        plugin = _make_tmp_plugin(tmp_path, kind="amender", convert_src=_CONVERT_WITH_CREATED)
+        assert not any("created" in f.message for f in check_interface(plugin))
+
+    # roadmap:e1fc — GUARD: converter-kind plugins are exempt
+    def test_converter_without_created_param_no_warning(self, tmp_path):
+        from zkm.conformance import check_interface
+
+        plugin = _make_tmp_plugin(tmp_path, kind="", convert_src=_CONVERT_NO_CREATED)
+        assert not any("created" in f.message for f in check_interface(plugin))
+
+    # roadmap:e1fc — RED spec: never fail-level (existing amenders must stay shippable)
+    def test_amender_created_finding_is_warn_not_fail(self, tmp_path):
+        from zkm.conformance import check_interface
+
+        plugin = _make_tmp_plugin(tmp_path, kind="amender", convert_src=_CONVERT_NO_CREATED)
+        findings = [f for f in check_interface(plugin) if "created" in f.message]
+        assert findings and all(f.level == "warn" for f in findings)

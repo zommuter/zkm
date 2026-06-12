@@ -13,7 +13,9 @@ See `ROADMAP.md` for the executor-facing task queue; `TODO.md` is the broader le
 uv sync                      # dev environment (Python 3.11+, uv-managed)
 uv run pytest                # full test suite (hermetic — no network, no real store)
 uv run pytest -k <expr>      # one test / one roadmap item's done-check
-uv run ruff check src tests  # lint (E, F, I, UP; line-length 100)
+uv run ruff check <changed files>  # lint (E, F, I, UP; line-length 100).
+                             # NOTE: the repo has pre-existing ruff debt in old
+                             # files — keep files YOU touch clean; do not mass-fix.
 uv run zkm --help            # CLI entry point (zkm = zkm.cli:main)
 ```
 
