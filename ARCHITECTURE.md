@@ -121,7 +121,12 @@ signature/salutation) so structured-first sources coexist with NER output.
 (conflict matrix in `docs/concurrent-runs.md`), exiting **75** (`EX_TEMPFAIL`)
 so cron/mbsync hooks can retry. Liveness via `os.kill(pid, 0)`; stale PID
 files self-clean. `RunSession` doubles as the `zkm status` progress surface
-(SIGUSR1 → dd-style progress line).
+(SIGUSR1 → dd-style progress line). The same machinery hosts the gamemode
+lock guard (shipped id:1098, 2026-06-12): when the lock file exists
+(`$ZKM_GAMEMODE_LOCK`, default `/tmp/zomni-gamemode.lock`), `RunSession`
+exits 75 before writing any PID file so triggered jobs don't compete with a
+game for CPU/RAM. `ZKM_BYPASS_RUN_GUARD=1` bypasses both guards; `zkm doctor`
+reports the lock informationally.
 
 - **Rejected**: flock-per-file (the race is a cross-file sidecar
   read-modify-write, not single-file); a queue daemon (deferred to Phase 3
