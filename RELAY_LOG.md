@@ -31,3 +31,7 @@ review: id:1098+dd89+e1fc verified genuine (0 gaming flags, 558 green); seeded i
 [2026-06-12 executor sonnet-4-6] Worked id:83c7 and id:1a6f in one session.
 id:83c7: added `amendment queue` informational row to cmd_doctor (rglob *.json count, per-emitter breakdown via parent.name); updated zero-created skip notice in cmd_convert to append pending count when queue non-empty. 5/5 tests green (3 RED→green + 2 GUARDs). id:1a6f: added `--entities` flag to cmd_doctor; deferred frontmatter sweep (O(store), opt-in) counts valid:false entity slots per type; prints informational `suspicious entities` row always with the flag (0 when none found). 4/4 tests green (3 RED→green + 1 GUARD). Full suite 564 passing, 0 failing.
 Friction: none — both items well-scoped; queue dir layout and γ entity schema were clear from amendments.py and ROADMAP context.
+
+## 2026-06-13 10:57 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+zkm review: id:83c7+id:1a6f doctor features verified genuine (0 gaming, 564 green); refreshed stale relay-contract pointer v1->v2; ROADMAP fully consumed (6/6 closed)
