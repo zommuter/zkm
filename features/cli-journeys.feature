@@ -20,7 +20,6 @@ Feature: Fresh-machine quickstart
     And the search output lists the matching note with a snippet
     And "git -C ~/knowledge log --oneline" shows an ingest commit
 
-@manual
 Feature: Hybrid search degrades gracefully
   Dense embeddings are additive; BM25 is the floor.
 
@@ -31,7 +30,6 @@ Feature: Hybrid search degrades gracefully
     And a stderr notice mentions the dense index being unavailable
     And the exit code is 0
 
-@manual
 Feature: Concurrent and gamemode guards
   Long-running commands refuse to start instead of corrupting state or
   competing with a game for resources. Exit 75 means "retry later".
@@ -50,7 +48,7 @@ Feature: Concurrent and gamemode guards
     And the message names the lock path
     And "zkm doctor" shows a "gamemode lock" row with exit code unchanged
 
-  @roadmap-62f3
+  @manual @roadmap-62f3
   Scenario: Freezing a running index from the gamemode toggle
     Given "zkm index" was started from a normal shell (no INVOCATION_ID)
     When I run "systemctl --user freeze zkm-index.scope"
@@ -83,7 +81,6 @@ Feature: Store hygiene is dry-run first
     When I run "zkm gc" and then "zkm gc --apply"
     Then remaining unreferenced CAS objects are listed first, then removed
 
-@manual
 Feature: Amenders enrich only what was just ingested
   @roadmap-dd89
   Scenario: No-op convert skips the amender pass
@@ -92,7 +89,6 @@ Feature: Amenders enrich only what was just ingested
     Then the command prints "Skipping amenders (0 files created)"
     And returns within seconds (no NER sweep)
 
-@manual
 Feature: Store health at a glance
 
   Scenario: Doctor on a healthy configured store
