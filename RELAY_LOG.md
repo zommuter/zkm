@@ -43,3 +43,8 @@ review zkm: audited dcc1426 (docs-only) clean, 564 tests green, 8 new ids verifi
 ## 2026-06-13 23:35 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 review 20260613-2304: 2 doc-only commits audited clean (R1 box confirms + plugin contracts + id:9878 BDD-convert item), 564 tests green, no gaming, contract pointer v2 current
+
+## 2026-06-13 — executor (claude-sonnet-4-6)
+
+Worked id:9878 — converted all 5 T1 @manual BDD scenarios from features/cli-journeys.feature to executable pytest tests in tests/test_bdd_cli_journeys.py. Tests cover: (1) hybrid search BM25 fallback when embed endpoint down, (2) concurrent convert exits 75 naming PID, (3) gamemode lock blocks index (exit 75, names path), (4) doctor shows gamemode-lock row, (5) no-op convert skips amenders, (6) doctor on healthy store exits 0 with md/bm25 counts. Removed @manual from the 4 converted Feature blocks; the @roadmap-62f3 scenario (systemctl freeze — T4/environment-gated) got its own @manual tag. ROADMAP checkbox ticked; full suite 570 passing (6 new tests).
+Friction: none — PID file naming convention (must be <pid>.json for _scan_running_dir) required one debug iteration; doctor default endpoint resolution always returns localhost:8080 so the healthy-store test mocks httpx.post to return OK responses.

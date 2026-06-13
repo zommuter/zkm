@@ -139,7 +139,7 @@ the gate (N9c/N9d accepted-as-is decisions stand).
     docs/entity-model.md and `src/zkm/canonical.py`. ARCHITECTURE.md §D6 and
     the "observe before preventing" heuristic.
 
-- [ ] **Convert the 5 T1 @manual BDD scenarios in features/cli-journeys.feature to executable tests [ROUTINE]** <!-- id:9878 -->
+- [x] **Convert the 5 T1 @manual BDD scenarios in features/cli-journeys.feature to executable tests [ROUTINE]** <!-- id:9878 -->
   - **Context**: per `dotclaude-skills/docs/bdd-automation-triage-2026-06-13.md`,
     these 5 scenarios are pure CLI subprocess/file assertions and need no new
     harness: hybrid-search degraded (mock a stopped server), concurrent-lock
