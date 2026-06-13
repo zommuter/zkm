@@ -158,3 +158,14 @@ Ingest is deterministic (parsers, spaCy NER); no LLM writes to the store.
   `docs/meeting-notes/2026-06-01-1616-zkm-test-conformance.md`.
 - **Versioning**: bump-and-tag per repo (`vX.Y.Z`, loose-0.x); every
   `pyproject.toml` version change is tagged in the same commit.
+
+## Plugin contract
+
+Two cross-plugin rulings confirmed 2026-06-13 (batch triage):
+
+- **RuntimeError error-contract**: A zkm plugin signals runtime/CLI failure by
+  raising `RuntimeError`; the core amender loop catches it and prints a one-line
+  WARN (does not abort the sweep).
+- **Version derivation**: Canonical version = `pyproject.toml` metadata; a
+  plugin's `PLUGIN_VERSION` is derived via `importlib.metadata` with a
+  `plugin.yaml` fallback.
