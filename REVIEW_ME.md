@@ -6,6 +6,8 @@ Max ~10 open boxes; the reviewer prunes resolved ones each review turn.
 - [ ] ROADMAP.md §Phase 2 "done" definition (no test — roadmap prose) — chose
   "γ shipped + rm/gc landed + 14-day zero-intervention observation window" over
   an NER-FP-rate target. Confirm the 14-day window and that FP targets stay out.
+  → owner 2026-06-13 CONFIRMED: "γ shipped + rm/gc + 14-day zero-intervention
+  window" is the Phase 2 done-definition; NER-FP-rate targets stay out of it.
 
 - [ ] tests/test_gamemode_guard.py::test_bypass_run_guard_also_bypasses_gamemode_lock
   (roadmap:1098) — interpretation: `ZKM_BYPASS_RUN_GUARD=1` bypasses BOTH the
@@ -45,3 +47,6 @@ Max ~10 open boxes; the reviewer prunes resolved ones each review turn.
   default doctor run stays sweep-free. Counter exists to let the TODO.md
   triggers (">=50 valid:false entries" policy gate; 1-month forward-flag
   observation) actually fire — observe before preventing.
+  → owner 2026-06-13 CONFIRMED: opt-in `--entities` census is correct; keep the
+  default doctor run sweep-free. Inert counter awaiting evidence is the right
+  call (matches the observe-before-preventing heuristic).

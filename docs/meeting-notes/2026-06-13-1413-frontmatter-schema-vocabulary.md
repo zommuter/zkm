@@ -1,0 +1,41 @@
+# 2026-06-13 — Store-wide frontmatter schema vocabulary
+
+**Started:** 2026-06-13 14:13
+**Session:** 5ea072b1-41e2-4c50-b338-c1aaa2ccfc77
+**Attendees:** 🏗️ Archie (architect), 😈 Riku (devil's advocate), ✂️ Petra (productivity), 🗺️ Flora (information-flow / schema routing), 🗄️ Cassi (derived-data persistence)
+**Topic:** Ratify a shared frontmatter-scalar vocabulary + a core-owned-vs-plugin-owned namespacing rule; resolve the `status:` collision, `sha256:` dual meaning, and the WhatsApp `text:` duplication.
+
+## Surfaced discoveries
+- `docs/plugin-spec.md:187` already defines `sha256:` as "SHA-256 of the original content **or a stable canonical form**" — the social URL-hash case was already permitted, just under-documented.
+- Per-field merge rules (`plugin-spec.md` §Per-field merge rules): `tags` set-union, `entities` role-tagged dedup, **scalars last-write-wins** — the silent-corruption hazard for same-name/different-meaning keys.
+- Core required schema: `source, date, tags, sha256, original, processor, processor_version` + messaging extension (`message_id, thread_id, …`). No rule existed for plugin-introduced scalars.
+
+## Agenda
+1. The meta-rule: when does a plugin scalar become *core-owned shared* vs *plugin-private*, and how are plugin-private keys named?
+2. `status:` collision — calendar (event lifecycle) vs whatsapp (`system` row-type).
+3. `sha256:` honesty — document the file-vs-URL dual meaning, or split the field.
+4. WhatsApp `text:` duplication (w6f) — durable self-containment vs body-in-two-places.
+
+## Discussion
+
+**Agenda 1+2 — the rule, worked through `status:`.** Archie framed the hazard: plugins invent scalars with no coordination, and the scalar merge is last-write-wins, so two producers on one doc with the same key name silently corrupt. Petra applied the N=2 rule: a scalar earns the *core-owned* vocabulary only when ≥2 real sources mean the **same concept** (`subject:` = pdf `/Subject` + mail `Subject` → core; `project:` = claude-ai + on-roadmap claude-code → core; `recurrence_id:` = calendar-only → plugin-private; `ocr_confidence:` borderline). Flora argued flat `<plugin>_key` prefixing for plugin-private scalars (keeps the merge engine scalar-oriented + greppable; nesting breaks both). Riku used `status:` as the breaking test: calendar's `status` is the iCal lifecycle (`confirmed/cancelled/tentative`), WhatsApp's `status: system` is a *row type* — **different concept, same name** → must not share the key. Cassi: rename WhatsApp's to a messaging concept (`message_type: system`) inside the messaging-spec namespace, not a new global scalar. Archie closed the rot risk: put the registry in `plugin-spec.md` and have `zkm test` **warn** (not fail) on bare scalars not in the registry — self-policing; minimum evidence to register = name the two consumers.
+
+**Agenda 3 — `sha256:`.** Archie: the spec already permits the URL-hash via "stable canonical form" — it's under-documented, not divergent. Cassi: the real conflation is *integrity* (verifiable only where bytes exist) vs *identity* (always). Riku: a rename forces migration of existing social docs + dual-path dedup code, with no named consumer that needs to distinguish the two. Flora proposed a one-sentence documentation fix. **The user overrode the panel** and chose to rename the social case to `url_sha256:` — preferring honest naming (sha256 = file-content hash everywhere) over migration-avoidance.
+
+**Agenda 4 — WhatsApp `text:` (w6f).** Cassi: this duplicates text into the per-message *manifest* (the message log), not the human body. Flora: WhatsApp's source is ephemeral backup snapshots, so re-querying on rewrite loses messages — a property of this source, not email/calendar. Riku: no new privacy exposure (text already in the same `.md` body), only ~2× message bytes + precedent risk; scope it or it leaks. Archie: accept under two stated conditions as the gate. Petra: pre-fix files stay unhealed; a heal is a separate `--full-resweep` item. **The user chose accept-scoped + queue the resweep item.**
+
+## Decisions
+
+- **D1 — Hybrid scalar rule (ratified).** A frontmatter scalar is *core-owned* (bare name) only when ≥2 real sources (on-roadmap counts) mean the **same concept** by it. All other plugin scalars are *plugin-private* and MUST use a flat `<plugin>_<key>` prefix. A **core-owned scalar registry** (key, type, semantics, enum-if-any) lives in `docs/plugin-spec.md`; `zkm test <plugin>` emits a **warn-level** finding when a plugin writes a bare scalar absent from the registry. Out of scope: failing on unregistered keys (warn only); nested/object frontmatter (flat scalars only).
+- **D2 — `status:` resolution.** `status:` stays **core-owned** with the iCal-derived enum `{confirmed, cancelled, tentative}` (calendar bdfb keeps it; other sources may adopt it for the same lifecycle concept). WhatsApp's `system` row-type (w11) is renamed out of `status:` to a messaging field — `message_type: system` (reconciled against `messaging-spec.md`). Out of scope: a unioned super-enum spanning both concepts (rejected — they are different concepts).
+- **D3 — Registered core-owned scalars (initial set).** `subject:` (string; pdf `/Subject`, mail `Subject`), `project:` (string name; claude-ai + claude-code), plus existing `tags`. `recurrence_id:` → `cal_recurrence_id` (plugin-private). `ocr_confidence:` → `scan_ocr_confidence` unless a second OCR consumer is named at implementation (default: namespaced). Keyword→`tags:` merge (pdf 03c2) stays — it reuses the core `tags` set-union, no new key.
+- **D4 — `sha256:` split (user override).** `sha256:` means **file-content hash** everywhere a binary/file original exists (identity + integrity). Fileless sources (source:social) use a new **`url_sha256:`** key (identity-only dedup key, hash of the canonical profile URL). `plugin-spec.md` documents both; the social dedup index (297a) keys on `url_sha256:`. Requires a one-off migration/reprocess of existing social docs to rename the key. Out of scope: a separate integrity field for file-backed sources (no consumer yet).
+- **D5 — WhatsApp `text:` accepted, scoped.** Manifest-text duplication (w6f) is blessed **only** under two documented conditions: (a) the source is ephemeral (no durable original to re-read) AND (b) the manifest is the rewrite source-of-truth. Documented in `plugin-spec.md` as a *conditional* pattern, explicitly not a store-wide default. Pre-fix blanked-body files are NOT auto-healed; a `--full-resweep` follow-up is queued (D6). No new privacy exposure; ~2× message-text disk accepted.
+- **D6 — Resweep follow-up.** Mint a `zkm-whatsapp --full-resweep` item to heal pre-fix blanked bodies via a watermark-less re-sweep. Deferred work, not part of w6f's merge.
+
+## Action items
+- [ ] Add a **core-owned scalar registry** table to `docs/plugin-spec.md` (key/type/semantics/enum) seeded with `status` (enum), `subject`, `project`, `tags`, `sha256`, `url_sha256`; document the flat `<plugin>_<key>` rule for plugin-private scalars. Mirror the rule into `ARCHITECTURE.md` §Conventions. (2026-06-13 frontmatter-schema mtg) <!-- id:4431 -->
+- [ ] `zkm test` (conformance.py): warn-level finding when an emitted `.md` carries a bare scalar key not in the core-owned registry (not in `<plugin>_*` form). (2026-06-13 frontmatter-schema mtg) <!-- id:e2c4 -->
+- [ ] Implement D2 across plugins: keep `status:` core-owned/enum in zkm-calendar (bdfb); rename WhatsApp `status: system` → `message_type: system` (w11) reconciled with `messaging-spec.md`; namespace `recurrence_id:` → `cal_recurrence_id` (92ce) and `ocr_confidence:` → `scan_ocr_confidence` (5d7d); register `subject:` (pdf 03c2) and `project:` (claude-ai 303a) as core-owned. (2026-06-13 frontmatter-schema mtg) <!-- id:cfd1 -->
+- [ ] Implement D4: zkm-social writes `url_sha256:` (not `sha256:`) for source:social; update the dedup index (297a) to key on it; document `sha256:` vs `url_sha256:` in `plugin-spec.md`; one-off migration/reprocess to rename the key in existing social docs. (2026-06-13 frontmatter-schema mtg) <!-- id:f3c6 -->
+- [ ] zkm-whatsapp `--full-resweep` (D6): watermark-less re-sweep to heal pre-fix blanked bodies with persisted manifest text. (2026-06-13 frontmatter-schema mtg) <!-- id:8d67 -->
