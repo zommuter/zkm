@@ -9,7 +9,7 @@ alone — `plugins/` is empty in a fresh worktree and the suite must stay green
 without any plugin repo present. Plugin-repo work stays in TODO.md (central
 ledger by design) and is NOT mirrored here.
 
-## Phase 2 "done" definition (PROPOSED — confirm in REVIEW_ME.md)
+## Phase 2 "done" definition (CONFIRMED — owner 2026-06-13)
 
 Phase 2 is declared done when all three hold:
 
