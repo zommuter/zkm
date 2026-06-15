@@ -52,3 +52,7 @@ Friction: none — PID file naming convention (must be <pid>.json for _scan_runn
 ## 2026-06-14 00:00 — executor (sonnet, relay-loop)
 
 feat(bdd): convert 5 T1 @manual BDD scenarios to executable tests (id:9878) — 6 new tests, 570 total passing
+
+## 2026-06-15 11:04 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+review 20260615-1104: audited 46c2a04 (REVIEW_ME-only, user batch-triage) clean — no test/code changes, no deletions; user confirmed interpretations for id:1098 (gamemode-lock guard) + id:62f3 (index self-scope), both tests green (test_gamemode_guard.py + test_selfscope.py, 18 pass), full suite 570 green + BDD 6 green; closed umbrella TODO id:f631 (both sub-items now user-verified); refreshed stale relay-contract pointer v2->v3; 0 open ROADMAP items, 0 open REVIEW_ME boxes, 0 gaming flags
