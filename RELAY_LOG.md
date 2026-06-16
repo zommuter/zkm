@@ -60,3 +60,7 @@ review 20260615-1104: audited 46c2a04 (REVIEW_ME-only, user batch-triage) clean 
 ## 2026-06-15 11:12 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 review 20260615-1104: audited REVIEW_ME-only commit clean, closed id:f631 (user-confirmed 1098/62f3), refreshed relay-contract pointer v2->v3; 570 green, 0 gaming
+
+## 2026-06-16 09:28 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+review 20260616-092804: audited b28e7ef (TODO.md-only) clean — pure cross-project /meeting item add (id:4159, zkm×triad connecting-dots, mirrored from toesnail under same id), no test/code/deletion changes; gaming-scan clean, 570 tests green. §5b reverse-handoff: id:4159 is design-judgment work (ambiguous "whether/how zkm becomes a node", explicitly flagged manual /meeting) → left as TODO /meeting candidate, NOT promoted to ROADMAP; already qualified by the meeting (id + cross-project sync note). §4 spec-drift: refreshed stale relay-contract pointer v3->v4 in CLAUDE.md (canonical marker bumped to v4). ROADMAP fully consumed (all items [x]), routine_open=0, 0 open REVIEW_ME boxes, 0 gaming flags, 0 reopens.
