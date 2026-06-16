@@ -68,3 +68,7 @@ review 20260616-092804: audited b28e7ef (TODO.md-only) clean — pure cross-proj
 ## 2026-06-16 09:38 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 review 20260616-092804: audited b28e7ef (TODO-only cross-project /meeting item id:4159) clean, 570 green, 0 gaming; refreshed contract pointer v3->v4; routine_open=0
+
+## 2026-06-16 09:55 — reviewer (claude-opus-4-8, fable-standin, relay-loop), review since relay-ckpt-20260616-0938
+
+review 20260616-092804-18345: audited 03cceb2 (TODO.md-only) clean — adds the zkm-tabs plugin idea (id:301c, browser-state capture: open tabs/bookmarks/history, salvaged from the retired gtnsd repo's "attach open tabs per commit" thread). No test/code/deletion changes; gaming-scan clean, full suite 570 green. §5b reverse-handoff: id:301c is design-judgment work — explicitly "idea … Warrants scoping before build", with open Qs on capture mechanism (extension/bookmarklet/native-messaging vs reading places.sqlite), cadence, dedup/diff strategy, and privacy posture → left as a TODO /meeting candidate, NOT promoted to ROADMAP; reused its existing id:301c. §4 spec-drift: relay-contract pointer already v4 (refreshed prior turn), matches canonical — no change. ROADMAP fully consumed (all items [x]), routine_open=0, 0 open REVIEW_ME boxes, 0 gaming flags, 0 reopens.
