@@ -4,6 +4,15 @@
 See `CLAUDE.md` for architecture overview. See `docs/phase2-plan.md` for sequencing.
 Completed Phase 1 tasks archived in `docs/phase1-done.md`.
 
+## Cross-project
+
+- [ ] **Cross-project (triad) — `/meeting`:** discuss the potentially connecting dots between **zkm
+  infrastructure** (embeddings / semantic retrieval / knowledge-mgmt) and the `.mw`/toesnail/collAIb triad.
+  toesnail is the documented triad hub (`toesnail/docs/dependencies.md`); a session would decide whether/how
+  zkm becomes a node in that dependency map. **MIRRORED in `toesnail/TODO.md` under the same `id:4159`** — keep
+  both copies in sync MANUALLY (no automated cross-PROJECT sync; relay `--cross-ledger` is intra-repo only,
+  inbox routing is one-way). Wherever worked/closed, tick the twin. Likely a manual `/meeting`. <!-- id:4159 -->
+
 ## OpenPGP key & signature tracking (decided 2026-06-04-1002-pgp-keys-signature-validity.md)
 
 D1: vCard KEY → pgpy fingerprint entity + CAS bytes. D2: zkm-eml Tier A (signed: pgp-mime/smime) + Tier B (auth_results: dkim/spf/dmarc from provider headers). D3: fingerprint = join-grade value-type, NOT person-merge license. Build order: core → eml → vcard.
