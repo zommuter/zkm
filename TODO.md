@@ -127,6 +127,18 @@ v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `cha
 - [ ] **SOC5** (deferred — separate scoping meeting). Activity-feed doc-type: posts/reactions/comments/being-tagged. Overlaps `messaging-spec.md`. Reopen when a concrete feed use-case appears. <!-- id:a580 -->
 - [ ] **SOC6** (deferred — gated escalation). Bulk / lead-gen multi-subject capture. Gate: concrete use-case + ToS clearance + deliberate decision to cross the single-subject boundary. <!-- id:3de4 -->
 
+## Plugin backlog — browser state (open tabs / bookmarks / history)
+
+- [ ] **zkm-tabs (idea — salvaged from the retired `gtnsd` repo's "attach a list of open tabs to each commit"
+  / TreeStyleTab thread; history preserved in `toesnail` branch `gtnsd-archive`).** A plugin to capture
+  browsing context into the store: currently-open browser tabs (e.g. TreeStyleTab tree export), bookmarks, and
+  possibly history — as timestamped knowledge snapshots / per-session context. Open Qs: capture mechanism
+  (browser extension / bookmarklet / native-messaging vs. reading the browser's `places.sqlite` +
+  session-restore files); cadence (on-demand vs. periodic); **dedup/diff** — tabs & bookmarks churn, so store
+  deltas not full dumps (overlaps the inflownistration/staleness idea, `.mw` `id:aae4`); privacy posture (URLs
+  can be sensitive — mirror zkm-claude-ai's deliberate-render stance). Relates to the SOC4 bookmarklet-capture
+  front-end (id:dfa4). Warrants scoping before build. <!-- id:301c -->
+
 ## Workflow / process backlog
 
 - [ ] **conformance.run_dynamic path-resolution bug** — `run_dynamic` resolves ALL `conformance.config` values as plugin-relative paths (conformance.py ~line 345), clobbering non-path values; zkm-social cannot declare `network: linkedin`, so `zkm test social` dynamic check is impossible. Fix: only path-resolve values whose resolved path exists, or mark path keys in plugin.yaml. Found during 2026-06-12 relay handoff (zkm-social child, also in shared inbox). <!-- id:a285 -->
