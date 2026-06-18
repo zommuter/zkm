@@ -76,3 +76,7 @@ review 20260616-092804-18345: audited 03cceb2 (TODO.md-only) clean — adds the 
 ## 2026-06-16 10:07 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 review 20260616-092804-18345: audited 03cceb2 (TODO-only zkm-tabs idea id:301c) clean, 570 green, 0 gaming; id:301c kept as /meeting candidate (design-judgment, not ROADMAP); routine_open=0
+
+## 2026-06-18 16:16 — reviewer (claude-opus-4-8, fable-standin, relay-loop), review since relay-ckpt-20260616-1007
+
+review 20260618-161606-30516: audited 7d5ae25 (TODO.md-only) clean — folds an "active-triage" dimension into the existing zkm-tabs idea (id:301c): a browser addon with per-tab actions (keep/archive/close/forget/reminder) where the triage decision is itself the captured signal, plus open Qs (action-verb locus addon-UI vs post-capture `zkm` command, reminder reusing a core date-trigger, forget vs delete/scrub semantics cf. zkm-notmuch id:f103). No test/code/deletion changes; gaming-scan clean. §5b reverse-handoff: still design-judgment work — explicitly "Warrants scoping before build" with multiple unresolved approach choices → kept as a TODO /meeting candidate, NOT promoted to ROADMAP; reused existing id:301c (no duplicate mint). §4 spec-drift: relay-contract pointer already v4, matches canonical — no change; README untouched (design idea, nothing shipped). ROADMAP fully consumed (all 7 items [x], 0 unticked), routine_open=0, 0 open REVIEW_ME boxes, 0 gaming flags, 0 reopens, 0 verified-green (no test/code churn this window).
