@@ -137,7 +137,16 @@ v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `cha
   session-restore files); cadence (on-demand vs. periodic); **dedup/diff** — tabs & bookmarks churn, so store
   deltas not full dumps (overlaps the inflownistration/staleness idea, `.mw` `id:aae4`); privacy posture (URLs
   can be sensitive — mirror zkm-claude-ai's deliberate-render stance). Relates to the SOC4 bookmarklet-capture
-  front-end (id:dfa4). Warrants scoping before build. <!-- id:301c -->
+  front-end (id:dfa4). **Active-triage extension (added 2026-06-18):** beyond passive capture, a
+  browser addon that lets you *triage* open tabs with per-tab actions — **keep** (snapshot into the
+  store as durable knowledge), **archive** (store + close the tab), **close** (drop, no store),
+  **forget** (close + suppress from future capture/dedup), **reminder** (store with a date-trigger /
+  resurface later). This makes zkm-tabs a tab-hygiene workflow, not just a snapshotter — the triage
+  *decision* becomes the captured signal (why a tab mattered), and "archive/forget" naturally feed
+  the dedup/diff + staleness model already noted. Open Qs it adds: where the action verbs live
+  (addon UI vs. a post-capture `zkm` triage command over a captured tab-list); whether "reminder"
+  reuses a core date-trigger mechanism; how "forget" interacts with the delete/scrub semantics
+  (cf. zkm-notmuch id:f103 tag-removal). Warrants scoping before build. <!-- id:301c -->
 
 ## Workflow / process backlog
 
