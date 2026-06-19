@@ -109,3 +109,22 @@ HARD).
 ## 2026-06-19 16:24 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 review since relay-ckpt-20260618-1627: ledger/design-only window (2 commits), gaming-scan clean, suite 570 green; promoted id:25ec declarative-set retract to ROADMAP [HARD] with red spec
+
+## 2026-06-19 16:13 — reviewer (claude-opus-4-8), review since relay-ckpt-20260619-1624
+
+Window = 1 commit, TODO.md-only: 50b2ad6 added a "Plugin backlog — audio/video
+transcription (STT)" section with one zkm-stt idea item. No test/code/deletion
+churn — gaming-scan.sh clean (no DELETED_TEST/ADDED_SKIP/REMOVED_ASSERT); nothing
+to trust-but-verify against tests this window. §5b reverse-handoff: the addition is
+explicitly design-judgment work — an "idea", "Warrants scoping before build", with
+multiple unresolved approach choices (backend whisper/faster-whisper/remote endpoint;
+WhatsApp amender-style vs embedded; YouTube `zkm fetch youtube` subcommand vs
+standalone `zkm convert stt` over `inbox/stt/`; caching/timestamp-granularity/
+diarisation Qs) → kept as a TODO /meeting candidate, NOT promoted to ROADMAP.
+**Defect fixed**: the item carried an INVENTED token `<!-- id:stt1 -->` ("stt1" is
+not a valid 4-hex id and was never minted via append.sh) — re-minted a proper token
+via append.sh new-ids and rewrote it to `<!-- id:dcf8 -->` (verified unique across
+TODO/archive/ROADMAP/RELAY_LOG/docs). §4 spec-drift: relay-contract pointer already
+v4 (matches canonical), README untouched (nothing shipped). ROADMAP unchanged — the
+sole open item is id:25ec [HARD — strong model]; routine_open = 0, 0 open REVIEW_ME
+boxes, 0 gaming flags, 0 reopens, 0 verified-green (no test/code churn).
