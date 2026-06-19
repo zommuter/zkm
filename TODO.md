@@ -147,6 +147,23 @@ v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `cha
   reuses a core date-trigger mechanism; how "forget" interacts with the delete/scrub semantics
   (cf. zkm-notmuch id:f103 tag-removal). Warrants scoping before build. <!-- id:301c -->
 
+## Plugin backlog — audio / video transcription (STT)
+
+- [ ] **zkm-stt (idea — Speech-to-Text transcription plugin).** Converts audio/video sources to
+  timestamped transcript `.md` under `transcripts/`. Primary use cases: (1) **WhatsApp voice
+  messages** — after zkm-whatsapp v1 ships, STT pass over attached `.opus`/`.m4a` files to
+  embed spoken text in the chat transcript rather than leaving `[voice message]` stubs;
+  (2) **YouTube / video transcription** — download + transcribe talks, lectures, podcasts
+  (yt-dlp for audio fetch; Whisper / faster-whisper for local transcription). Shared design
+  questions: backend choice (openai-whisper, faster-whisper, or OpenAI-compatible
+  `/v1/audio/transcriptions` endpoint for remote offload); language detection vs. explicit
+  per-source config; caching — transcription is expensive, so `.amendments.json`-style sidecar
+  or CAS-keyed cache keyed on audio sha256; word-level timestamps vs. segment-level; speaker
+  diarisation (deferred). WhatsApp integration: amender-style (runs as post-convert amender,
+  scoped to `created` voice-message paths) vs. embedded in zkm-whatsapp itself. YouTube:
+  separate `zkm fetch youtube <url>` subcommand or a standalone `zkm convert stt` over
+  dropped audio files in `inbox/stt/`. Warrants scoping before build. <!-- id:stt1 -->
+
 ## Workflow / process backlog
 
 - [ ] **conformance.run_dynamic path-resolution bug** — `run_dynamic` resolves ALL `conformance.config` values as plugin-relative paths (conformance.py ~line 345), clobbering non-path values; zkm-social cannot declare `network: linkedin`, so `zkm test social` dynamic check is impossible. Fix: only path-resolve values whose resolved path exists, or mark path keys in plugin.yaml. Found during 2026-06-12 relay handoff (zkm-social child, also in shared inbox). <!-- id:a285 -->
