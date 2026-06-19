@@ -135,3 +135,7 @@ review since relay-ckpt-20260619-1624: TODO-only window (1 commit), gaming-scan 
 ## 2026-06-18 15:54 — reviewer (claude-opus-4-8[1m], relay-loop)
 
 review 20260618-155410-10356: audited 7d5ae25 (TODO.md-only) clean — extends the zkm-tabs idea (id:301c) with an **active-triage** dimension (browser addon: per-tab keep/archive/close/forget/reminder actions, triage decision as the captured signal). No test/code/deletion changes; gaming-scan clean, full suite 570 green (32s). §5b reverse-handoff: this is the same design-judgment item the 2026-06-16 review already kept as a /meeting candidate — the new text still ends "Warrants scoping before build" and adds open Qs (action-verb location addon-UI vs post-capture `zkm` command; whether "reminder" reuses a core date-trigger; how "forget" interacts with delete/scrub semantics cf. zkm-notmuch id:f103). Two plausible approaches + ambiguous scope → left as TODO /meeting candidate, NOT promoted to ROADMAP; reused existing id:301c (no duplicate mint). §4 spec-drift: relay-contract pointer already v4, matches canonical — no change. ROADMAP fully consumed (all items [x]), routine_open=0, 0 open REVIEW_ME boxes, 0 gaming flags, 0 reopens.
+
+## 2026-06-19 19:13 — reconcile (human)
+
+reconcile integrate: relay(review): audit 7d5ae25 (zkm-tabs active-triage idea id:301c) clean, 570 green
