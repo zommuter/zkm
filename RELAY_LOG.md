@@ -139,3 +139,7 @@ review 20260618-155410-10356: audited 7d5ae25 (TODO.md-only) clean — extends t
 ## 2026-06-19 19:13 — reconcile (human)
 
 reconcile integrate: relay(review): audit 7d5ae25 (zkm-tabs active-triage idea id:301c) clean, 570 green
+
+## 2026-06-19 19:31 — strong-execute (claude-opus-4-8, fable-standin, relay-loop)
+
+hard (claude-opus-4-8): id:25ec declarative-set retract primitive in amendments.py (emit_set, ref-count-to-zero removal, schema 1->2 graceful read, fcntl lock, dry-run); 578 tests green
