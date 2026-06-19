@@ -64,7 +64,7 @@ def test_emit_writes_record_under_emitter_dir(tmp_path: Path) -> None:
     assert data["key"] == {"message_id": "<a@b>"}
     assert data["fields"] == {"tags": ["bill"]}
     assert data["emitted_by"] == "zkm-notmuch"
-    assert data["schema"] == 1
+    assert data["schema"] == 2  # bumped 1->2 with the declarative emit_set primitive (id:25ec)
 
 
 def test_emit_idempotent_same_record_same_path(tmp_path: Path) -> None:
@@ -175,7 +175,7 @@ def test_apply_queue_round_trip_tags_set_union(tmp_path: Path) -> None:
 
     assert _load_tags(md) == ["bill"]
     attr = _load_attribution(md)
-    assert attr["schema"] == 1
+    assert attr["schema"] == 2  # bumped 1->2 with declarative emit_set (id:25ec)
     assert len(attr["applied"]) == 1
     assert attr["applied"][0]["emitted_by"] == "zkm-notmuch"
     assert "emitted_at" in attr["applied"][0]

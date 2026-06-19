@@ -153,7 +153,18 @@ the gate (N9c/N9d accepted-as-is decisions stand).
   - **Done-check**: `cd ~/src/zkm && uv run pytest -q` (or the documented test
     command in CLAUDE.md) fully green.
 
-- [ ] **Declarative-set retract primitive in `src/zkm/amendments.py`** [HARD — strong model] <!-- id:25ec -->
+- [x] **Declarative-set retract primitive in `src/zkm/amendments.py`** [HARD — strong model] <!-- id:25ec -->
+  (relay HARD-execute 2026-06-19: `emit_set()` declarative path added alongside
+  byte-identical additive `emit()`; per-producer `producer_sets` block in
+  `<md>.amendments.json` (schema 1→2, graceful read/bootstrap, no migration);
+  ref-count-to-zero removal (D2), no-op-on-empty (D4a), run-scoped diff (D4b),
+  fcntl-locked sidecar RMW (D4c). Dry-run via `apply_queue(dry_run=True)` +
+  `plan_retractions()` (D3). 9 green tests in `tests/test_amendments_retract.py`
+  (sole-producer drop, multi-producer keep, no-op-empty, idempotence,
+  additive-unaffected, run-scoped, graceful-read, dry-run); full suite 578 green.
+  docs/plugin-spec.md + CLAUDE.md updated; pyproject 0.14.0→0.15.0. NOTE: the
+  `v0.15.0` tag + `uv publish` are OWED at integration — a relay child must not
+  tag/push/publish (see REVIEW_ME). Stage 2 (zkm-notmuch f103) is routed:8b00.)
   - **Why HARD**: makes the append-only attribution sidecar AUTHORITATIVE
     per-producer state (today it is a log); a botched diff *wrongly removes
     user data* (the meeting's named failure mode). Three hard preconditions

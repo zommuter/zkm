@@ -213,7 +213,8 @@ The md *body* is single-writer — the producing plugin owns it and must not be 
 
 ```json
 {
-  "schema": 1,
+  "schema": 2,
+  "mode": "additive",
   "key": {"message_id": "<abc123@example.com>"},
   "fields": {"tags": ["bill"]},
   "emitted_by": "zkm-notmuch",
@@ -222,6 +223,27 @@ The md *body* is single-writer — the producing plugin owns it and must not be 
 ```
 
 Key resolution order: `message_id` → `sha256` → relative `path`. The first present key in the record is used. Amenders SHOULD prefer `message_id` for messaging plugins and `sha256` for all other sources.
+
+`mode` selects the merge semantics; it is `"additive"` when absent (legacy records hash identically across the schema 1→2 bump, so already-applied additive records stay idempotent).
+
+### Declarative-set emit and retraction (mode `"set"`)
+
+`emit()` is **additive**: its `fields` are merged set-union and never remove anything. To let a producer also *retract* a value it previously asserted (e.g. `zkm-notmuch` when a tag is removed in notmuch, `zkm-ner` for a stale entity), use **`emit_set()`** — a record with `"mode": "set"` whose `fields` declares the producer's **full current asserted set** for a key:
+
+```json
+{"schema": 2, "mode": "set", "key": {"message_id": "<abc@x>"},
+ "fields": {"tags": ["a"]}, "emitted_by": "zkm-notmuch", "emitted_at": "..."}
+```
+
+On apply, core stores each producer's last asserted set per md-key in the attribution sidecar (`producer_sets`) and computes **removals** by diffing prior-vs-new:
+
+- **Additions** are still set-union — identical to additive `emit`.
+- **Ref-count-to-zero removal:** a value `T` is dropped from frontmatter iff (1) `T` is in the producer's stored set, (2) `T` is not in its new set, and (3) `T` is asserted by no *other* producer's current set. Otherwise only this producer's claim is dropped and the value stays. This mirrors `.origin.json` `remove_producer` remaining-count semantics — a hand-typed tag that collides with a producer's tag is **kept** as long as any producer (or the unattributed frontmatter) still carries it.
+- **No-op on empty:** a producer that emits an empty asserted set for a key retracts only its own prior claims — never a bulk-retract of values it never asserted.
+- **Run-scoped diff:** removals are computed **only for keys reported in the current run**; a key absent from this run keeps its stored set untouched (created-scoping).
+- **Dry-run:** `apply_queue(store, dry_run=True)` computes the plan without mutating anything; `plan_retractions(store)` returns a structured list of pending drops (`{md, field, value, producer}`) for preview.
+
+Only `tags` is a declarative set field today; scalar fields remain last-write-wins and are never retracted. The amendments-sidecar read-modify-write is fcntl-locked (serialises concurrent applies). See `docs/meeting-notes/2026-06-18-1944-f103-tag-removal-core-semantic.md` for the design (D1–D5).
 
 ### Queue-if-md-missing
 
@@ -232,10 +254,10 @@ If an amendment's key resolves to no md file (e.g. `zkm-notmuch` ran before `zkm
 Each amended md gets a per-md sidecar at `<md-path>.amendments.json`:
 
 ```json
-{"schema": 1, "applied": [<record>, ...]}
+{"schema": 2, "applied": [<record>, ...], "producer_sets": {"zkm-notmuch": {"tags": ["a"]}}}
 ```
 
-This lists every amendment record merged into the md, in application order.
+`applied` lists every amendment record merged into the md, in application order. `producer_sets` (schema 2) records each producer's last declarative asserted set per set-field, the state the retraction diff is computed against. A schema-1 sidecar (no `producer_sets`) is read gracefully — a producer's stored set is bootstrapped from the union of its prior applied `fields` with no on-disk migration.
 
 Round-trip test contract (implementation in Session 10): `zkm-eml` writes `tags: []`; a `zkm-notmuch` amendment with `tags: [bill]` is applied; merged md shows `tags: [bill]`; `<md>.amendments.json` contains the record with `emitted_at`.
 

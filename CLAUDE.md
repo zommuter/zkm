@@ -230,6 +230,19 @@ See `docs/temporal-queries.md`.
   (capability-probed via `inspect.signature`, same pattern as `progress`).
   Explicit `zkm convert ner` (created=None) still full-sweeps. Don't break the
   capability probe — plugins without the param must keep working.
+- **Amendment merge modes** (`zkm.amendments`, schema 2): two emit paths.
+  `emit()` is **additive** (set-union, never removes). `emit_set()` is
+  **declarative** — its `fields` are a producer's full current asserted set for
+  a key; core diffs prior-vs-new (per-producer `producer_sets` in the
+  `<md>.amendments.json` sidecar) and drops a value only when it ref-counts to
+  zero across ALL producers (a value any producer still asserts is kept). An
+  empty set retracts only that producer's own claims (never bulk-retract); the
+  diff is scoped to keys reported this run; legacy schema-1 sidecars bootstrap
+  gracefully (no migration). The sidecar read-modify-write is fcntl-locked.
+  Retraction preview: `apply_queue(store, dry_run=True)` / `plan_retractions(store)`.
+  Only `tags` is a set field; scalars stay last-write-wins. Design:
+  `docs/meeting-notes/2026-06-18-1944-f103-tag-removal-core-semantic.md` (id:25ec).
+  Stage 2 (zkm-notmuch declarative emit = f103) is a SEPARATE repo/session.
 - **Heavy imports are deferred** inside CLI functions (`tqdm`, `httpx`, plugin
   modules) to keep `zkm --help` fast. Follow that pattern in new commands.
 - **`git add` is scoped** to the plugin's `creates_dirs` + created files during
