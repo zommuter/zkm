@@ -162,7 +162,7 @@ v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `cha
   diarisation (deferred). WhatsApp integration: amender-style (runs as post-convert amender,
   scoped to `created` voice-message paths) vs. embedded in zkm-whatsapp itself. YouTube:
   separate `zkm fetch youtube <url>` subcommand or a standalone `zkm convert stt` over
-  dropped audio files in `inbox/stt/`. Warrants scoping before build. <!-- id:stt1 -->
+  dropped audio files in `inbox/stt/`. Warrants scoping before build. <!-- id:dcf8 -->
 
 ## Workflow / process backlog
 
