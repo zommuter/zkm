@@ -128,3 +128,7 @@ TODO/archive/ROADMAP/RELAY_LOG/docs). §4 spec-drift: relay-contract pointer alr
 v4 (matches canonical), README untouched (nothing shipped). ROADMAP unchanged — the
 sole open item is id:25ec [HARD — strong model]; routine_open = 0, 0 open REVIEW_ME
 boxes, 0 gaming flags, 0 reopens, 0 verified-green (no test/code churn).
+
+## 2026-06-19 17:45 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+review since relay-ckpt-20260619-1624: TODO-only window (1 commit), gaming-scan clean, suite 570 green; qualified zkm-stt idea as /meeting candidate (not ROADMAP), fixed invented id:stt1→id:dcf8, routine_open=0
