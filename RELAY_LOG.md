@@ -105,3 +105,7 @@ idempotence, additive-emit-unaffected) — currently skip-on-missing-`emit_set`,
 EXPECTED-RED until the item ships. Stage 2 (zkm-notmuch f103) already routed to
 that repo's inbox; not bundled. routine_open = 0 (the only open ROADMAP item is
 HARD).
+
+## 2026-06-19 16:24 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+review since relay-ckpt-20260618-1627: ledger/design-only window (2 commits), gaming-scan clean, suite 570 green; promoted id:25ec declarative-set retract to ROADMAP [HARD] with red spec
