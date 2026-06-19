@@ -153,6 +153,61 @@ the gate (N9c/N9d accepted-as-is decisions stand).
   - **Done-check**: `cd ~/src/zkm && uv run pytest -q` (or the documented test
     command in CLAUDE.md) fully green.
 
+- [ ] **Declarative-set retract primitive in `src/zkm/amendments.py`** [HARD — strong model] <!-- id:25ec -->
+  - **Why HARD**: makes the append-only attribution sidecar AUTHORITATIVE
+    per-producer state (today it is a log); a botched diff *wrongly removes
+    user data* (the meeting's named failure mode). Three hard preconditions
+    must land together: an fcntl writer lock (the module has NONE today —
+    only `write_atomic`, which does not serialize read-modify-write; closes
+    the 2026-05-14 `_apply_to_md` race), a `_SCHEMA` bump 1→2, and a
+    graceful-read bootstrap of each producer's stored set from legacy
+    append-only sidecars (no data migration). The destructive-failure
+    blast-radius + schema/lock/migration coupling + `uv publish` is why this
+    is strong-model, not [ROUTINE].
+  - **Acceptance** (design D1–D5,
+    `docs/meeting-notes/2026-06-18-1944-f103-tag-removal-core-semantic.md`):
+    - **D1 declarative-set model**: new `emit_set()` (or `asserted_set=` on
+      `emit`) records a producer's FULL current asserted set for a key. Core
+      stores each producer's set per md-key in `<md>.amendments.json` and
+      computes removals by diffing prior-vs-new. Additions stay
+      `merge_fields` set-union — the legacy additive `emit()` path is
+      byte-identical (do NOT rewrite the addition path).
+    - **D2 ref-count-to-zero**: drop tag T iff (1) T ∈ producer's stored set,
+      (2) T ∉ producer's new set, (3) T asserted by no other producer's
+      current set. Otherwise drop only this producer's claim, keep the tag.
+      Mirrors `sidecar.py:remove_producer`.
+    - **D4a no-op-on-empty**: a producer that emits no/empty asserted set for
+      a key retracts NOTHING — never a bulk-retract (guards an empty notmuch
+      dump).
+    - **D4b run-scoped diff**: removals computed ONLY for keys reported in the
+      current run; a key absent this run keeps its stored set untouched
+      (created-scoping, id:63bb).
+    - **D4c lock**: amendments-sidecar writer is fcntl-locked (mirror
+      `sidecar.py:_sidecar_lock`).
+    - **D4d graceful read**: `_SCHEMA` bumped with graceful read of legacy
+      append-only sidecars — stored set bootstrapped from the union of prior
+      applied `fields` for that producer; no data rewrite.
+    - **D3 dry-run**: non-mandatory dry-run listing of pending retractions
+      before apply (free under the declarative diff).
+    - Docs: update `docs/plugin-spec.md` (amendment section) + the CLAUDE.md
+      multi-producer note. Bump `pyproject.toml` version, tag `vX.Y.Z` in the
+      same commit, `uv publish`.
+  - **Tests**: `tests/test_amendments_retract.py`, marked `# roadmap:25ec`
+    (written red-first; currently SKIPs on missing `emit_set`). Required green
+    once shipped: sole-producer drop, multi-producer keep (D2),
+    no-op-on-empty (D4a), idempotence, additive-emit unaffected. Add a
+    run-scoped-diff (D4b) and a graceful-read/bootstrap (D4d) case during
+    implementation.
+  - **Done-check**: `uv run pytest tests/test_amendments_retract.py` then the
+    full suite green.
+  - **Context**: `src/zkm/amendments.py` (221 lines: `emit`, `apply_queue`,
+    `merge_fields`, `_apply_to_md`, `_read_applied_hashes`, sidecar at
+    `<md>.amendments.json`); the lock/remove-producer pattern to mirror is in
+    `src/zkm/sidecar.py`. Stage 2 (zkm-notmuch declarative emit = f103) is a
+    SEPARATE session against the released API — already routed to the
+    zkm-notmuch inbox (`routed:8b00`); do NOT bundle repos. TODO.md
+    §Amendment contract backlog.
+
 ## Pointers (NOT executor items — wrong repo or gated)
 
 - zkm-whatsapp W-series (W6f media manifest, W-key secret source, W8 owner-JID

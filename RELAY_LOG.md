@@ -84,3 +84,24 @@ review 20260618-161606-30516: audited 7d5ae25 (TODO.md-only) clean — folds an 
 ## 2026-06-18 16:27 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 review 20260618-161606: audited 7d5ae25 (TODO-only id:301c active-triage) clean, 0 gaming, routine_open=0
+
+## 2026-06-19 16:13 — reviewer (claude-opus-4-8), review since relay-ckpt-20260618-1627
+
+Window = 2 commits, both ledger/design-only: a07a2bf archived 3 old `[x]` TODO
+entries (no code), a7f4085 a /meeting session that added TODO id:25ec + the f103
+tag-removal design note. No executor implementation in this window — nothing to
+trust-but-verify against tests. gaming-scan.sh clean (no DELETED_TEST/ADDED_SKIP/
+REMOVED_ASSERT); full suite 570 green + 5 skipped. All ROADMAP items remain
+review-verified `[x]`; contract pointer already v4 (current); no spec drift.
+Reverse-handoff (§5b): qualified+sized the one unqualified `/meeting` addition,
+id:25ec (declarative-set retract primitive in src/zkm/amendments.py). Promoted to
+ROADMAP as **[HARD — strong model]** REUSING its TODO token — HARD because it makes
+the append-only attribution sidecar authoritative per-producer state with a
+destructive wrong-removal failure mode, coupling an fcntl lock (module has none
+today), a `_SCHEMA` 1→2 bump, legacy-sidecar graceful-read bootstrap, and a
+`uv publish`. Wrote red spec tests/test_amendments_retract.py (`# roadmap:25ec`,
+5 cases: sole-producer drop, multi-producer keep D2, no-op-on-empty D4a,
+idempotence, additive-emit-unaffected) — currently skip-on-missing-`emit_set`,
+EXPECTED-RED until the item ships. Stage 2 (zkm-notmuch f103) already routed to
+that repo's inbox; not bundled. routine_open = 0 (the only open ROADMAP item is
+HARD).
