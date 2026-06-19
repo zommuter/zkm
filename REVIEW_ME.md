@@ -35,3 +35,22 @@ Max ~10 open boxes; the reviewer prunes resolved ones each review turn.
   and appended to the dd89 skip notice. Alternative (auto-drain the queue on
   zero-created converts) was rejected — it would undo the dd89 speed win. — confirmed by user 2026-06-13 (batch triage)
 
+
+- [ ] tests/test_amendments_retract.py (roadmap:25ec, relay HARD-execute
+  2026-06-19) — TWO items for the human budget:
+  (a) **OWED at integration, not done by the relay child:** the
+  `pyproject.toml` bump 0.14.0→0.15.0 is committed, but the matching `v0.15.0`
+  git tag and `uv publish` are NOT done — a relay child must never tag, push, or
+  publish (relay invariant). The integrator/owner must `git tag v0.15.0` on the
+  merge commit and `uv publish` so Stage 2 (zkm-notmuch f103, routed:8b00) can
+  build against a released API. The bump-and-tag rule (tag in the SAME commit as
+  the version change) is intentionally deferred here because the relay never tags.
+  (b) **Accepted design hazard (Riku's blind spot, DP2 in the meeting):** the
+  ref-count-to-zero rule keys removal on tag *name*, not a UID. A user-hand-typed
+  tag that happens to match a producer's tag gets absorbed into that producer's
+  set; if the producer later drops it and no other producer asserts it, it IS
+  removed (rule 3 passes). The meeting consciously accepted this — auto-remove +
+  git/sidecar reversibility net + non-mandatory dry-run, NOT a quarantine queue
+  (tag churn like inbox/unread makes mandatory review unusable). Confirm this
+  trade-off is acceptable, or whether a baseline-snapshot "this tag predates any
+  producer claim" protection is wanted before zkm-notmuch starts emitting sets.
