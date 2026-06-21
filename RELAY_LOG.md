@@ -151,3 +151,7 @@ Opus review (/relay review --all): 3-commit doc window — meeting(zkm-stt v1 sc
 ## 2026-06-21 23:15 — reviewer (claude-opus-4-8[1m], relay-loop)
 
 review 20260621-231529-15021: audited 4e8452f (single docs-only commit) clean — the PyPI "published" correction the 2026-06-21 23:04 note flagged as uncommitted WIP is now committed (TODO.md line + 2026-05-13 pypi-canary meeting-note both annotated: prod PyPI returns Not Found, `uv publish` never landed, publishing deferred indefinitely). No code/test changes; gaming-scan clean (0 DELETED_TEST/ADDED_SKIP/REMOVED_ASSERT), full suite 578 green (31s). §5b reverse-handoff: no new `- [ ]` items added in window — nothing to qualify. §4 spec-drift: relay-contract pointer v4, matches canonical — no change; README/ARCHITECTURE unaffected by a docs-correction commit. ROADMAP fully consumed (0 open boxes), routine_open=0, 0 open REVIEW_ME boxes, 0 gaming flags, 0 reopens. Cross-ledger consistent (the corrected TODO line is a tracking [~] item, no ROADMAP counterpart).
+
+## 2026-06-21 23:27 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+relay(review): audit 4e8452f (PyPI-correction docs commit) clean, gaming-scan clean, 578 green, ROADMAP fully consumed
