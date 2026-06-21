@@ -54,3 +54,8 @@ Max ~10 open boxes; the reviewer prunes resolved ones each review turn.
   (tag churn like inbox/unread makes mandatory review unusable). Confirm this
   trade-off is acceptable, or whether a baseline-snapshot "this tag predates any
   producer claim" protection is wanted before zkm-notmuch starts emitting sets.
+  - **(b) RESOLVED 2026-06-21 (/relay human): accept the trade-off AS-IS** — keep
+    auto-remove + reversibility net, no baseline-snapshot guard, no quarantine queue.
+    Ratifies the meeting's deliberated decision; zkm-notmuch (f103) may emit sets.
+  - **(a) STILL OWED (owner action, box stays open):** `git tag v0.15.0` on the merge
+    commit + `uv publish` (relay never tags/publishes). Tick this box once (a) is done.
