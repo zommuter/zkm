@@ -36,7 +36,7 @@ Max ~10 open boxes; the reviewer prunes resolved ones each review turn.
   zero-created converts) was rejected — it would undo the dd89 speed win. — confirmed by user 2026-06-13 (batch triage)
 
 
-- [ ] tests/test_amendments_retract.py (roadmap:25ec, relay HARD-execute
+- [x] tests/test_amendments_retract.py (roadmap:25ec, relay HARD-execute
   2026-06-19) — TWO items for the human budget:
   (a) **OWED at integration, not done by the relay child:** the
   `pyproject.toml` bump 0.14.0→0.15.0 is committed, but the matching `v0.15.0`
@@ -57,5 +57,10 @@ Max ~10 open boxes; the reviewer prunes resolved ones each review turn.
   - **(b) RESOLVED 2026-06-21 (/relay human): accept the trade-off AS-IS** — keep
     auto-remove + reversibility net, no baseline-snapshot guard, no quarantine queue.
     Ratifies the meeting's deliberated decision; zkm-notmuch (f103) may emit sets.
-  - **(a) STILL OWED (owner action, box stays open):** `git tag v0.15.0` on the merge
-    commit + `uv publish` (relay never tags/publishes). Tick this box once (a) is done.
+  - **(a) RESOLVED 2026-06-21 (/meeting, owner):** `v0.15.0` tag pushed to both `origin`
+    (fievel) and `github`. **`uv publish` DEFERRED INDEFINITELY** — pip account recovery in
+    progress and `zkm` is not currently on PyPI at all (returns "Not Found", contradicting the
+    SB5/canary memory's "0.5.0 published" claim — worth investigating). Wheel built at
+    `dist/zkm-0.15.0-py3-none-any.whl`. Publish is no longer a blocker on this item; re-run
+    `UV_PUBLISH_TOKEN=… uv publish` once the account is recovered. Tracked under the Stage 2
+    OIDC item in TODO.md.

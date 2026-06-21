@@ -162,7 +162,30 @@ v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `cha
   diarisation (deferred). WhatsApp integration: amender-style (runs as post-convert amender,
   scoped to `created` voice-message paths) vs. embedded in zkm-whatsapp itself. YouTube:
   separate `zkm fetch youtube <url>` subcommand or a standalone `zkm convert stt` over
-  dropped audio files in `inbox/stt/`. Warrants scoping before build. <!-- id:dcf8 -->
+  dropped audio files in `inbox/stt/`. **Scoped 2026-06-21** — see
+  `docs/meeting-notes/2026-06-21-2207-zkm-stt-scope.md`; build items STT1–STT4 below. <!-- id:dcf8 -->
+- [ ] **STT1 — Build zkm-stt v1 (standalone converter).** New repo `plugins/zkm-stt/` (new-plugin
+  dispatch convention: remote-first, skeleton-first barrier). `plugin.yaml`
+  (`creates_dirs: [transcripts, originals/transcripts]`; config `stt_endpoint`/`stt_model`/`stt_api_style`),
+  `convert()` over `inbox/stt/` (.opus/.m4a/.wav/.mp3), `transcribe(audio_path, config) -> Transcript`
+  reuse seam, whisper.cpp `/inference` (`verbose_json`), ffmpeg resample, CAS the audio original,
+  `(audio sha256, backend, model, version)` cache sidecar, `transcripts/<name>.md` with segment-level
+  `[mm:ss]` + detected language (never pinned), per-file graceful skip on backend error. Contract:
+  mocked-`/inference` hermetic test + real `.opus` smoke test. See
+  `docs/meeting-notes/2026-06-21-2207-zkm-stt-scope.md`. <!-- id:37aa -->
+- [ ] **STT2 — zkm-stt v2 WhatsApp amender.** Reuse `transcribe()` as an amender scoped to `created`
+  voice-note paths; enumerate zkm-whatsapp manifest `mime: audio/*`, resolve CAS by sha256, transcribe,
+  augment the body line (optional zkm-whatsapp polish: render `[voice: …]` not generic `[media: …]`).
+  Gate: zkm-whatsapp v1 shipped (W-pilot). Contract: a day file's voice line gains `[transcript: …]`.
+  See `docs/meeting-notes/2026-06-21-2207-zkm-stt-scope.md`. <!-- id:489b -->
+- [ ] **STT3 — Multi-model voting/agreement eval harness.** Run multiple ASR models over real voice
+  messages; compare/vote on (dis)agreement to judge quality (bench template: helferli `asr_bench.py`).
+  Separate quality tool, not v1 ingest. Gate: STT1 shipped. See
+  `docs/meeting-notes/2026-06-21-2207-zkm-stt-scope.md`. <!-- id:4ab4 -->
+- [ ] **STT4 — zkm-stt roadmap enrichments.** Speaker labels / diarisation, background-noise
+  identification + filtering, sentiment analysis, word-level timestamps, streaming. Each gated on a
+  concrete need + (ML-shaped ones) evidence before infra. See
+  `docs/meeting-notes/2026-06-21-2207-zkm-stt-scope.md`. <!-- id:fa7b -->
 
 ## Workflow / process backlog
 
@@ -185,7 +208,7 @@ v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `cha
 
 ## Amendment contract backlog
 
-- [ ] **[core] Declarative-set retract primitive in `src/zkm/amendments.py`** — new `emit_set()` / `asserted_set=` mode; per-producer stored set in `<md>.amendments.json`; prior-vs-new diff; ref-count-to-zero removal (sole-producer-dropped only); sidecar-recorded retractions; non-mandatory dry-run listing; fcntl lock; `_SCHEMA` bump + graceful-read/bootstrap from legacy sidecars. Tests: idempotence, no-op-on-empty, run-scoped-diff, multi-producer-keep, graceful-read. Update `docs/plugin-spec.md` + CLAUDE.md. Bump+tag+`uv publish`. Design: `docs/meeting-notes/2026-06-18-1944-f103-tag-removal-core-semantic.md` (D1–D5). <!-- id:25ec -->
+- [x] **[core] Declarative-set retract primitive in `src/zkm/amendments.py`** — shipped + merged (494f1f9, 578 tests green); `v0.15.0` tag pushed to origin+github 2026-06-21. **`uv publish` deferred indefinitely** (pip account recovery; `zkm` not currently on PyPI) — see Stage 2 OIDC item. Design: `docs/meeting-notes/2026-06-18-1944-f103-tag-removal-core-semantic.md`. <!-- id:25ec -->
 - [ ] **Meeting: amendment replace-mode** — set-union merge (current) is correct for additive enrichment but cannot remove stale entities when extractor quality improves. `zkm scrub <plugin>` is the current workaround (N9b + future N9c). Trigger for meeting: a third amender wants single-producer-per-field semantics, OR N9c surfaces a need not solvable by scrub. See `docs/meeting-notes/2026-05-10-2142-n9b-scrub-cli.md` for design context.
 
 ## Plugin dependency loading (backlog)
