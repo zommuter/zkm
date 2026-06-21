@@ -13,6 +13,20 @@ Completed Phase 1 tasks archived in `docs/phase1-done.md`.
   both copies in sync MANUALLY (no automated cross-PROJECT sync; relay `--cross-ledger` is intra-repo only,
   inbox routing is one-way). Wherever worked/closed, tick the twin. Likely a manual `/meeting`. <!-- id:4159 -->
 
+- [ ] **Polyrepo plugin-ROADMAP ↔ core-TODO drift — shared-`id:` ledgers go out of sync.** This repo's
+  central TODO.md is the single ledger for all plugin-scoped work (`W`/`V`/`C`/… prefixes), and each plugin
+  repo's `ROADMAP.md` declares "items reuse the `id:` tokens of their counterparts in `~/src/zkm/TODO.md`".
+  But relay executors tick the **plugin ROADMAP** checkbox in the *plugin* repo; nothing reaches back to tick
+  the shared-`id:` twin here. **Concrete instance (reconciled manually 2026-06-21):** W6f/W-key/W8/W10/W11a
+  (ids w6f/w-key/f5b7/d058/w11) were `[x]` in `plugins/zkm-whatsapp/ROADMAP.md` for weeks while still `[ ]`
+  here. `orphan-scan --cross-ledger` does NOT catch this — it only compares TODO↔ROADMAP *within one repo*,
+  and zkm core + plugin repos are separate repos. **Mechanism home already exists:** dotclaude-skills `id:69f4`
+  (cross-PROJECT bidirectional sync / proposed `orphan-scan --cross-project`) + `id:3947` (routed dead-letters)
+  cover this class — do NOT build a parallel mechanism here. **This item's job:** (a) ensure the zkm core repo +
+  its plugin repos are in whatever repo-set `id:69f4`'s scanner ends up using; (b) until that lands, the relay
+  reviewer/`/meeting` close-out should reconcile the core W-/V-/C- twins when ticking a plugin ROADMAP item.
+  Relates to dotclaude-skills id:69f4, id:3947; the manual-sync `id:4159` above is the same pattern for triad repos. <!-- id:1d41 -->
+
 ## OpenPGP key & signature tracking (decided 2026-06-04-1002-pgp-keys-signature-validity.md)
 
 D1: vCard KEY → pgpy fingerprint entity + CAS bytes. D2: zkm-eml Tier A (signed: pgp-mime/smime) + Tier B (auth_results: dkim/spf/dmarc from provider headers). D3: fingerprint = join-grade value-type, NOT person-merge license. Build order: core → eml → vcard.
@@ -94,12 +108,13 @@ Ingest-only, source-agnostic. Reads a local tree of standard `.vcf` files via `s
 
 v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `chat/whatsapp/`. Decryption is an out-of-scope fetch-role step (W-pilot is a hard gate). key_id-based stable IDs, WA-Web-mergeable. Source state = timestamp watermark + dedup-on-key_id.
 
-- [ ] **W6-follow-up: manifest media persistence.** `_reconstitute()` sets `media_path=None`/`mime_type=None`, so when a day file is rewritten for new messages, earlier media lines lose their `[media: … → …]` body text (CAS object is safe, symlink stays). Fix: persist `media:{mime,sha256}` in the `messages:` manifest entries — a W1 doc-type schema extension. Gate: becomes noticeable in practice (day file rewrites with mixed text+media messages). <!-- id:w6f -->
-- [ ] **W-key.** Secret management for WhatsApp backup key: support Bitwarden CLI (`bw get password`) and/or OS keyring (secret-service, same pattern as zomni SSH setup) as sources for the 64-char hex key passed to wa-crypt-tools. Gitignoring `.zkm-secrets.yaml` + `*.key` blocks automation. Plugin config key `whatsapp_backup_key_source` (e.g. `bitwarden:<item-id>` or `keyring:<service>:<account>`). <!-- id:w-key -->
+- [x] **W6-follow-up: manifest media persistence.** *(Shipped — ROADMAP id:w6f.)* `_reconstitute()` sets `media_path=None`/`mime_type=None`, so when a day file is rewritten for new messages, earlier media lines lose their `[media: … → …]` body text (CAS object is safe, symlink stays). Fix: persist `media:{mime,sha256}` in the `messages:` manifest entries — a W1 doc-type schema extension. Gate: becomes noticeable in practice (day file rewrites with mixed text+media messages). <!-- id:w6f -->
+- [x] **W-key.** *(Shipped — ROADMAP id:w-key; `keysource.py` + pilot `--key-source`.)* Secret management for WhatsApp backup key: support Bitwarden CLI (`bw get password`) and/or OS keyring (secret-service, same pattern as zomni SSH setup) as sources for the 64-char hex key passed to wa-crypt-tools. Gitignoring `.zkm-secrets.yaml` + `*.key` blocks automation. Plugin config key `whatsapp_backup_key_source` (e.g. `bitwarden:<item-id>` or `keyring:<service>:<account>`). <!-- id:w-key -->
 - [ ] **W7 (deferred design note).** Smarter segmentation (burst/temporal-density or per-thread) as additive re-segmentation; MUST NOT rewrite chat-level thread_id. Trigger: v1 live + concrete retrieval pain from day-boundaries. See `docs/meeting-notes/2026-06-03-0952-zkm-whatsapp-scope.md`. <!-- id:367f -->
-- [ ] **W8. Owner JID auto-detection.** `owner_jid` can be derived from the db: `SELECT user || '@' || server FROM jid WHERE _id = (SELECT sender_jid_row_id FROM message WHERE from_me=1 AND sender_jid_row_id IS NOT NULL GROUP BY sender_jid_row_id ORDER BY COUNT(*) DESC LIMIT 1)`. Make `owner_jid` optional in config; fall back to this query when absent. Keep explicit config as override for multi-account edge case.
-- [ ] **W10. Auto-decryption trigger from Syncthing.** Syncthing delivers updated `msgstore.db.crypt15` to `~/knowledge/inbox/whatsapp/`; need a systemd `.path` unit (or inotifywait hook) that runs wa-crypt-tools decrypt on change, then optionally triggers `zkm convert whatsapp`. Design note: where does the decryption key come from (W-key) + how to avoid re-decrypt when crypt15 is unchanged (checksum gate). Depends on W-key.
-- [ ] **W11. Phone number change tracking.** `message_system_number_change` table records WA-internal number migrations. Additionally, "hey here's my new number" plaintext messages are a common informal signal. Design: (1) parse `message_system_number_change` → emit a system-event entity or annotation linking old→new JID; (2) heuristic detection of informal "new number" messages (patterns in multiple languages) → flag for human confirmation. Relates to entity alias/synonym linking (Phase 4). <!-- id:w11 -->
+- [x] **W8. Owner JID auto-detection.** *(Shipped — ROADMAP id:f5b7.)* `owner_jid` can be derived from the db: `SELECT user || '@' || server FROM jid WHERE _id = (SELECT sender_jid_row_id FROM message WHERE from_me=1 AND sender_jid_row_id IS NOT NULL GROUP BY sender_jid_row_id ORDER BY COUNT(*) DESC LIMIT 1)`. Make `owner_jid` optional in config; fall back to this query when absent. Keep explicit config as override for multi-account edge case. <!-- id:f5b7 -->
+- [x] **W10. Auto-decryption trigger from Syncthing.** *(Shipped + live-verified 2026-06-16 on zomni — ROADMAP id:d058; `scripts/systemd/` `.path`/oneshot units.)* Syncthing delivers updated `msgstore.db.crypt15` to `~/knowledge/inbox/whatsapp/`; need a systemd `.path` unit (or inotifywait hook) that runs wa-crypt-tools decrypt on change, then optionally triggers `zkm convert whatsapp`. Design note: where does the decryption key come from (W-key) + how to avoid re-decrypt when crypt15 is unchanged (checksum gate). Depends on W-key. <!-- id:d058 -->
+- [x] **W11a. Phone number change tracking — structured table.** *(Shipped — ROADMAP id:w11 rendering + W11a-fix id:cfd1 `message_type: system` rename.)* Parse `message_system_number_change` → render `«number change: old → new»` system-event line; manifest carries `message_type: system` + `number_change:{old,new}`. Relates to entity alias/synonym linking (Phase 4). <!-- id:w11 -->
+- [ ] **W11b. Informal "new number" detection** [HARD]. Heuristic detection of "hey here's my new number" plaintext messages (patterns in multiple languages) → flag for human confirmation; never auto-merge identities (core "name is not a UID" policy). Gate: id:w11 shipped (done) + ≥1 real missed-number-change case. ROADMAP id:bf12. <!-- id:bf12 -->
 
 ## zkm-calendar (C-prefix) — calendar plugin (decided 2026-06-01-1334-contacts-calendar-plugins.md)
 
