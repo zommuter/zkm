@@ -143,3 +143,7 @@ reconcile integrate: relay(review): audit 7d5ae25 (zkm-tabs active-triage idea i
 ## 2026-06-19 19:31 — strong-execute (claude-opus-4-8, fable-standin, relay-loop)
 
 hard (claude-opus-4-8): id:25ec declarative-set retract primitive in amendments.py (emit_set, ref-count-to-zero removal, schema 1->2 graceful read, fcntl lock, dry-run); 578 tests green
+
+## 2026-06-21 23:04 — reviewer (claude-opus-4-8)
+
+Opus review (/relay review --all): 3-commit doc window — meeting(zkm-stt v1 scope + 25ec reconcile), relay-human(25ec(b) tag ref-count trade-off), todo archive. gaming-scan clean; docs-only. NOTE: uncommitted WIP left in main (TODO.md + 2026-05-13 pypi-canary meeting-note) is an in-progress correction of a wrong 'PyPI published' claim — LEFT UNTOUCHED; it is not part of the committed review window. Cross-ledger consistent.
