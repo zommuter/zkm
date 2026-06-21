@@ -208,7 +208,6 @@ v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `cha
 
 ## Amendment contract backlog
 
-- [x] **[core] Declarative-set retract primitive in `src/zkm/amendments.py`** — shipped + merged (494f1f9, 578 tests green); `v0.15.0` tag pushed to origin+github 2026-06-21. **`uv publish` deferred indefinitely** (pip account recovery; `zkm` not currently on PyPI) — see Stage 2 OIDC item. Design: `docs/meeting-notes/2026-06-18-1944-f103-tag-removal-core-semantic.md`. <!-- id:25ec -->
 - [ ] **Meeting: amendment replace-mode** — set-union merge (current) is correct for additive enrichment but cannot remove stale entities when extractor quality improves. `zkm scrub <plugin>` is the current workaround (N9b + future N9c). Trigger for meeting: a third amender wants single-producer-per-field semantics, OR N9c surfaces a need not solvable by scrub. See `docs/meeting-notes/2026-05-10-2142-n9b-scrub-cli.md` for design context.
 
 ## Plugin dependency loading (backlog)
