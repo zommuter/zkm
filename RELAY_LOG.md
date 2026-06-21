@@ -155,3 +155,7 @@ review 20260621-231529-15021: audited 4e8452f (single docs-only commit) clean �
 ## 2026-06-21 23:27 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 relay(review): audit 4e8452f (PyPI-correction docs commit) clean, gaming-scan clean, 578 green, ROADMAP fully consumed
+
+## 2026-06-22 01:03 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+review: verified docs-only TODO W-section reconciliation accurate (6 shipped twins, 1 gated); 0 gaming flags, 0 reopened, routine_open=0
