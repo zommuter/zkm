@@ -5,6 +5,16 @@
 **Mode:** Class 2 planning record (no meeting was held — plan-mode output)
 **Topic:** Publish core `zkm` to PyPI and reserve 6 plugin names as 0.0.1 stubs.
 
+> **⚠️ CORRECTION 2026-06-21 (zkm/zkm-stt-scope session):** This record's "manual `uv publish`
+> for core 0.5.0" / "6 plugin names reserved" outcomes are **NOT borne out on production PyPI**.
+> Verified 2026-06-21: `https://pypi.org/pypi/zkm/json` → `{"message":"Not Found"}` — `zkm` is not
+> on prod PyPI at all, and no plugin name stubs are present either. The `uv build` steps below did
+> succeed (wheels were produced locally), but the `uv publish` did not land on prod PyPI (most
+> likely it errored on missing credentials, or went to TestPyPI, and was never verified). Treat
+> everything below describing a *successful publish/reservation* as aspirational, not factual. All
+> PyPI publishing is now deferred indefinitely pending pip account recovery. The git bump-and-tag
+> commits/tags ARE real and pushed; only the PyPI uploads are missing.
+
 ## Context
 
 TODO item "ASAP: PyPI publishing" from the 2026-05-12-0844-publish-plugins.md session.
