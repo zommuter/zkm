@@ -30,6 +30,34 @@ the gate (N9c/N9d accepted-as-is decisions stand).
 
 ## Items
 
+- [ ] Lift zkm-whatsapp `state.py` → `src/zkm/state.py` (`zkm.state`) [ROUTINE] <!-- id:f399 -->
+  - **Acceptance**: a core `zkm.state` module provides `load_state(store, plugin, source)`
+    and `save_state(store, plugin, source, state)`, generalizing the whatsapp module with a
+    `plugin` parameter → state file `<store>/.zkm-state/zkm-<plugin>.json`, keyed by the
+    resolved absolute source identifier (multi-account independence). Behavior-preserving
+    LIFT, not a redesign: same atomic write (`zkm.atomic.write_atomic`), same "watermark is
+    speed-only, deleting the file is safe" invariant. zkm-whatsapp's `state.py` becomes a
+    thin wrapper that calls core with `plugin="whatsapp"` (its existing watermark tests must
+    still pass unchanged — but that lives in the plugin repo, out of this repo's suite).
+  - **Tests**: `tests/test_state.py` — `test_round_trip`, `test_keyed_by_source_multi_account`,
+    `test_per_plugin_file` (all `# roadmap:f399`, currently RED).
+  - **Done-check**: `uv run pytest tests/test_state.py` then the full suite green.
+  - **Context**: model is `plugins/zkm-whatsapp/state.py` (43 lines). New consumers:
+    zkm-signal, zkm-threema (and whatsapp). Core-runnable alone (no plugin needed).
+
+- [ ] Shared byte-identical-reemit contract helper (`zkm.testing.assert_reemit_identical`) [ROUTINE] <!-- id:ab8b -->
+  - **Acceptance**: `src/zkm/testing.py` exports `assert_reemit_identical(emit)` where `emit`
+    is a zero-arg callable that writes files and returns the iterable of written `Path`s; the
+    helper calls `emit()`, snapshots returned-path bytes, calls `emit()` again, and asserts
+    every path is byte-identical (raising `AssertionError` naming the offending path on
+    difference). Document the helper in `docs/messaging-spec.md` (deterministic-emission
+    section) as the contract every messaging plugin links.
+  - **Tests**: `tests/test_messaging_reemit.py` — `test_deterministic_emit_passes`,
+    `test_nondeterministic_emit_raises` (`# roadmap:ab8b`, currently RED).
+  - **Done-check**: `uv run pytest tests/test_messaging_reemit.py` then the full suite green.
+  - **Context**: used by zkm-telegram (id:6e67 reemit test) + signal/threema post-pilot.
+    Core-runnable alone.
+
 - [x] Refuse to start convert/scrub/index while the gamemode lock is present [ROUTINE] <!-- id:1098 -->
   (executor 2026-06-12; review-verified 2026-06-12: spec tests byte-identical
   to checkpoint, 6 RED→green confirmed by running them against the checkpoint
