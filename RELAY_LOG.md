@@ -163,3 +163,7 @@ review: verified docs-only TODO W-section reconciliation accurate (6 shipped twi
 ## 2026-06-22 15:44 — reviewer (claude-opus-4-8, relay-handoff)
 
 relay handoff: messenger plugins. Core ROADMAP gains id:f399 (zkm.state lift) + id:ab8b (reemit contract helper) with 5 red tests. Three new plugin repos (zkm-telegram/signal/threema) created + pushed remote-first; telegram has 7 red tests (executor-ready), signal/threema are pilot-first (decryption pilot HARD/human first, parser blocked). Design: 2026-06-22-1503-messenger-plugins-telegram-signal-threema.md.
+
+## 2026-06-22 16:21 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+review since relay-ckpt-20260622-1544: docs-only window, no gaming; id:66e0 mark-done verified (3 plugin skeletons + fievel remotes); §5b reverse-handoff mirrored id:9e13 core zkm.pdftext to ROADMAP [ROUTINE] + 6 RED specs; suite 578 green, routine_open=3 (f399/ab8b/9e13)
