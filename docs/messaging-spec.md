@@ -281,6 +281,13 @@ Re-ingesting a source with no new messages for a given day MUST produce a byte-i
 
 **Contract test:** emit a day file from a fixed source snapshot; re-emit from the same snapshot; assert the two files are byte-identical.
 
+Use `zkm.testing.assert_reemit_identical(emit)` as the canonical test helper for this
+contract (ROADMAP id:ab8b). `emit` is a zero-arg callable that writes files and returns
+an iterable of the written `Path`s. The helper calls `emit()` twice and asserts every
+returned path is byte-identical across both runs, raising `AssertionError` naming the
+offending path on any difference. Every messaging plugin (whatsapp, telegram, signal,
+threema) MUST include a test that exercises this helper against its real emit path.
+
 ### Deduplication
 
 Use the `messages:` manifest as the truth source:
