@@ -159,6 +159,27 @@ Ingest is deterministic (parsers, spaCy NER); no LLM writes to the store.
 - **Versioning**: bump-and-tag per repo (`vX.Y.Z`, loose-0.x); every
   `pyproject.toml` version change is tagged in the same commit.
 
+## Routing contract
+
+`zkm.pdftext` owns the single decision for scanned-only PDF routing (ROADMAP id:9e13).
+All plugins that need to distinguish scanned-only PDFs from text PDFs MUST call this
+module — never reimplement the measurement locally.
+
+**Canonical measurand (pinned)**:
+```
+total_chars = Σ len(page.extract_text().strip()) over all pages
+```
+Pages whose `extract_text()` returns `None` contribute 0. Empty pages (stripped to `""`)
+contribute 0.
+
+**Decision**: `is_scanned_only(probe, threshold)` is `total_chars < threshold` (strict
+less-than). A PDF at exactly the threshold is NOT scanned-only.
+
+**Threshold resolution** (`resolve_threshold(store_config)`):
+1. Top-level `pdf_text_threshold` wins.
+2. Per-plugin-section `pdf_text_threshold` fallback; warns if two sections disagree.
+3. `DEFAULT_TEXT_THRESHOLD = 100`.
+
 ## Plugin contract
 
 Two cross-plugin rulings confirmed 2026-06-13 (batch triage):
