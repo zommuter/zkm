@@ -167,3 +167,11 @@ relay handoff: messenger plugins. Core ROADMAP gains id:f399 (zkm.state lift) + 
 ## 2026-06-22 16:21 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 review since relay-ckpt-20260622-1544: docs-only window, no gaming; id:66e0 mark-done verified (3 plugin skeletons + fievel remotes); §5b reverse-handoff mirrored id:9e13 core zkm.pdftext to ROADMAP [ROUTINE] + 6 RED specs; suite 578 green, routine_open=3 (f399/ab8b/9e13)
+
+## 2026-06-22 — executor (claude-sonnet-4-6)
+
+Worked id:f399, id:ab8b, id:9e13 — all three open [ROUTINE] items.
+id:f399: added src/zkm/state.py (load_state/save_state with plugin parameter, atomic writes, multi-account independence). 3 tests green.
+id:ab8b: added src/zkm/testing.py (assert_reemit_identical helper); documented in docs/messaging-spec.md §Deterministic emission contract. 2 tests green.
+id:9e13: added src/zkm/pdftext.py (PdfTextProbe dataclass, probe, is_scanned_only, resolve_threshold, DEFAULT_TEXT_THRESHOLD=100); ARCHITECTURE.md §Routing contract added; version 0.15.0→0.16.0 (autotag fired: v0.16.0 local tag created). 6 tests green.
+Full suite: 589 green (0 failures). Friction: none.
