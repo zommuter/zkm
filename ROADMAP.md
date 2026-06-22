@@ -30,7 +30,7 @@ the gate (N9c/N9d accepted-as-is decisions stand).
 
 ## Items
 
-- [ ] Lift zkm-whatsapp `state.py` → `src/zkm/state.py` (`zkm.state`) [ROUTINE] <!-- id:f399 -->
+- [x] Lift zkm-whatsapp `state.py` → `src/zkm/state.py` (`zkm.state`) [ROUTINE] <!-- id:f399 -->
   - **Acceptance**: a core `zkm.state` module provides `load_state(store, plugin, source)`
     and `save_state(store, plugin, source, state)`, generalizing the whatsapp module with a
     `plugin` parameter → state file `<store>/.zkm-state/zkm-<plugin>.json`, keyed by the
@@ -45,7 +45,7 @@ the gate (N9c/N9d accepted-as-is decisions stand).
   - **Context**: model is `plugins/zkm-whatsapp/state.py` (43 lines). New consumers:
     zkm-signal, zkm-threema (and whatsapp). Core-runnable alone (no plugin needed).
 
-- [ ] Shared byte-identical-reemit contract helper (`zkm.testing.assert_reemit_identical`) [ROUTINE] <!-- id:ab8b -->
+- [x] Shared byte-identical-reemit contract helper (`zkm.testing.assert_reemit_identical`) [ROUTINE] <!-- id:ab8b -->
   - **Acceptance**: `src/zkm/testing.py` exports `assert_reemit_identical(emit)` where `emit`
     is a zero-arg callable that writes files and returns the iterable of written `Path`s; the
     helper calls `emit()`, snapshots returned-path bytes, calls `emit()` again, and asserts
@@ -58,7 +58,7 @@ the gate (N9c/N9d accepted-as-is decisions stand).
   - **Context**: used by zkm-telegram (id:6e67 reemit test) + signal/threema post-pilot.
     Core-runnable alone.
 
-- [ ] Core `zkm.pdftext` — own the scanned-only PDF routing decision (kills the zkm-pdf↔zkm-scan two-probe drift) [ROUTINE] <!-- id:9e13 -->
+- [x] Core `zkm.pdftext` — own the scanned-only PDF routing decision (kills the zkm-pdf↔zkm-scan two-probe drift) [ROUTINE] <!-- id:9e13 -->
   - **Acceptance** (meeting D1/D2, `docs/meeting-notes/2026-06-22-1546-pdf-routing-unify-pdftext.md`):
     `src/zkm/pdftext.py` exports `PdfTextProbe(total_chars, n_pages)` (frozen dataclass),
     `probe(reader) -> PdfTextProbe`, `is_scanned_only(probe, threshold) -> bool`
