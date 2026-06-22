@@ -175,3 +175,7 @@ id:f399: added src/zkm/state.py (load_state/save_state with plugin parameter, at
 id:ab8b: added src/zkm/testing.py (assert_reemit_identical helper); documented in docs/messaging-spec.md §Deterministic emission contract. 2 tests green.
 id:9e13: added src/zkm/pdftext.py (PdfTextProbe dataclass, probe, is_scanned_only, resolve_threshold, DEFAULT_TEXT_THRESHOLD=100); ARCHITECTURE.md §Routing contract added; version 0.15.0→0.16.0 (autotag fired: v0.16.0 local tag created). 6 tests green.
 Full suite: 589 green (0 failures). Friction: none.
+
+## 2026-06-22 16:55 — executor (sonnet, relay-loop)
+
+executor: all 3 ROUTINE items done (f399 zkm.state, ab8b zkm.testing, 9e13 zkm.pdftext); 589 green; v0.16.0 tagged
