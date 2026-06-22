@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# pre-push guard — refuse to push a zkm VERSION BUMP while any uv.lock is stale.
+#
+# The "zkm cascade" (CLAUDE.md; dotclaude-skills id:bae5): the parent zkm pins its
+# own version in uv.lock, and every plugin pins zkm as an editable dep, so a
+# version bump leaves the parent lock AND all plugin locks stale until re-locked.
+# A bump that pushes without cascading is the recurring "dirty uv.lock blocks the
+# relay pool" failure. This hook blocks exactly that: if the push carries a
+# pyproject version change, the parent + plugin locks must all be in sync first.
+#
+# Non-bump pushes are never blocked. Install: scripts/relock-plugins.sh --install-hook
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+Z40="0000000000000000000000000000000000000000"
+
+bump=0
+while read -r _lref loid _rref roid; do
+  [[ "$loid" == "$Z40" ]] && continue            # branch deletion — nothing to push
+  if [[ "$roid" != "$Z40" ]]; then
+    # Updating an existing remote ref: did pyproject's version line change?
+    if git diff "$roid" "$loid" -- pyproject.toml 2>/dev/null | grep -qE '^\+version'; then
+      bump=1
+    fi
+  else
+    # New remote ref (no base to diff): be conservative and enforce.
+    bump=1
+  fi
+done
+
+[[ "$bump" -eq 1 ]] || exit 0                     # no version bump in this push → allow
+
+fail=0
+# Parent lock must be both up-to-date (uv lock --check) AND committed (not a
+# dirty working-tree fix that the bump commit forgot to include).
+if ! ( cd "$ROOT" && uv lock --check >/dev/null 2>&1 ) \
+   || [[ -n "$(git -C "$ROOT" status --porcelain -- uv.lock)" ]]; then
+  echo "pre-push: parent zkm uv.lock is STALE or uncommitted for this version bump." >&2
+  fail=1
+fi
+if ! "$ROOT/scripts/relock-plugins.sh" --check >/dev/null 2>&1; then
+  echo "pre-push: one or more plugin uv.lock files are STALE/dirty for this bump." >&2
+  "$ROOT/scripts/relock-plugins.sh" --check >&2 || true
+  fail=1
+fi
+
+if [[ "$fail" -eq 1 ]]; then
+  cat >&2 <<EOF
+pre-push: BLOCKED — a version bump must cascade the lockfiles first.
+  Fix:  cd "$ROOT" && uv lock && git add uv.lock && git commit --amend --no-edit   # or a chore commit
+        scripts/relock-plugins.sh --push
+  Then re-push. (Override in a true emergency: git push --no-verify.)
+EOF
+  exit 1
+fi
+exit 0
