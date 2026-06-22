@@ -159,3 +159,7 @@ relay(review): audit 4e8452f (PyPI-correction docs commit) clean, gaming-scan cl
 ## 2026-06-22 01:03 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 review: verified docs-only TODO W-section reconciliation accurate (6 shipped twins, 1 gated); 0 gaming flags, 0 reopened, routine_open=0
+
+## 2026-06-22 15:44 — reviewer (claude-opus-4-8, relay-handoff)
+
+relay handoff: messenger plugins. Core ROADMAP gains id:f399 (zkm.state lift) + id:ab8b (reemit contract helper) with 5 red tests. Three new plugin repos (zkm-telegram/signal/threema) created + pushed remote-first; telegram has 7 red tests (executor-ready), signal/threema are pilot-first (decryption pilot HARD/human first, parser blocked). Design: 2026-06-22-1503-messenger-plugins-telegram-signal-threema.md.
