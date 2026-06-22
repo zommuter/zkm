@@ -179,3 +179,7 @@ Full suite: 589 green (0 failures). Friction: none.
 ## 2026-06-22 16:55 — executor (sonnet, relay-loop)
 
 executor: all 3 ROUTINE items done (f399 zkm.state, ab8b zkm.testing, 9e13 zkm.pdftext); 589 green; v0.16.0 tagged
+
+## 2026-06-22 21:31 — strong-execute (claude-opus-4-8, uv.lock cascade)
+
+uv.lock cascade fix (id:bae5): relocked parent self-bump 0.15.0->0.16.0; added scripts/relock-plugins.sh (relock+--check+--push+--install-hook) + scripts/hooks/pre-push guard that refuses a version-bump push while parent/plugin locks are stale. Guard tested: blocks stale-bump, allows non-bump + in-sync. Authored+verified this Opus turn.
