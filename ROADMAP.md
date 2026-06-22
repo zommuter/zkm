@@ -58,6 +58,35 @@ the gate (N9c/N9d accepted-as-is decisions stand).
   - **Context**: used by zkm-telegram (id:6e67 reemit test) + signal/threema post-pilot.
     Core-runnable alone.
 
+- [ ] Core `zkm.pdftext` — own the scanned-only PDF routing decision (kills the zkm-pdf↔zkm-scan two-probe drift) [ROUTINE] <!-- id:9e13 -->
+  - **Acceptance** (meeting D1/D2, `docs/meeting-notes/2026-06-22-1546-pdf-routing-unify-pdftext.md`):
+    `src/zkm/pdftext.py` exports `PdfTextProbe(total_chars, n_pages)` (frozen dataclass),
+    `probe(reader) -> PdfTextProbe`, `is_scanned_only(probe, threshold) -> bool`
+    (`== total_chars < threshold`, strict), `resolve_threshold(store_config)`, and
+    `DEFAULT_TEXT_THRESHOLD = 100`. `probe` accepts an already-open `pypdf.PdfReader`
+    (caller owns the single parse — no double extraction); it only reads `.pages` and each
+    page's `.extract_text()` (duck-typed). **Canonical measurand pinned in the docstring AND
+    core `ARCHITECTURE.md` §Routing contract**: `total_chars = Σ len(page.extract_text().strip())`
+    over pages, empty pages contribute 0 (adopts zkm-pdf's strip+skip-empty semantics).
+    `resolve_threshold`: top-level `pdf_text_threshold:` wins → else per-plugin section →
+    else `DEFAULT_TEXT_THRESHOLD`; warn (best-effort, NEVER fail) when two per-section values
+    are present and differ. **Out of scope**: per-page `page_chars` (deferred to the gated
+    density pilot id:c63c); the plugin migrations (d3c9/1681, plugin repos, stay in TODO.md);
+    a mandatory shared-config tier (rejected — breaks M2 per-section convention).
+  - **Tests**: `tests/test_pdftext.py`, marked `# roadmap:9e13` (currently RED):
+    `test_probe_canonical_measurand`, `test_is_scanned_only_strict_less_than`,
+    `test_one_shared_verdict_for_whitespace_heavy_pdf`, `test_resolve_threshold_default`,
+    `test_resolve_threshold_top_level_wins`, `test_resolve_threshold_per_section_fallback`.
+  - **Done-check**: `uv run pytest tests/test_pdftext.py` then the full suite green.
+  - **Versioning**: minor bump (new public module) + tag in the same commit; the bump cascades
+    every plugin `uv.lock` — that lock cascade lands with the plugin-migration items (d3c9/1681),
+    not here. Core-runnable alone (pypdf not a hard runtime import — duck-typed reader).
+  - **Context**: drift confirmed in the note — zkm-pdf `_extract_text`
+    (`plugins/zkm-pdf/src/zkm_pdf/convert.py:389`, threshold `:62`) strips; zkm-scan
+    (`plugins/zkm-scan/src/zkm_scan/convert.py:403`, threshold `:106`) does NOT → a
+    whitespace-heavy PDF is skipped by BOTH. First of 3 ordered items of HARD cross-repo
+    id:02bd (core → zkm-pdf d3c9 → zkm-scan 1681). TODO.md §PDF routing unification.
+
 - [x] Refuse to start convert/scrub/index while the gamemode lock is present [ROUTINE] <!-- id:1098 -->
   (executor 2026-06-12; review-verified 2026-06-12: spec tests byte-identical
   to checkpoint, 6 RED→green confirmed by running them against the checkpoint
