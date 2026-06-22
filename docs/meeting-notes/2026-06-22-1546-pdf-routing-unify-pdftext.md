@@ -1,0 +1,49 @@
+# 2026-06-22 — Unify scanned-only PDF routing (`zkm.pdftext`) — id:02bd
+
+**Started:** 2026-06-22 15:46
+**Session:** 163ceb48-0199-414f-8356-d9a004a2f301
+**Attendees:** 🏗️ Archie (architect), 😈 Riku (devil's advocate), ✂️ Petra (productivity), 📊 Lexi (Lean Six Sigma / measurement — new)
+**Topic:** Turn the already-direction-set id:02bd into an executor-ready spec: a single core `zkm.pdftext` helper + one shared routing decision consumed by zkm-pdf and zkm-scan, killing the two-probe drift bug by construction.
+
+## Prior decision (2026-06-18 /meeting --cross gated-HARD triage)
+Direction already fixed (not re-litigated here): one `zkm.pdftext` core helper (canonical char count, zkm-pdf's `.strip()`+skip-empty semantics, id:1055-reviewed); both plugins consume one shared `pdf_text_threshold` key; PILOT a per-page density / coverage ratio with char-count fallback; zkm-scan's OCR-junk floor stays a SEPARATE key; old keys deprecated-aliased one release; subsumes zkm-pdf id:9475. See `dotclaude-skills/docs/meeting-notes/2026-06-18-1219-cross-gated-hard-triage.md`.
+
+## Code grounding (the drift, confirmed)
+- zkm-pdf `_extract_text` (`src/zkm_pdf/convert.py:389`): `(page.extract_text() or "").strip()`, sums `len()` over non-empty pages → `text_chars`; threshold `min_text_chars=100` (`:62`).
+- zkm-scan (`src/zkm_scan/convert.py:403`): `sum(len(page.extract_text() or "") for page in reader.pages)` — NO `.strip()`, whitespace counts; threshold `pdf_text_threshold=100` (`:106`); separate OCR floor `min_text_chars=10` (`:103`).
+- Failure mode: whitespace-heavy PDF → scan sees ≥100 (defers to pdf), pdf strips to <100 (defers to scan) → processed by NEITHER. Name collision: `min_text_chars` = routing in pdf, OCR-floor in scan.
+
+## Agenda
+A1. `zkm.pdftext` API shape — centralize the DECISION, not just the probe.
+A2. Config-key migration — one shared key, deprecated aliases, the `min_text_chars` collision.
+A3. Scope split — ship char-count unification now vs. block on the density pilot.
+A4. Release sequencing across 3 repos + backward-compat window.
+
+## Discussion
+
+### A1 — `zkm.pdftext` API shape
+🏗️ Archie: if the helper returns only an `int`, each plugin still writes its own `count >= threshold` line — exactly where drift recurs (`>=` vs `>`, different key read). Strongest anti-drift = core owns the *decision*, not just the measurement. 😈 Riku: (1) double-extraction risk — `probe()` re-parsing text zkm-pdf already extracts for the body; (2) returning `page_chars` "for later" is speculative surface (N=2 — name two consumers today). ✂️ Petra: defend `is_scanned_only` in core (two real consumers today, the item's whole point); cut `page_chars` until the pilot is greenlit. 🏗️ Archie: accept a `pypdf.PdfReader` so the caller owns the single parse — no double-extraction. 📊 Lexi: pin the measurand once (docstring + ARCHITECTURE.md) or shared code still drifts when someone "fixes" the strip later.
+
+### A2 — Config-key migration & the shared threshold's home
+🏗️ Archie: zkm-scan already uses `pdf_text_threshold`; zkm-pdf renames `min_text_chars`→`pdf_text_threshold` (deprecated alias); rename scan's OCR floor `min_text_chars`→`ocr_min_chars`; default = one core constant so even the default can't drift. 😈 Riku: code+default drift killed, but per-section config still lets a user set `pdf.pdf_text_threshold=150` and forget `scan:` → config-drift. ✂️ Petra: a mandatory shared-config tier breaks M2 per-section convention; the reported bug was code drift; don't over-build. 🏗️ Archie middle path: `resolve_threshold(store_config)` — optional top-level key wins, else per-section, else constant; both plugins call it. 😈 Riku: warn when the two per-section values are present and differ (best-effort, no fail) so a misconfig isn't swallowed. 📊 Lexi: one number, one definition, a visible flag on contradiction.
+
+### A3 — Scope split: ship char-count now vs. block on the density pilot
+✂️ Petra: A1+A2 with a plain char-count threshold already kills the harm (both-skip). Density is *tuning*, not the fix — make it a separate gated follow-on. 😈 Riku: density-is-better is a hypothesis, not a measurement; `zkm-pdf-skipped.jsonl` logs *skips*, not *correctness* — no labels. Blocking the fix on the pilot blocks it on data we don't have. 📊 Lexi: a proper pilot needs a hand-labeled corpus (MSA study) to compare misclassification rates; the skip log only gives near-threshold volume/distribution (default calibration), not ground truth. 🏗️ Archie: the API already accommodates the pilot without rework (`page_chars` + a strategy sibling) — shipping char-count costs the pilot nothing later. Riku: write the gate down so it isn't silently dropped.
+
+### A4 — Release sequencing across 3 repos + backward-compat
+🏗️ Archie: core ships first (`zkm/pdftext.py` = minor bump); plugins then pin `zkm>=X.Y` (wheel users ImportError otherwise; dev editable dep is fine). 😈 Riku: partial-rollout = drift persists until the second plugin lands (no regression, just incomplete) — don't mark id:02bd `[x]` on a half-migration. ✂️ Petra: decompose the HARD cross-repo item into 3 ordered single-repo executor items (core → pdf → scan) so each is dispatchable. 🏗️ Archie: core minor bump cascades every plugin `uv.lock` (CLAUDE.md bump-includes-lockfile rule), same change. 😈 Riku: one un-executable cross-repo item → three ordered single-repo items with explicit version pins.
+
+## Decisions
+
+- **D1 (A1).** Core gains `zkm/pdftext.py` owning the *routing decision*: `PdfTextProbe(total_chars, n_pages)` frozen dataclass; `probe(reader: pypdf.PdfReader) -> PdfTextProbe`; `is_scanned_only(probe, threshold) -> bool` (= `total_chars < threshold`). Helper accepts an already-open `PdfReader` (zkm-pdf reuses its single extraction pass). Canonical measurand pinned in docstring AND ARCHITECTURE.md: "char count = Σ len(page.extract_text().strip()) over pages, empty pages = 0" (adopts zkm-pdf's strip+skip-empty semantics). **Out of scope:** per-page `page_chars` (deferred to the gated pilot). <!-- id:9e13 -->
+- **D2 (A2).** `zkm.pdftext.resolve_threshold(store_config)` is the single source: optional top-level `pdf_text_threshold:` wins → else per-plugin section → else `DEFAULT_TEXT_THRESHOLD = 100`. Both plugins call it; warn (best-effort, never fail) when both per-section values are present and differ. Renames: zkm-pdf `min_text_chars`→`pdf_text_threshold`; zkm-scan OCR floor `min_text_chars`→`ocr_min_chars` (separate concept, never feeds routing). **Out of scope:** a mandatory shared-config tier (rejected — breaks M2 per-section convention).
+- **D3 (A3).** Deliverable = the `zkm.pdftext` unification with the canonical char-count default `100` (kept, documented provisional), both plugins consuming it → cross-plugin drift impossible by construction. Density-ratio discriminator **deferred to a separate OPEN roadmap item** (inherits id:9475's spirit), gated on "labeled PDF corpus built + ≥1 documented char-count misclassification." **Out of scope for the deliverable:** density strategy, skip-log calibration pass, per-page data. Pilot not closed, not auto-fired.
+- **D4 (A4).** Decompose the HARD cross-repo id:02bd into 3 ordered single-repo executor items (core → zkm-pdf → zkm-scan); each plugin pins `zkm>=X.Y`. Core minor bump cascades all plugin `uv.lock`s in the same change. Renamed keys keep a deprecated alias + warning for one release (no hard cutover). id:02bd stays OPEN until all three land + both plugin ROADMAPs ticked + core ARCHITECTURE §Routing contract updated. **Out of scope:** one non-relay session for all three (rejected — not dispatchable); hard config cutover (rejected — silent revert-to-default risk).
+
+## Action items
+
+- [ ] **Core: add `zkm/pdftext.py`** — `PdfTextProbe`, `probe(reader)`, `is_scanned_only(probe, threshold)`, `resolve_threshold(store_config)`, `DEFAULT_TEXT_THRESHOLD=100`; measurand pinned in docstring; update core `ARCHITECTURE.md` §Routing contract; minor bump (cascade plugin `uv.lock`s). Test contract: `from zkm.pdftext import probe, is_scanned_only, resolve_threshold, DEFAULT_TEXT_THRESHOLD`; verdict == `total_chars < threshold`; whitespace-heavy PDF yields one shared verdict; resolver precedence + warn-on-disagree. See this note. <!-- id:9e13 -->
+- [ ] **zkm-pdf: migrate to `zkm.pdftext`** — routing (`src/zkm_pdf/convert.py:389`, threshold `:62`) calls `is_scanned_only`; rename `min_text_chars`→`pdf_text_threshold` (deprecated alias 1 release + warn); pin `zkm>=X.Y`; bump + dual `plugin.yaml` + `PLUGIN_VERSION` + `uv.lock`. Contract: a fixture whitespace-heavy PDF is routed by exactly one plugin. Sequenced after the core item. See this note. <!-- id:d3c9 -->
+- [ ] **zkm-scan: migrate to `zkm.pdftext`** — routing probe (`src/zkm_scan/convert.py:403`, threshold `:106`) calls `is_scanned_only` (negated polarity); rename OCR floor `min_text_chars`→`ocr_min_chars` (alias 1 release + warn), kept SEPARATE from routing; pin `zkm>=X.Y`; bump + dual `plugin.yaml` + `PLUGIN_VERSION` + `uv.lock`. Contract: same fixture routed by exactly one plugin; OCR floor still gates junk independently. Sequenced after the core item. See this note. <!-- id:1681 -->
+- [ ] **Density-ratio pilot (gated, OPEN)** — supersedes zkm-pdf id:9475's open question: pilot a per-page density / coverage discriminator vs the char-count default; gated on "labeled PDF corpus built + ≥1 documented char-count misclassification." Needs `page_chars` on `PdfTextProbe` + a labeled corpus (MSA study). Not auto-fired. See this note. <!-- id:c63c -->
+- [ ] **Update plugin ledgers** — rewrite zkm-scan ROADMAP id:02bd decision block + done-definition (open until all 3 land + both ROADMAPs ticked + core ARCHITECTURE updated); reword zkm-pdf id:9475 to point at the gated pilot (id:c63c); both cite this note. See this note. <!-- id:835c -->
