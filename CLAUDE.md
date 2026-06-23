@@ -79,7 +79,7 @@ plugins/zkm-imap/
 └── README.md
 ```
 
-Plugins declare which subdirs they create (e.g., `mail/`) and what config they need. Non-secret config lives in `$ZKM_STORE/zkm-config.yaml` (committed); secrets in `$ZKM_STORE/.zkm-secrets.yaml` (gitignored, chmod 0600). **Plugin discovery: union of `importlib.metadata.entry_points(group="zkm.plugins")` + `plugins/*/plugin.yaml` filesystem scan; dedup by name; dev/filesystem wins over installed wheel (shadowing).**
+Plugins declare which subdirs they create (e.g., `mail/`) and what config they need. Non-secret config lives in `$ZKM_STORE/zkm-config.yaml` (committed); secrets in `$ZKM_STORE/.zkm-secrets.yaml` (gitignored, chmod 0600). **Plugin discovery: union of `importlib.metadata.entry_points(group="zkm.plugins")` + `plugins/*/plugin.yaml` filesystem scan; dedup by name; dev/filesystem wins over installed wheel (shadowing).** A single `plugin.yaml` may declare **multiple** plugins as a `---`-separated multi-document YAML stream (e.g. zkm-stt ships `stt` + `stt-wa`); `load_plugin_manifests()` returns one `Plugin` per doc and both discovery loops iterate all of them (`load_plugin_manifest()` returns the first/primary doc). For dev-symlink plugins whose `.venv` was built for a now-stale interpreter (e.g. system Python bump), `_inject_plugin_venv` auto-rebuilds it via `uv sync --frozen -p <running>` on first load; opt out with `ZKM_NO_PLUGIN_AUTOSYNC=1`.
 
 **Local install** (during development): `zkm plugin add ./examples/zkm-notes` creates a symlink in `plugins/`. Git URL install uses `git clone`. The installed plugins directory can be overridden with `$ZKM_PLUGINS_DIR`.
 
