@@ -486,6 +486,43 @@ def run_reprocess(
     return [Path(p) for p in (result or [])]
 
 
+def _rebuild_plugin_venv(plugin: Plugin, running_pyver: str) -> bool:
+    """Rebuild a dev plugin's .venv for the running interpreter via `uv sync`.
+
+    Self-heals the common "system Python upgraded, plugin .venv is now stale"
+    case so `zkm convert <plugin>` doesn't crash on a missing dep. Uses
+    ``--frozen`` when a uv.lock is present so the rebuild never mutates the
+    lockfile (no surprise dirty tree). Best-effort: returns False (and leaves
+    the caller to warn) if uv is missing, there's no pyproject, or the sync
+    fails. Opt out with ``ZKM_NO_PLUGIN_AUTOSYNC=1``.
+    """
+    import logging
+
+    log = logging.getLogger(__name__)
+    if os.environ.get("ZKM_NO_PLUGIN_AUTOSYNC"):
+        return False
+    if not (plugin.path / "pyproject.toml").exists() or shutil.which("uv") is None:
+        return False
+    cmd = ["uv", "sync", "-p", running_pyver]
+    if (plugin.path / "uv.lock").exists():
+        cmd.insert(2, "--frozen")
+    log.info("plugin '%s': rebuilding .venv for %s (auto-sync)…", plugin.name, running_pyver)
+    try:
+        proc = subprocess.run(cmd, cwd=plugin.path, capture_output=True, text=True, timeout=300)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        log.warning("plugin '%s': auto-sync failed to launch: %s", plugin.name, e)
+        return False
+    if proc.returncode != 0:
+        log.warning(
+            "plugin '%s': auto-sync (`%s`) failed:\n%s",
+            plugin.name,
+            " ".join(cmd),
+            proc.stderr.strip() or proc.stdout.strip(),
+        )
+        return False
+    return True
+
+
 def _inject_plugin_venv(plugin: Plugin) -> None:
     """Inject plugin's .venv site-packages and src/ into sys.path (idempotent).
 
@@ -493,26 +530,40 @@ def _inject_plugin_venv(plugin: Plugin) -> None:
     core zkm venv via importlib — the core venv lacks plugin-only deps such as
     pypdf, pytesseract, vobject, exifread.  Entry-point installs (`uv tool install
     zkm --with zkm-<name>`) already have deps resolved and are unaffected.
+
+    On an interpreter mismatch (e.g. system Python upgraded 3.12→3.14, leaving
+    the plugin .venv stale) this auto-rebuilds the .venv via `uv sync` so the
+    convert self-heals; opt out with ``ZKM_NO_PLUGIN_AUTOSYNC=1``.
     """
     import logging
 
+    running_pyver = f"python{sys.version_info.major}.{sys.version_info.minor}"
     venv_site = list((plugin.path / ".venv").glob("lib/python*/site-packages"))
     if venv_site:
         site_path = venv_site[0]
         venv_pyver = site_path.parent.name  # e.g. "python3.12"
-        running_pyver = f"python{sys.version_info.major}.{sys.version_info.minor}"
         if venv_pyver != running_pyver:
-            remedy = f"uv sync -p {running_pyver}"
-            logging.getLogger(__name__).warning(
-                "plugin '%s': .venv built for %s but running %s — skipping venv inject; "
-                "run `%s` in %s to rebuild (plain `uv sync` may pick a "
-                "different interpreter and leave the mismatch)",
-                plugin.name,
-                venv_pyver,
-                running_pyver,
-                remedy,
-                plugin.path,
-            )
+            if _rebuild_plugin_venv(plugin, running_pyver):
+                # Re-discover the freshly built site-packages.
+                venv_site = list((plugin.path / ".venv").glob(f"lib/{running_pyver}/site-packages"))
+                site_path = venv_site[0] if venv_site else site_path
+                venv_pyver = site_path.parent.name
+            if venv_pyver != running_pyver:
+                remedy = f"uv sync -p {running_pyver}"
+                logging.getLogger(__name__).warning(
+                    "plugin '%s': .venv built for %s but running %s — skipping venv inject; "
+                    "run `%s` in %s to rebuild (plain `uv sync` may pick a "
+                    "different interpreter and leave the mismatch)",
+                    plugin.name,
+                    venv_pyver,
+                    running_pyver,
+                    remedy,
+                    plugin.path,
+                )
+            else:
+                site_str = str(site_path)
+                if site_str not in sys.path:
+                    sys.path.insert(0, site_str)
         else:
             site_str = str(site_path)
             if site_str not in sys.path:

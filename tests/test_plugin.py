@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -371,6 +372,65 @@ def test_load_plugin_module_dataclass_plugin(tmp_path: Path) -> None:
         assert mod.Seg(start=1.0).items == []
     finally:
         sys.modules.pop("zkm_plugin_dctest", None)
+
+
+def _make_stale_venv_plugin(tmp_path: Path) -> tuple[Plugin, Path]:
+    """A dev plugin whose .venv is built for a Python that never matches runtime."""
+    plugin_dir = tmp_path / "zkm-stale"
+    plugin_dir.mkdir()
+    (plugin_dir / "plugin.yaml").write_text("name: stale\nversion: 0.0.1\ncreates_dirs: []\n")
+    (plugin_dir / "pyproject.toml").write_text("[project]\nname = 'zkm-stale'\nversion = '0.0.1'\n")
+    (plugin_dir / "uv.lock").write_text("version = 1\n")
+    stale_site = plugin_dir / ".venv" / "lib" / "python2.7" / "site-packages"
+    stale_site.mkdir(parents=True)
+    return Plugin(name="stale", version="0.0.1", description="", path=plugin_dir), plugin_dir
+
+
+def test_inject_venv_autosync_rebuilds_on_mismatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A stale .venv (wrong interpreter) is auto-rebuilt via `uv sync`, then injected."""
+    import sys
+
+    from zkm import convert as convert_mod
+
+    plugin, plugin_dir = _make_stale_venv_plugin(tmp_path)
+    running = f"python{sys.version_info.major}.{sys.version_info.minor}"
+    new_site = plugin_dir / ".venv" / "lib" / running / "site-packages"
+
+    calls: list[list[str]] = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        new_site.mkdir(parents=True, exist_ok=True)  # simulate uv building the new venv
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(convert_mod.shutil, "which", lambda _: "/usr/bin/uv")
+    monkeypatch.setattr(convert_mod.subprocess, "run", fake_run)
+
+    try:
+        convert_mod._inject_plugin_venv(plugin)
+        assert calls, "uv sync was not invoked"
+        assert "--frozen" in calls[0] and running in calls[0]  # lock present → frozen + pinned
+        assert str(new_site) in sys.path  # freshly built site-packages injected
+    finally:
+        for p in (str(new_site), str(plugin_dir / ".venv" / "lib" / "python2.7" / "site-packages")):
+            if p in sys.path:
+                sys.path.remove(p)
+
+
+def test_inject_venv_autosync_opt_out(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """ZKM_NO_PLUGIN_AUTOSYNC=1 disables the auto-rebuild (warn-only fallback)."""
+    from zkm import convert as convert_mod
+
+    plugin, _ = _make_stale_venv_plugin(tmp_path)
+    monkeypatch.setenv("ZKM_NO_PLUGIN_AUTOSYNC", "1")
+
+    def boom(*a, **k):  # must never be reached
+        raise AssertionError("uv sync ran despite ZKM_NO_PLUGIN_AUTOSYNC")
+
+    monkeypatch.setattr(convert_mod.subprocess, "run", boom)
+    convert_mod._inject_plugin_venv(plugin)  # warns, does not raise
 
 
 # ---------------------------------------------------------------------------
