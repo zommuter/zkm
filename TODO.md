@@ -245,10 +245,17 @@ Kills the zkm-pdf↔zkm-scan two-probe drift bug (whitespace-heavy PDF skipped b
   `stt_model`/backend recommendation + whether to wire Gemma-E4B/large-turbo as a real backend (the
   `openai`/multimodal N=2 seam). Don't restart the helferli investigation from scratch — build on
   `docs/meeting-notes/2026-05-12-2036-asr-language-detection.md` + `2026-05-14-1011-asr-lang-bench-stage3.md`.
-  See `docs/meeting-notes/2026-06-21-2207-zkm-stt-scope.md`. <!-- id:4ab4 -->
+  See `docs/meeting-notes/2026-06-21-2207-zkm-stt-scope.md`. **DESIGN 2026-06-23** — see
+  `docs/meeting-notes/2026-06-23-1425-stt3-asr-quality-pilot.md` (D1–D6): tiered-privacy harness
+  (`plugins/zkm-stt/tools/asr_quality_bench.py` over `transcribe()` seam, scores-tier agent-readable +
+  gitignored content tier, no egress); Tier-1 matrix {ggml-small, ggml-large-v3-turbo, Gemma-E4B-multimodal};
+  WER+CER sliced by {de,de-CH,en} (sample ~90% de) + lang-tag secondary; aya-expanse-8b ref-aware soft-judge
+  (advisory); asymmetric decision rule (cheap default-swap vs N=2-gated new backend, latency NOT a gate). <!-- id:4ab4 -->
 - [ ] **STT4 — zkm-stt roadmap enrichments.** Speaker labels / diarisation, background-noise
   identification + filtering, sentiment analysis, word-level timestamps, streaming. Each gated on a
-  concrete need + (ML-shaped ones) evidence before infra. See
+  concrete need + (ML-shaped ones) evidence before infra. **Forward-flag (2026-06-23, stt3 meeting):**
+  WhatsApp speaker-ID / diarisation can use **contact/sender metadata** (manifest sender per message),
+  not acoustic voiceprinting — a cheaper path for the WA case. See
   `docs/meeting-notes/2026-06-21-2207-zkm-stt-scope.md`. <!-- id:fa7b -->
 
 ## Store hygiene — processed-tracking + git-as-byte-source (design)
