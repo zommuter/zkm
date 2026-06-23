@@ -276,6 +276,33 @@ the gate (N9c/N9d accepted-as-is decisions stand).
     zkm-notmuch inbox (`routed:8b00`); do NOT bundle repos. TODO.md
     §Amendment contract backlog.
 
+- [ ] Add `entities` to `_SET_FIELDS` so declarative set-retraction applies to entities (not just tags) [ROUTINE] <!-- id:29ac -->
+  - **Acceptance** (meeting D1, `docs/meeting-notes/2026-06-23-1807-zkm-amendments-removal-coherence.md`):
+    `emit_set` / `apply_queue` / `plan_retractions` retract values from the `entities`
+    frontmatter field by the same D2 ref-count-to-zero rule already applied to `tags`. The
+    shipped retraction machinery (id:25ec) iterates `_SET_FIELDS = ("tags",)`; this adds
+    `"entities"`. Because entity records are typed dicts `{scope, type, value}` (NOT
+    hashable strings), the producer-set storage (`_producer_stored_set`,
+    `_all_current_sets_excluding`), the diff (`_retractable_values`), and the apply-path
+    filter (`_apply_to_md`, ~line 429) must key entities by their `(scope, type, value)`
+    tuple — the SAME dedup key `merge_fields` already uses (`_ent_scope(e), e["type"],
+    e["value"]`) — not by string identity. Additive `emit()` for entities stays
+    byte-identical (`merge_fields` entity-union path unchanged). A producer's empty asserted
+    entity set retracts only its own claims (D4a, mirrors tags). Entities ride the existing
+    `producer_sets` block; store each producer's asserted entity set in a JSON-serializable
+    keyed form and document the chosen representation.
+  - **Tests**: `tests/test_amendments_entity_retract.py`, marked `# roadmap:29ac` (RED):
+    `test_entity_sole_producer_dropped_when_unasserted` (the genuine RED — an unasserted
+    entity is currently NOT retracted because `entities ∉ _SET_FIELDS`),
+    `test_entity_kept_when_other_producer_still_asserts` (D2 keep, keyed on the tuple).
+  - **Done-check**: `uv run pytest tests/test_amendments_entity_retract.py` then the full
+    suite green.
+  - **Context**: `src/zkm/amendments.py` — `_SET_FIELDS` (line 51), retraction helpers
+    (lines 362–408), apply-path filter (lines 427–438), `merge_fields` entity dedup
+    (lines 249–258), `_ent_scope` (line 269). Prerequisite for the zkm-ner scrub↔cache
+    tombstone fix (TODO/meeting id:7b4e; children 0566/fa5a are zkm-ner *plugin* repo work,
+    NOT this ROADMAP). Core-runnable alone. TODO.md §Amendment contract backlog.
+
 ## Pointers (NOT executor items — wrong repo or gated)
 
 - zkm-whatsapp W-series (W6f media manifest, W-key secret source, W8 owner-JID
