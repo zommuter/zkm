@@ -48,7 +48,11 @@ _APPLIED_SUFFIX = ".amendments.json"
 
 # Fields that carry a producer-asserted *set* (declarative retraction applies to
 # these). Other fields are scalar last-write-wins and are never retracted.
-_SET_FIELDS = ("tags",)
+# - "tags":     set of strings — hashable, sorted list in JSON storage.
+# - "entities": set of {scope, type, value} dicts — NOT directly hashable; keyed
+#               internally by (scope, type, value) tuple (same dedup key as
+#               merge_fields uses). JSON storage: list of dicts sorted by tuple key.
+_SET_FIELDS = ("tags", "entities")
 
 
 # ---------------------------------------------------------------------------
@@ -271,6 +275,41 @@ def _ent_scope(ent: dict) -> str:
     return ent.get("scope", "body")
 
 
+def _field_value_key(field: str, value: Any) -> Any:
+    """Return the canonical hashable key for a field value.
+
+    - "tags":     the string itself.
+    - "entities": (scope, type, value) tuple — same dedup key as ``merge_fields``.
+    """
+    if field == "entities":
+        return (_ent_scope(value), value["type"], value["value"])
+    return value
+
+
+def _field_keys_from_list(field: str, values: list) -> set:
+    """Convert a stored list of field values to a set of hashable keys."""
+    return {_field_value_key(field, v) for v in (values or [])}
+
+
+def _field_to_stored_list(field: str, values: list) -> list:
+    """Convert a list of field values to a JSON-safe sorted list for ``producer_sets``.
+
+    - "tags":     sorted list of strings (existing behaviour).
+    - "entities": list of dicts, sorted by (scope, type, value) tuple key, deduplicated.
+    """
+    if field == "entities":
+        seen: set = set()
+        result = []
+        for v in (values or []):
+            k = _field_value_key("entities", v)
+            if k not in seen:
+                seen.add(k)
+                result.append(v)
+        result.sort(key=lambda e: (_ent_scope(e), e["type"], e["value"]))
+        return result
+    return sorted(set(values or []))
+
+
 def _record_hash(record: dict) -> str:
     """SHA1 of canonical JSON over (key, fields, emitted_by[, mode]); stable across emitted_at.
 
@@ -360,19 +399,22 @@ def _read_applied_hashes(md_path: Path) -> set[str]:
 
 
 def _producer_stored_set(data: dict, producer: str, field: str) -> set:
-    """Return *producer*'s last-asserted set for *field*.
+    """Return *producer*'s last-asserted set for *field* as a set of hashable keys.
+
+    For "tags" the keys are the tag strings themselves. For "entities" the keys are
+    (scope, type, value) tuples (see ``_field_value_key``).
 
     Schema-2: read straight from ``producer_sets``. Schema-1 graceful read (D4d):
     bootstrap from the union of the producer's prior applied ``fields[field]``.
     """
     psets = data.get("producer_sets")
     if isinstance(psets, dict) and producer in psets:
-        return set(psets[producer].get(field, []))
+        return _field_keys_from_list(field, psets[producer].get(field, []))
     # Legacy bootstrap: union of prior applied field values for this producer.
     boot: set = set()
     for rec in data.get("applied", []):
         if rec.get("emitted_by") == producer:
-            boot |= set(rec.get("fields", {}).get(field, []) or [])
+            boot |= _field_keys_from_list(field, rec.get("fields", {}).get(field, []))
     return boot
 
 
@@ -393,16 +435,17 @@ def _all_current_sets_excluding(data: dict, exclude: str, field: str) -> set:
 
 
 def _retractable_values(data: dict, producer: str, field: str, new_fields: dict) -> set:
-    """Values *producer* would drop from frontmatter for *field* (D2 ref-count-to-zero).
+    """Keys *producer* would drop from frontmatter for *field* (D2 ref-count-to-zero).
 
-    A value V is retractable iff: (1) V ∈ producer's stored set, (2) V ∉ the
-    producer's NEW asserted set, (3) V ∉ any other producer's current set.
+    Returns a set of hashable keys (strings for "tags", tuples for "entities").
+    A key K is retractable iff: (1) K ∈ producer's stored set, (2) K ∉ the
+    producer's NEW asserted set, (3) K ∉ any other producer's current set.
     """
     if field not in new_fields:
         # D4b: field not reported in this run → stored set untouched, no retract.
         return set()
     prior = _producer_stored_set(data, producer, field)
-    new_set = set(new_fields.get(field, []) or [])
+    new_set = _field_keys_from_list(field, new_fields.get(field, []))
     removed = prior - new_set  # (1) and (2)
     others = _all_current_sets_excluding(data, producer, field)
     return {v for v in removed if v not in others}  # (3)
@@ -429,15 +472,19 @@ def _apply_to_md(md_path: Path, record: dict) -> None:
             for field in _SET_FIELDS:
                 removable = _retractable_values(data, producer, field, record["fields"])
                 if removable and field in merged:
+                    # removable is a set of hashable keys; convert each value to its
+                    # key before the membership test (needed for entity dicts).
                     merged[field] = [v for v in (merged.get(field) or [])
-                                     if v not in removable]
+                                     if _field_value_key(field, v) not in removable]
             # Record this producer's full asserted set for every reported set-field
             # (D4b: only fields present in this record are updated).
             psets = data.setdefault("producer_sets", {})
             prod_block = psets.setdefault(producer, {})
             for field in _SET_FIELDS:
                 if field in record["fields"]:
-                    prod_block[field] = sorted(set(record["fields"].get(field, []) or []))
+                    prod_block[field] = _field_to_stored_list(
+                        field, record["fields"].get(field, []) or []
+                    )
 
         new_post = frontmatter.Post(post.content, **merged)
         write_atomic(md_path, frontmatter.dumps(new_post))

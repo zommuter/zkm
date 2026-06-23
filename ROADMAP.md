@@ -276,7 +276,7 @@ the gate (N9c/N9d accepted-as-is decisions stand).
     zkm-notmuch inbox (`routed:8b00`); do NOT bundle repos. TODO.md
     §Amendment contract backlog.
 
-- [ ] Add `entities` to `_SET_FIELDS` so declarative set-retraction applies to entities (not just tags) [ROUTINE] <!-- id:29ac -->
+- [x] Add `entities` to `_SET_FIELDS` so declarative set-retraction applies to entities (not just tags) [ROUTINE] <!-- id:29ac -->
   - **Acceptance** (meeting D1, `docs/meeting-notes/2026-06-23-1807-zkm-amendments-removal-coherence.md`):
     `emit_set` / `apply_queue` / `plan_retractions` retract values from the `entities`
     frontmatter field by the same D2 ref-count-to-zero rule already applied to `tags`. The
