@@ -214,6 +214,7 @@ Kills the zkm-pdf↔zkm-scan two-probe drift bug (whitespace-heavy PDF skipped b
   `[mm:ss]` + detected language (never pinned), per-file graceful skip on backend error. Contract:
   mocked-`/inference` hermetic test + real `.opus` smoke test. See
   `docs/meeting-notes/2026-06-21-2207-zkm-stt-scope.md`. <!-- id:37aa -->
+- [x] **STT5 — `zkm convert stt` crashed on missing `inbox/stt`.** DONE 2026-06-23 (zkm-stt v0.1.1). The standalone converter did `inbox.iterdir()` and raised `FileNotFoundError` when the drop zone didn't exist; now `mkdir(exist_ok=True)` + no-op on empty. (Reminder: WhatsApp voice notes transcribe via the **`stt-wa` amender** — `zkm convert stt-wa` — which reads the WhatsApp manifests + CAS and never uses `inbox/stt`.) Test added. <!-- id:1f6d -->
 - [ ] **STT2 — zkm-stt v2 WhatsApp amender.** Reuse `transcribe()` as an amender scoped to `created`
   voice-note paths; enumerate zkm-whatsapp manifest `mime: audio/*`, resolve CAS by sha256, transcribe,
   augment the body line (optional zkm-whatsapp polish: render `[voice: …]` not generic `[media: …]`).
