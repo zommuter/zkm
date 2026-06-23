@@ -214,3 +214,7 @@ qualified these SAME two items as 40d5/dab8 + a RELAY_LOG paragraph but was neve
 to main, so the raw lines re-appeared this window; I reused 40d5/dab8 (avoiding a
 duplicate-id) — the orphan ref is now redundant and safe to delete at integration.
 ROADMAP has 0 open items. No gaming flags, no reopens, no friction. routine_open=0.
+
+## 2026-06-23 08:46 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+review since relay-ckpt-20260622-2131: d3a9/c4d1 convert.py fixes verified genuinely green (593 on Py3.14, gaming-scan clean, +119 additive test lines); CLAUDE.md plugin-discovery drift fixed; §5b adopted orphan ids 40d5/dab8 (no dup); routine_open=0
