@@ -504,10 +504,12 @@ def _inject_plugin_venv(plugin: Plugin) -> None:
         if venv_pyver != running_pyver:
             logging.getLogger(__name__).warning(
                 "plugin '%s': .venv built for %s but running %s — skipping venv inject; "
-                "run `uv sync` in %s to rebuild",
+                "run `%s` in %s to rebuild (plain `uv sync` may pick a "
+                "different interpreter and leave the mismatch)",
                 plugin.name,
                 venv_pyver,
                 running_pyver,
+                f"uv sync -p {running_pyver}",
                 plugin.path,
             )
         else:
@@ -530,7 +532,17 @@ def _load_plugin_module(plugin: Plugin) -> types.ModuleType:
     if spec_obj is None or spec_obj.loader is None:
         raise ImportError(f"Could not load {convert_py}")
     mod = importlib.util.module_from_spec(spec_obj)
-    spec_obj.loader.exec_module(mod)  # type: ignore[union-attr]
+    # Register in sys.modules BEFORE exec: on Python 3.14, dataclass processing
+    # resolves a class's defining module via sys.modules[cls.__module__]; an
+    # unregistered module makes that lookup return None and any @dataclass in the
+    # plugin crashes with `AttributeError: 'NoneType' object has no attribute
+    # '__dict__'`. This is the documented importlib spec_from_file_location pattern.
+    sys.modules[spec_obj.name] = mod
+    try:
+        spec_obj.loader.exec_module(mod)  # type: ignore[union-attr]
+    except BaseException:
+        sys.modules.pop(spec_obj.name, None)
+        raise
     if not hasattr(mod, "convert"):
         raise AttributeError(f"Plugin '{plugin.name}': convert.py has no convert() function")
     return mod

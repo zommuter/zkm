@@ -339,6 +339,40 @@ def test_load_plugin_module_injects_venv(tmp_path: Path) -> None:
         sys.path.remove(site_str)
 
 
+def test_load_plugin_module_dataclass_plugin(tmp_path: Path) -> None:
+    """A plugin defining a @dataclass must load (regression for Python 3.14).
+
+    On 3.14 dataclass processing resolves the class's defining module via
+    sys.modules[cls.__module__]; if _load_plugin_module execs the module
+    without registering it there, that lookup returns None and the @dataclass
+    crashes with `AttributeError: 'NoneType' object has no attribute '__dict__'`.
+    """
+    import sys
+
+    plugin_dir = tmp_path / "zkm-dctest"
+    plugin_dir.mkdir()
+    (plugin_dir / "plugin.yaml").write_text("name: dctest\nversion: 0.0.1\ncreates_dirs: []\n")
+    (plugin_dir / "convert.py").write_text(
+        "from dataclasses import dataclass, field\n"
+        "@dataclass\n"
+        "class Seg:\n"
+        "    start: float\n"
+        "    items: list[int] = field(default_factory=list)\n"
+        "def convert(s, c, **kw): return []\n"
+    )
+    plugin = Plugin(name="dctest", version="0.0.1", description="", path=plugin_dir)
+    try:
+        mod = _load_plugin_module(plugin)
+        assert hasattr(mod, "convert")
+        # The plugin module is registered in sys.modules under its spec name,
+        # which is what lets dataclass introspection resolve the module.
+        assert sys.modules.get("zkm_plugin_dctest") is mod
+        # The dataclass actually constructed
+        assert mod.Seg(start=1.0).items == []
+    finally:
+        sys.modules.pop("zkm_plugin_dctest", None)
+
+
 # ---------------------------------------------------------------------------
 # .env loading
 # ---------------------------------------------------------------------------
