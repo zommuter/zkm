@@ -218,3 +218,22 @@ ROADMAP has 0 open items. No gaming flags, no reopens, no friction. routine_open
 ## 2026-06-23 08:46 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 review since relay-ckpt-20260622-2131: d3a9/c4d1 convert.py fixes verified genuinely green (593 on Py3.14, gaming-scan clean, +119 additive test lines); CLAUDE.md plugin-discovery drift fixed; §5b adopted orphan ids 40d5/dab8 (no dup); routine_open=0
+
+## 2026-06-23 08:46 — reviewer (claude-opus-4-8, relay-20260623-083216-13413-review)
+
+review since relay-ckpt-20260623-0846: single commit 4a4be2f, TODO.md-only (ticks W14
+done — zkm-whatsapp v0.6.0 lossless multi-source merge: reprocess() manifest heal +
+crypt12/14/Java-key decrypt + docs/merge-old-backup.md runbook). Verified the tick is a
+genuine, non-gamed summary line for plugin-repo work: zkm-whatsapp HEAD carries v0.6.0
+with d4d7aae (heal), 17d24c7 (crypt12/14 + raw key), 8c66c52 (runbook) — claim accurate.
+Plugin work lives in TODO.md by the repo scope rule; nothing to mirror to ROADMAP.
+Core suite 593 passed; gaming-scan clean (0 DELETED_TEST/ADDED_SKIP/REMOVED_ASSERT).
+ROADMAP has 0 open items (0 ROUTINE / 0 HARD). Contract pointer v4, current — no drift.
+§5b: no new open ledger items added this window. Orphan relay/orphan/relay-20260623-
+070136-24096-review inspected: its TODO.md is based on a pre-W12/W13/W14 snapshot (would
+REGRESS — delete the W12-W14 done-entries + id:7c3f + id:d3a9 — if merged), and its
+substantive conclusions (c4d1 green, 40d5/dab8 qualified) were already independently
+re-derived + recorded by the 0846 checkpoint; only un-merged artifact was its own 07:01
+RELAY_LOG paragraph (fully superseded by the 0846 entry). No un-captured information →
+RETIRE the orphan ref, do NOT re-merge (re-merge would regress TODO.md). No gaming flags,
+no reopens, no friction. routine_open=0.
