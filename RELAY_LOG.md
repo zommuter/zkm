@@ -297,3 +297,7 @@ an unasserted entity is NOT retracted today). The plugin children (0566/fa5a →
 f103 → zkm-notmuch) stay OUT of this core ROADMAP per the repo scope rule and are handled
 when those plugin repos are reviewed (the note's own Forward actions route them there).
 No gaming flags, no reopens. routine_open=1 (id:29ac).
+
+## 2026-06-23 19:44 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+review(relay): doc-only window verified green (suite 593, gaming-scan clean); mini-handoff id:29ac (entities in _SET_FIELDS) to ROADMAP [ROUTINE] + RED spec
