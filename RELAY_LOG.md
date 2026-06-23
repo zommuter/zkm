@@ -183,3 +183,34 @@ executor: all 3 ROUTINE items done (f399 zkm.state, ab8b zkm.testing, 9e13 zkm.p
 ## 2026-06-22 21:31 — strong-execute (claude-opus-4-8, uv.lock cascade)
 
 uv.lock cascade fix (id:bae5): relocked parent self-bump 0.15.0->0.16.0; added scripts/relock-plugins.sh (relock+--check+--push+--install-hook) + scripts/hooks/pre-push guard that refuses a version-bump push while parent/plugin locks are stale. Guard tested: blocks stale-bump, allows non-bump + in-sync. Authored+verified this Opus turn.
+
+## 2026-06-23 08:32 — reviewer (claude-opus-4-8), review since relay-ckpt-20260622-2131
+
+review: 7 commits in window — 4 doc-only (TODO.md), 3 real fixes in src/zkm/convert.py.
+Verified all genuinely green (full suite 593 passed on Python 3.14, gaming-scan clean:
+0 DELETED_TEST/ADDED_SKIP/REMOVED_ASSERT; test_plugin.py change purely additive, +119
+lines, 0 assertions removed):
+- id:c4d1 (multi-document plugin.yaml discovery) — load_plugin_manifests() via
+  safe_load_all; both entry-point + filesystem loops iterate all docs; regression test
+  asserts BOTH plugins discovered + list_amenders()=={multi-amend}. Unblocks zkm-stt
+  (stt + stt-wa, dead on main since id:3874). Worked from TODO.md (never on ROADMAP).
+- id:d3a9 (Python 3.14 dev-plugin loading) — two real fixes: sys.modules registration
+  before exec_module (else any plugin @dataclass crashes with NoneType.__dict__ on 3.14;
+  test actually constructs the dataclass), and auto-heal of a stale .venv via
+  `uv sync --frozen -p <running>` (--frozen → no lock mutation, opt-out
+  ZKM_NO_PLUGIN_AUTOSYNC=1, graceful warn-fallback). Tests verify --frozen+pinned flags
+  and site-packages injection; opt-out test asserts uv never runs.
+- id:b7e2 — /meeting-flagged design item (CAS processed-by-version tracking + git-as-byte
+  -source); skipped per §5b (design task, already has id).
+Spec drift (§4): refreshed the CLAUDE.md §Plugin discovery contract to document multi-doc
+plugin.yaml (load_plugin_manifests) + the .venv auto-rebuild / ZKM_NO_PLUGIN_AUTOSYNC
+opt-out. Contract pointer v4 — current, no drift.
+Reverse-handoff (§5b): adopted the prior orphaned review's ids for two unqualified new
+TODO lines — id:40d5 ([MEETING] eager-git-add-during-scan, design-judgment → /meeting
+candidate, NOT promoted) and id:dab8 (uncommitted-objects-in-knowledge bug, needs
+triage/repro before executor-ready). NOTE: orphan branch relay/orphan/
+relay-20260623-070136-24096-review (prior review run) carries commit 6ad331a that
+qualified these SAME two items as 40d5/dab8 + a RELAY_LOG paragraph but was never merged
+to main, so the raw lines re-appeared this window; I reused 40d5/dab8 (avoiding a
+duplicate-id) — the orphan ref is now redundant and safe to delete at integration.
+ROADMAP has 0 open items. No gaming flags, no reopens, no friction. routine_open=0.
