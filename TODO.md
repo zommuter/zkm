@@ -220,10 +220,25 @@ Kills the zkm-pdf↔zkm-scan two-probe drift bug (whitespace-heavy PDF skipped b
   augment the body line (optional zkm-whatsapp polish: render `[voice: …]` not generic `[media: …]`).
   Gate: zkm-whatsapp v1 shipped (W-pilot). Contract: a day file's voice line gains `[transcript: …]`.
   See `docs/meeting-notes/2026-06-21-2207-zkm-stt-scope.md`. <!-- id:489b -->
-- [ ] **STT3 — Multi-model voting/agreement eval harness.** Run multiple ASR models over real voice
-  messages; compare/vote on (dis)agreement to judge quality (bench template: helferli `asr_bench.py`).
-  Separate quality tool, not v1 ingest. Gate: STT1 shipped. See
-  `docs/meeting-notes/2026-06-21-2207-zkm-stt-scope.md`. <!-- id:4ab4 -->
+- [ ] **STT3 — ASR quality pilot: compare models/means on real voice notes** `/meeting` **(next session)**.
+  ACTIVATED 2026-06-23: after the `language=auto`+`translate=false` fix (zkm-stt v0.2.0, id from
+  whisper.cpp source), German transcripts are "better but still not good" on `ggml-small` — so run a
+  proper pilot before picking a default. **Compare (means × models):** whisper.cpp `/inference` with
+  `ggml-small` (current) vs **`ggml-large-v3-turbo`** (already on disk); **Gemma 4 E4B** multimodal
+  (audio-in via llama-swap — helferli found this only *partial*, verify the path first); plus the
+  whisper alternatives discussed for helferli (faster-whisper / whisper-large-v3 / distil-whisper, and
+  any Swiss-German fine-tune). **Method:** reuse + extend helferli's harness
+  (`~/src/helferli/tools/relay/scripts/asr_bench.py` + `asr_bench.results.md`) — but it scores *language-tag*
+  accuracy; this pilot must score **transcription quality** (WER / human-rated) against a small
+  ground-truth set. **Ground-truth + privacy:** the sample is real WhatsApp voice notes (PRIVATE) — the
+  user transcribes/ranks a handful by hand (e.g. the 5-clip drop-zone sample + a few Swiss-German ones);
+  the agent must NOT read transcript content. **Swiss German caveat:** helferli's bench showed even
+  correct language-ID still garbles Schweizerdeutsch on small models — expect a quality ceiling; pilot
+  should include CH-German clips explicitly and consider whether any model clears the bar. **Output:** a
+  `stt_model`/backend recommendation + whether to wire Gemma-E4B/large-turbo as a real backend (the
+  `openai`/multimodal N=2 seam). Don't restart the helferli investigation from scratch — build on
+  `docs/meeting-notes/2026-05-12-2036-asr-language-detection.md` + `2026-05-14-1011-asr-lang-bench-stage3.md`.
+  See `docs/meeting-notes/2026-06-21-2207-zkm-stt-scope.md`. <!-- id:4ab4 -->
 - [ ] **STT4 — zkm-stt roadmap enrichments.** Speaker labels / diarisation, background-noise
   identification + filtering, sentiment analysis, word-level timestamps, streaming. Each gated on a
   concrete need + (ML-shaped ones) evidence before infra. See
