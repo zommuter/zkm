@@ -277,3 +277,23 @@ reconcile integrate: review(relay): verify id:c4d1 multi-doc plugin.yaml green; 
 ## 2026-06-23 16:02 — reviewer (claude-opus-4-8)
 
 Opus review (/relay review --all): 1-commit doc-only window (5c802fb todo-update: STT3 id:4ab4 marked handed off). Audited clean — no code, no gaming, no spec drift; cross-ledger consistent with zkm-stt relay-ckpt-20260623-1551 (P1 id:b695 done/running, P2 id:5148 + P3 id:4bf2 RED-specced; umbrella id:4ab4 stays open pending pilot recommendation). routine_open=0.
+
+## 2026-06-23 19:42 — reviewer (claude-opus-4-8), review since relay-ckpt-20260623-1602
+
+Opus review: 1-commit doc-only window (2bd2ccc — the /meeting note
+2026-06-23-1807 zkm-amendments-removal-coherence). gaming-scan clean (no test
+files touched); full suite 593 green; roadmap-lint exit 0; CLAUDE.md relay-contract
+pointer already v4 (no drift); ARCHITECTURE/README current. Reverse-handoff (§5b):
+the meeting note decided D1 (id:7b4e ner scrub↔cache = tombstone + emit_set) and D2
+(id:f103 → ROUTINE) and minted children 29ac/0566/fa5a but wrote NONE of them to a
+ledger (by design — meeting owns "why"). Of those, id:29ac is the only CORE-runnable
+piece (add `entities` to `_SET_FIELDS` so emit_set retraction applies to entities, not
+just tags — keyed on the `(scope,type,value)` tuple, since entities are typed dicts not
+strings). Mini-handoff: promoted id:29ac into ROADMAP as [ROUTINE] with acceptance +
+done-check, added the twin TODO.md §Amendment-contract-backlog line (reusing the
+meeting token — single-id-two-views), and wrote a RED spec tests/test_amendments_entity_retract.py
+(`# roadmap:29ac`; test_entity_sole_producer_dropped_when_unasserted is the genuine RED —
+an unasserted entity is NOT retracted today). The plugin children (0566/fa5a → zkm-ner;
+f103 → zkm-notmuch) stay OUT of this core ROADMAP per the repo scope rule and are handled
+when those plugin repos are reviewed (the note's own Forward actions route them there).
+No gaming flags, no reopens. routine_open=1 (id:29ac).

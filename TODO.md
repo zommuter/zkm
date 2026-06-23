@@ -284,6 +284,7 @@ Kills the zkm-pdf↔zkm-scan two-probe drift bug (whitespace-heavy PDF skipped b
 
 ## Amendment contract backlog
 
+- [ ] **Core: add `entities` to `_SET_FIELDS` so declarative set-retraction applies to entities.** The shipped `emit_set` / `_retractable_values` machinery (id:25ec) only retracts the `tags` field (`_SET_FIELDS = ("tags",)`). Entities are typed `{scope,type,value}` records keyed on that tuple (the dedup key `merge_fields` already uses), not bare strings, so adding `"entities"` requires keying the producer-set diff/ref-count by `(scope,type,value)`. Prerequisite for zkm-ner scrub↔cache coherence (id:7b4e). Core-runnable (ROADMAP). See `docs/meeting-notes/2026-06-23-1807-zkm-amendments-removal-coherence.md` D1. <!-- id:29ac -->
 - [ ] **Meeting: amendment replace-mode** — set-union merge (current) is correct for additive enrichment but cannot remove stale entities when extractor quality improves. `zkm scrub <plugin>` is the current workaround (N9b + future N9c). Trigger for meeting: a third amender wants single-producer-per-field semantics, OR N9c surfaces a need not solvable by scrub. See `docs/meeting-notes/2026-05-10-2142-n9b-scrub-cli.md` for design context.
 
 ## Plugin dependency loading (backlog)
