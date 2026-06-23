@@ -245,3 +245,7 @@ review: W14 TODO tick (zkm-whatsapp v0.6.0 multi-source merge) verified genuine;
 ## 2026-06-23 09:08 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 review: 1 docs-only commit (id:3b8a TODO addition); gaming-scan clean; no code/test changes; id:3b8a correctly left as /meeting design-judgment candidate; ROADMAP has 0 open items (routine_open=0)
+
+## 2026-06-23 10:01 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+review: W15 TODO tick (id:5d2a, zkm-whatsapp v0.7.0 fail-loud on bad decrypt/non-SQLite) verified genuine; suite 593 green, gaming-scan clean; ROADMAP 0 open; routine_open=0
