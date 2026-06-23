@@ -6,6 +6,10 @@ Completed Phase 1 tasks archived in `docs/phase1-done.md`.
 
 ## Cross-project
 
+- [ ] [MEETING] --cross git add objects already during scans so the the commit can be performed faster afterwards? Though that might require worktrees like `/relay` uses to permit concurrency?
+
+- [ ] bugfix - some objects in knowledge were uncommitted on 20260623 7:05
+
 - [ ] **Cross-project (triad) — `/meeting`:** discuss the potentially connecting dots between **zkm
   infrastructure** (embeddings / semantic retrieval / knowledge-mgmt) and the `.mw`/toesnail/collAIb triad.
   toesnail is the documented triad hub (`toesnail/docs/dependencies.md`); a session would decide whether/how
