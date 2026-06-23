@@ -249,3 +249,7 @@ review: 1 docs-only commit (id:3b8a TODO addition); gaming-scan clean; no code/t
 ## 2026-06-23 10:01 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 review: W15 TODO tick (id:5d2a, zkm-whatsapp v0.7.0 fail-loud on bad decrypt/non-SQLite) verified genuine; suite 593 green, gaming-scan clean; ROADMAP 0 open; routine_open=0
+
+## 2026-06-23 11:40 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+review 9c1dce2 (LEDGER-ONLY docs commit, STT5/id:1f6d done-mark) — clean by vacuity; gaming-scan 0, suite 593/0, contract pointer v4 current, routine_open 0; parked orphan relay-20260623-070136-24096 noted for manual reconcile
