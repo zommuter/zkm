@@ -237,3 +237,7 @@ re-derived + recorded by the 0846 checkpoint; only un-merged artifact was its ow
 RELAY_LOG paragraph (fully superseded by the 0846 entry). No un-captured information →
 RETIRE the orphan ref, do NOT re-merge (re-merge would regress TODO.md). No gaming flags,
 no reopens, no friction. routine_open=0.
+
+## 2026-06-23 08:58 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+review: W14 TODO tick (zkm-whatsapp v0.6.0 multi-source merge) verified genuine; suite 593 green, gaming-scan clean; orphan ref superseded → retire; routine_open=0
