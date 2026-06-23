@@ -234,7 +234,14 @@ Kills the zkm-pdf↔zkm-scan two-probe drift bug (whitespace-heavy PDF skipped b
   user transcribes/ranks a handful by hand (e.g. the 5-clip drop-zone sample + a few Swiss-German ones);
   the agent must NOT read transcript content. **Swiss German caveat:** helferli's bench showed even
   correct language-ID still garbles Schweizerdeutsch on small models — expect a quality ceiling; pilot
-  should include CH-German clips explicitly and consider whether any model clears the bar. **Output:** a
+  should include CH-German clips explicitly and consider whether any model clears the bar.
+  **Consolidated output + auto-compare:** emit all candidates **side-by-side per clip** (a model×clip matrix),
+  and add a **local LLM** (llama-swap on :8080 — aya-expanse-8b / gemma4-e4b / …) as an automatic
+  comparator/judge: diff candidates, score agreement/divergence, flag likely-best + suspicious spans — *in
+  addition to* the user's supervision, not replacing it. **Privacy bonus:** a *local* judge keeps the private
+  transcripts on-box — no cloud/agent egress (directly the chidiai egress lesson, id:f3e1 /
+  `~/src/chidiai/docs/cases/2026-06-23-secret-leaked-to-model-context.md`); the agent still must not read
+  content. The large-v3-turbo quick-try lives inside this pilot (not ad-hoc). **Output:** a
   `stt_model`/backend recommendation + whether to wire Gemma-E4B/large-turbo as a real backend (the
   `openai`/multimodal N=2 seam). Don't restart the helferli investigation from scratch — build on
   `docs/meeting-notes/2026-05-12-2036-asr-language-detection.md` + `2026-05-14-1011-asr-lang-bench-stage3.md`.
