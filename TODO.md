@@ -244,7 +244,12 @@ Kills the zkm-pdf↔zkm-scan two-probe drift bug (whitespace-heavy PDF skipped b
   (`plugins/zkm-stt/tools/asr_quality_bench.py` over `transcribe()` seam, scores-tier agent-readable +
   gitignored content tier, no egress); Tier-1 matrix {ggml-small, ggml-large-v3-turbo, Gemma-E4B-multimodal};
   WER+CER sliced by {de,de-CH,en} (sample ~90% de) + lang-tag secondary; aya-expanse-8b ref-aware soft-judge
-  (advisory); asymmetric decision rule (cheap default-swap vs N=2-gated new backend, latency NOT a gate). <!-- id:4ab4 -->
+  (advisory); asymmetric decision rule (cheap default-swap vs N=2-gated new backend, latency NOT a gate).
+  **HANDED OFF 2026-06-23** (zkm-stt relay-ckpt-20260623-1551): split into P1 `transcribe` (id:b695,
+  DONE+running — `uv run tools/asr_quality_bench.py transcribe`), P2 `score` (id:5148, RED spec), P3 `gemma`
+  (id:4bf2, RED spec). P1 already transcribed the 5-clip sample (whisper-small); large-v3-turbo pending a
+  :8090 server. **Umbrella stays open** — closed by the pilot recommendation after the user fills
+  `references.json` + runs `score`. Run P2/P3 via relay executor in `plugins/zkm-stt`. <!-- id:4ab4 -->
 - [ ] **STT4 — zkm-stt roadmap enrichments.** Speaker labels / diarisation, background-noise
   identification + filtering, sentiment analysis, word-level timestamps, streaming. Each gated on a
   concrete need + (ML-shaped ones) evidence before infra. **Forward-flag (2026-06-23, stt3 meeting):**
