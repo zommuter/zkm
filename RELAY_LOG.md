@@ -269,3 +269,7 @@ design-judgment → /meeting candidate, NOT promoted) and id:dab8 (uncommitted-
 objects bug, needs triage/repro before executor-ready). id:b7e2 (CAS processed-
 tracking design) skipped — design task, already has id. No gaming flags, no
 reopens, no friction.
+
+## 2026-06-23 15:37 — reconcile (human)
+
+reconcile integrate: review(relay): verify id:c4d1 multi-doc plugin.yaml green; qualify 40d5/dab8 (reverse-handoff)
