@@ -253,3 +253,19 @@ review: W15 TODO tick (id:5d2a, zkm-whatsapp v0.7.0 fail-loud on bad decrypt/non
 ## 2026-06-23 11:40 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 review 9c1dce2 (LEDGER-ONLY docs commit, STT5/id:1f6d done-mark) — clean by vacuity; gaming-scan 0, suite 593/0, contract pointer v4 current, routine_open 0; parked orphan relay-20260623-070136-24096 noted for manual reconcile
+## 2026-06-23 07:01 — reviewer (claude-opus-4-8), review since relay-ckpt-20260622-2131
+
+review: 3 commits in window — 2 doc-only (TODO.md), 1 real fix id:c4d1
+(multi-document plugin.yaml discovery). Verified id:c4d1 genuinely green:
+gaming-scan clean (0 DELETED_TEST/ADDED_SKIP/REMOVED_ASSERT), test_plugin.py
+change purely additive (new test_multidoc_plugin_yaml_discovers_all, no removed
+asserts), fixture is a real ---separated multi-doc plugin.yaml asserting BOTH
+plugins discovered + list_amenders()=={multi-amend} — no fixture special-casing.
+Full suite 590 passed (confirms commit claim). c4d1 was worked directly from
+TODO.md (never on ROADMAP); ticked [x] there by the executor. ROADMAP has 0 open
+items. Contract pointer v4, current — no drift. Reverse-handoff (§5b): qualified
+2 unqualified new TODO lines — id:40d5 ([MEETING] eager-git-add-during-scan,
+design-judgment → /meeting candidate, NOT promoted) and id:dab8 (uncommitted-
+objects bug, needs triage/repro before executor-ready). id:b7e2 (CAS processed-
+tracking design) skipped — design task, already has id. No gaming flags, no
+reopens, no friction.
