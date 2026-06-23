@@ -112,6 +112,31 @@ def test_list_plugins_after_add(isolated_plugins: Path, notes_plugin_dir: Path) 
     assert plugins[0].name == "notes"
 
 
+def test_multidoc_plugin_yaml_discovers_all(isolated_plugins: Path) -> None:
+    """A repo may declare multiple plugins in one multi-document plugin.yaml.
+
+    Regression for id:c4d1: a ``---``-separated plugin.yaml (zkm-stt ships a
+    ``stt`` converter + a ``stt-wa`` amender) was parsed with single-doc
+    ``yaml.safe_load`` and threw, silently skipping the WHOLE repo.
+    """
+    repo = isolated_plugins / "zkm-multi"
+    repo.mkdir()
+    (repo / "plugin.yaml").write_text(
+        "name: multi\n"
+        "version: 0.1.0\n"
+        "creates_dirs: [foo]\n"
+        "---\n"
+        "name: multi-amend\n"
+        "kind: amender\n"
+        "version: 0.1.0\n"
+        "creates_dirs: [foo/amend]\n"
+    )
+    by_name = {p.name: p for p in list_plugins()}
+    assert by_name["multi"].kind == "converter"
+    assert by_name["multi-amend"].kind == "amender"
+    assert {p.name for p in list_amenders()} == {"multi-amend"}
+
+
 def test_find_plugin(isolated_plugins: Path, notes_plugin_dir: Path) -> None:
     add_plugin(str(notes_plugin_dir))
     assert find_plugin("notes") is not None

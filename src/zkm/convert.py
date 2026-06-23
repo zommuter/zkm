@@ -65,11 +65,7 @@ class Plugin:
     shadows_entry_point: bool = False
 
 
-def load_plugin_manifest(plugin_path: Path) -> Plugin:
-    manifest = plugin_path / "plugin.yaml"
-    if not manifest.exists():
-        raise FileNotFoundError(f"Missing plugin.yaml at {manifest}")
-    data = yaml.safe_load(manifest.read_text())
+def _plugin_from_data(data: dict, plugin_path: Path) -> Plugin:
     return Plugin(
         name=data["name"],
         version=data.get("version", "0.0.0"),
@@ -83,34 +79,61 @@ def load_plugin_manifest(plugin_path: Path) -> Plugin:
     )
 
 
+def load_plugin_manifests(plugin_path: Path) -> list[Plugin]:
+    """Load every plugin declared in a repo's plugin.yaml.
+
+    A plugin.yaml may declare multiple plugins as a multi-document YAML
+    stream (``---``-separated) — e.g. a single repo shipping both a converter
+    and an amender (zkm-stt: ``stt`` + ``stt-wa``). Returns one Plugin per
+    non-empty document, in file order. The first document is the repo's
+    primary plugin.
+    """
+    manifest = plugin_path / "plugin.yaml"
+    if not manifest.exists():
+        raise FileNotFoundError(f"Missing plugin.yaml at {manifest}")
+    docs = [d for d in yaml.safe_load_all(manifest.read_text()) if d]
+    if not docs:
+        raise ValueError(f"Empty plugin.yaml at {manifest}")
+    return [_plugin_from_data(d, plugin_path) for d in docs]
+
+
+def load_plugin_manifest(plugin_path: Path) -> Plugin:
+    """Load the primary (first) plugin declared in a repo's plugin.yaml.
+
+    Use :func:`load_plugin_manifests` to get every plugin a repo declares.
+    """
+    return load_plugin_manifests(plugin_path)[0]
+
+
 # ---------------------------------------------------------------------------
 # Registry operations
 # ---------------------------------------------------------------------------
 
 
-def _plugin_from_entry_point(ep: Any) -> Plugin | None:
-    """Resolve an importlib EntryPoint to a Plugin, or None on failure."""
+def _plugins_from_entry_point(ep: Any) -> list[Plugin]:
+    """Resolve an importlib EntryPoint to its declared Plugins (possibly many)."""
     pkg_name = ep.value
     try:
         spec = importlib.util.find_spec(pkg_name)
     except (ModuleNotFoundError, ValueError):
-        return None
+        return []
     if spec is None:
-        return None
+        return []
     locations = list(spec.submodule_search_locations or [])
     if locations:
         pkg_dir = Path(locations[0])
     elif spec.origin:
         pkg_dir = Path(spec.origin).parent
     else:
-        return None
+        return []
     try:
-        p = load_plugin_manifest(pkg_dir)
-        p.origin = "entry-point"
-        return p
+        plugins = load_plugin_manifests(pkg_dir)
+        for p in plugins:
+            p.origin = "entry-point"
+        return plugins
     except Exception as e:
         print(f"WARN: skipping entry-point plugin {getattr(ep, 'name', pkg_name)!r}: {e}")
-        return None
+        return []
 
 
 def list_plugins() -> list[Plugin]:
@@ -123,8 +146,7 @@ def list_plugins() -> list[Plugin]:
     # --- entry-point plugins ---
     ep_plugins: dict[str, Plugin] = {}
     for ep in importlib.metadata.entry_points(group="zkm.plugins"):
-        p = _plugin_from_entry_point(ep)
-        if p is not None:
+        for p in _plugins_from_entry_point(ep):
             ep_plugins[p.name] = p
 
     # --- filesystem plugins ---
@@ -137,11 +159,11 @@ def list_plugins() -> list[Plugin]:
             if not (entry / "plugin.yaml").exists():
                 continue
             try:
-                p = load_plugin_manifest(entry)
-                p.origin = "filesystem"
-                if p.name in ep_plugins:
-                    p.shadows_entry_point = True
-                fs_plugins[p.name] = p
+                for p in load_plugin_manifests(entry):
+                    p.origin = "filesystem"
+                    if p.name in ep_plugins:
+                        p.shadows_entry_point = True
+                    fs_plugins[p.name] = p
             except Exception as e:
                 print(f"WARN: skipping {entry.name}: {e}")
 
@@ -178,7 +200,7 @@ def add_plugin(source: str) -> Plugin:
         manifest = src_path / "plugin.yaml"
         if not manifest.exists():
             raise FileNotFoundError(f"No plugin.yaml in {src_path}")
-        name = yaml.safe_load(manifest.read_text())["name"]
+        name = load_plugin_manifests(src_path)[0].name
         dir_name = name if name.startswith("zkm-") else f"zkm-{name}"
         dest = pdir / dir_name
         # Already in place — dev plugin repo nested inside plugins_dir()

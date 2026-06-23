@@ -227,6 +227,7 @@ Kills the zkm-pdf↔zkm-scan two-probe drift bug (whitespace-heavy PDF skipped b
 
 - [ ] **conformance.run_dynamic path-resolution bug** — `run_dynamic` resolves ALL `conformance.config` values as plugin-relative paths (conformance.py ~line 345), clobbering non-path values; zkm-social cannot declare `network: linkedin`, so `zkm test social` dynamic check is impossible. Fix: only path-resolve values whose resolved path exists, or mark path keys in plugin.yaml. Found during 2026-06-12 relay handoff (zkm-social child, also in shared inbox). <!-- id:a285 -->
 - [ ] (Forward-flag, deferred — D4) Design a TODO-mutating script/tool that enforces the `@{u}` done-gate at `[x]`-write time. Gate: next todo-update skill revision OR second enforcement need. <!-- id:f1cf -->
+- [x] **Multi-document `plugin.yaml` breaks discovery — zkm-stt silently skipped (`stt` + `stt-wa` invisible).** DONE 2026-06-23 (option A). Core now supports multiple plugins per repo via multi-doc `plugin.yaml`: added `load_plugin_manifests()` (`safe_load_all` → `list[Plugin]`), `load_plugin_manifest()` returns the first doc; both entry-point + filesystem discovery loops iterate all docs. zkm-stt's `stt` converter and `stt-wa` WhatsApp voice-note amender are discoverable again — `zkm convert whatsapp` runs the STT amender (was dead on `main` since id:3874). Regression test `test_multidoc_plugin_yaml_discovers_all`; 590/590 green; 0 discovery warnings. <!-- id:c4d1 -->
 
 ## Frontmatter schema vocabulary (decided 2026-06-13-1413-frontmatter-schema-vocabulary.md)
 
