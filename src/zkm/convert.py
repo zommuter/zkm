@@ -502,6 +502,7 @@ def _inject_plugin_venv(plugin: Plugin) -> None:
         venv_pyver = site_path.parent.name  # e.g. "python3.12"
         running_pyver = f"python{sys.version_info.major}.{sys.version_info.minor}"
         if venv_pyver != running_pyver:
+            remedy = f"uv sync -p {running_pyver}"
             logging.getLogger(__name__).warning(
                 "plugin '%s': .venv built for %s but running %s — skipping venv inject; "
                 "run `%s` in %s to rebuild (plain `uv sync` may pick a "
@@ -509,7 +510,7 @@ def _inject_plugin_venv(plugin: Plugin) -> None:
                 plugin.name,
                 venv_pyver,
                 running_pyver,
-                f"uv sync -p {running_pyver}",
+                remedy,
                 plugin.path,
             )
         else:
