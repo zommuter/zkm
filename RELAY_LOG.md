@@ -183,3 +183,20 @@ executor: all 3 ROUTINE items done (f399 zkm.state, ab8b zkm.testing, 9e13 zkm.p
 ## 2026-06-22 21:31 — strong-execute (claude-opus-4-8, uv.lock cascade)
 
 uv.lock cascade fix (id:bae5): relocked parent self-bump 0.15.0->0.16.0; added scripts/relock-plugins.sh (relock+--check+--push+--install-hook) + scripts/hooks/pre-push guard that refuses a version-bump push while parent/plugin locks are stale. Guard tested: blocks stale-bump, allows non-bump + in-sync. Authored+verified this Opus turn.
+
+## 2026-06-23 07:01 — reviewer (claude-opus-4-8), review since relay-ckpt-20260622-2131
+
+review: 3 commits in window — 2 doc-only (TODO.md), 1 real fix id:c4d1
+(multi-document plugin.yaml discovery). Verified id:c4d1 genuinely green:
+gaming-scan clean (0 DELETED_TEST/ADDED_SKIP/REMOVED_ASSERT), test_plugin.py
+change purely additive (new test_multidoc_plugin_yaml_discovers_all, no removed
+asserts), fixture is a real ---separated multi-doc plugin.yaml asserting BOTH
+plugins discovered + list_amenders()=={multi-amend} — no fixture special-casing.
+Full suite 590 passed (confirms commit claim). c4d1 was worked directly from
+TODO.md (never on ROADMAP); ticked [x] there by the executor. ROADMAP has 0 open
+items. Contract pointer v4, current — no drift. Reverse-handoff (§5b): qualified
+2 unqualified new TODO lines — id:40d5 ([MEETING] eager-git-add-during-scan,
+design-judgment → /meeting candidate, NOT promoted) and id:dab8 (uncommitted-
+objects bug, needs triage/repro before executor-ready). id:b7e2 (CAS processed-
+tracking design) skipped — design task, already has id. No gaming flags, no
+reopens, no friction.

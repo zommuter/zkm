@@ -6,9 +6,9 @@ Completed Phase 1 tasks archived in `docs/phase1-done.md`.
 
 ## Cross-project
 
-- [ ] [MEETING] --cross git add objects already during scans so the the commit can be performed faster afterwards? Though that might require worktrees like `/relay` uses to permit concurrency?
+- [ ] **[MEETING] `--cross` git-add CAS objects during scans** so the commit is faster afterwards — though that might require worktrees like `/relay` uses to permit concurrency. *Design-judgment (two approaches: eager-add-during-scan vs. worktree-per-scan); a `/meeting` candidate, not executor-ready. Reverse-handoff qualified 2026-06-23.* <!-- id:40d5 -->
 
-- [ ] bugfix - some objects in knowledge were uncommitted on 20260623 7:05
+- [ ] **bugfix — some objects in `knowledge` were left uncommitted (observed 20260623 07:05).** Raw incident note: a scan/convert run left CAS objects unstaged/uncommitted in the knowledge store. *Needs triage before it's executor-ready: no repro, no acceptance criterion yet — identify which code path (scan? convert? amender?) leaves the working tree dirty without committing, then a red spec can be written. May relate to id:40d5 (eager git-add) and id:b7e2 (processed-tracking). Reverse-handoff qualified 2026-06-23.* <!-- id:dab8 -->
 
 - [ ] **Cross-project (triad) — `/meeting`:** discuss the potentially connecting dots between **zkm
   infrastructure** (embeddings / semantic retrieval / knowledge-mgmt) and the `.mw`/toesnail/collAIb triad.
