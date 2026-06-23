@@ -306,3 +306,7 @@ review(relay): doc-only window verified green (suite 593, gaming-scan clean); mi
 
 Worked id:29ac — added `"entities"` to `_SET_FIELDS` in `src/zkm/amendments.py` so declarative set-retraction applies to entity records (not just tags). Added three field-aware helpers (`_field_value_key`, `_field_keys_from_list`, `_field_to_stored_list`) to handle the (scope,type,value) tuple keying that entities require; updated `_producer_stored_set`, `_retractable_values`, and `_apply_to_md` to use them. Both RED spec tests (test_amendments_entity_retract.py) now pass; full suite 595 green (+2 vs 593 baseline).
 Friction: none — the existing retraction machinery was a clean seam; the entity tuple-key pattern was already established in merge_fields.
+
+## 2026-06-23 19:51 — executor (sonnet, relay-loop)
+
+executor: id:29ac — add entities to _SET_FIELDS; declarative set-retraction now applies to entity dicts keyed by (scope,type,value) tuple; 2 RED→GREEN, suite 595 green
