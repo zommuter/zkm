@@ -310,3 +310,7 @@ Friction: none — the existing retraction machinery was a clean seam; the entit
 ## 2026-06-23 19:51 — executor (sonnet, relay-loop)
 
 executor: id:29ac — add entities to _SET_FIELDS; declarative set-retraction now applies to entity dicts keyed by (scope,type,value) tuple; 2 RED→GREEN, suite 595 green
+
+## 2026-06-23 22:51 — /meeting (opus, --cross)
+
+meeting "knowledge .git slowdown" → diagnosed root cause: `.gitattributes` `originals/**` is root-anchored, so nested CAS `<subdir>/_objects/**` originals bypassed annex and were committed as plain git blobs (24 GiB .git / 20.36 GiB packs / 1.24M objs). Implemented the quick fix only (id:dbf2): retargeted `_GITATTRIBUTES_ANNEX`/`_GITATTRIBUTES_LFS` in store.py:20-21 to also match `**/_objects/**`; 2 RED→GREEN hermetic check-attr tests; full suite 597 green. Also patched the live ~/knowledge/.gitattributes (verified). Recreate-lean surgery (bundle archive on zomni + fresh-init + 2nd annex copy) deferred to next session per user — filed id:5636/0b37; superseded prior TODO id:8f1c (corrected its backend=none hypothesis). See docs/meeting-notes/2026-06-23-2251-knowledge-git-bloat-annex-anchoring.md.

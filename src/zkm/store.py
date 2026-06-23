@@ -17,8 +17,18 @@ _GITIGNORE = """\
 *.lock
 """
 
-_GITATTRIBUTES_ANNEX = "originals/** annex.largefiles=anything\n"
-_GITATTRIBUTES_LFS = "originals/** filter=lfs diff=lfs merge=lfs -text\n"
+# Match both the root-level `originals/` dir AND the per-plugin nested CAS object
+# dirs (`<subdir>/_objects/`). The root-anchored `originals/**` alone never matched
+# nested `_objects/` paths, so CAS binaries bypassed the backend and bloated git
+# history — see docs/meeting-notes/2026-06-23-2251-knowledge-git-bloat-annex-anchoring.md.
+_GITATTRIBUTES_ANNEX = (
+    "originals/** annex.largefiles=anything\n"
+    "**/_objects/** annex.largefiles=anything\n"
+)
+_GITATTRIBUTES_LFS = (
+    "originals/** filter=lfs diff=lfs merge=lfs -text\n"
+    "**/_objects/** filter=lfs diff=lfs merge=lfs -text\n"
+)
 
 
 def store_path() -> Path:
