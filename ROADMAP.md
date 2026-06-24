@@ -303,7 +303,7 @@ the gate (N9c/N9d accepted-as-is decisions stand).
     tombstone fix (TODO/meeting id:7b4e; children 0566/fa5a are zkm-ner *plugin* repo work,
     NOT this ROADMAP). Core-runnable alone. TODO.md §Amendment contract backlog.
 
-- [ ] Embeddings index → annex T3 with a drop-superseded-key hook; `bm25.pkl` → regenerate-on-restore (D3) [ROUTINE] [INTENSIVE — local-llm] <!-- id:7e21 -->
+- [x] Embeddings index → annex T3 with a drop-superseded-key hook; `bm25.pkl` → regenerate-on-restore (D3) [ROUTINE] [INTENSIVE — local-llm] <!-- id:7e21 -->
   - **Acceptance** (storage-tiers meeting D3, `docs/meeting-notes/2026-06-24-1350-storage-tiers-restore-sync.md`):
     (1) The store gitattributes template (`src/zkm/store.py`) annexes the embeddings
     artifact (`.zkm-index/embeddings.npz`, written by `embed.py:211`
