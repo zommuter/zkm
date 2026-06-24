@@ -303,6 +303,40 @@ the gate (N9c/N9d accepted-as-is decisions stand).
     tombstone fix (TODO/meeting id:7b4e; children 0566/fa5a are zkm-ner *plugin* repo work,
     NOT this ROADMAP). Core-runnable alone. TODO.md §Amendment contract backlog.
 
+- [ ] Embeddings index → annex T3 with a drop-superseded-key hook; `bm25.pkl` → regenerate-on-restore (D3) [ROUTINE] [INTENSIVE — local-llm] <!-- id:7e21 -->
+  - **Acceptance** (storage-tiers meeting D3, `docs/meeting-notes/2026-06-24-1350-storage-tiers-restore-sync.md`):
+    (1) The store gitattributes template (`src/zkm/store.py`) annexes the embeddings
+    artifact (`.zkm-index/embeddings.npz`, written by `embed.py:211`
+    `np.savez_compressed`, a full non-append rewrite) — i.e. it is NOT forced to git like
+    the CAS-json sidecars; it stays under the `annex.largefiles=anything` regime (add an
+    explicit rule if the current globs don't already cover `.zkm-index/`). (2) `save_index`
+    (`src/zkm/index.py:256`) / the post-`zkm index` path drops the *superseded* annex key
+    once the new `embeddings.npz` is committed (`git annex drop --force` the old key), so
+    exactly one `embeddings.npz` annex key is present after two successive index runs — no
+    annex pileup of stale embedding blobs. (3) `bm25.pkl` (`index.py` full pickle rewrite,
+    cheap TF-over-markdown, no model) is **never synced**: regenerate-on-restore; ensure it
+    is NOT annex-pinned in a way that would carry stale copies. Compression stays on (the
+    whole-file transfer is inherent and accepted; the escape hatch — uncompressed `.npy` +
+    rsync-delta — stays documented-but-unbuilt).
+  - **Tests** (`tests/test_index.py` or a new `tests/test_index_annex_drop.py`,
+    marked `# roadmap:7e21`, RED): a hermetic test that stubs the embedder
+    (monkeypatch as the existing `test_index.py` tokenize-spy tests do — do NOT load a real
+    model in CI) and asserts that after two index/save cycles exactly ONE `embeddings.npz`
+    annex key remains (`git annex find` / key-count under `.git/annex/objects`), the old key
+    being dropped. A `check-attr` assertion that `.zkm-index/embeddings.npz` resolves to
+    `annex.largefiles=anything` (not `nothing`). The **real-store** done-check (two live
+    `zkm index` runs on `~/knowledge`, model-loading) is the INTENSIVE part — run under
+    `--allow-intensive`/`--afk`, serially-alone; the hermetic test is the suite gate.
+  - **Done-check**: `uv run pytest tests/test_index*.py` then the full suite green; one
+    `embeddings.npz` annex key after two stubbed index cycles.
+  - **Context**: `src/zkm/embed.py:34` (`_NPZ_FILE = ".zkm-index/embeddings.npz"`), `:211`
+    (`np.savez_compressed`); `src/zkm/index.py:256` (`save_index`), `:269` (`load_index`).
+    The D1 CAS-json rule (`**/_objects/**/*.json annex.largefiles=nothing`, id:6c4f, shipped
+    this window) is the sibling pattern but the OPPOSITE direction — embeddings STAY annexed.
+    Carried by the future `zkm push` annex copy (id:998b, separate item); no separate
+    index-sync lever. `[INTENSIVE — local-llm]`: the real done-check loads the embedding
+    model. TODO id:7e21.
+
 ## Pointers (NOT executor items — wrong repo or gated)
 
 - zkm-whatsapp W-series (W6f media manifest, W-key secret source, W8 owner-JID
