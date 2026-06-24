@@ -24,10 +24,15 @@ _GITIGNORE = """\
 _GITATTRIBUTES_ANNEX = (
     "originals/** annex.largefiles=anything\n"
     "**/_objects/** annex.largefiles=anything\n"
+    # CAS metadata sidecars (`_objects/<aa>/<hash>.json`) are tiny mutable text
+    # (`producers[]` grows); keep them in git, not annex — diffable, no key churn.
+    # See docs/meeting-notes/2026-06-24-1350-storage-tiers-restore-sync.md (D1).
+    "**/_objects/**/*.json annex.largefiles=nothing\n"
 )
 _GITATTRIBUTES_LFS = (
     "originals/** filter=lfs diff=lfs merge=lfs -text\n"
     "**/_objects/** filter=lfs diff=lfs merge=lfs -text\n"
+    "**/_objects/**/*.json !filter !diff !merge text\n"
 )
 
 
