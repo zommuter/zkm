@@ -335,3 +335,7 @@ review of the 5 commits since relay-ckpt-20260624-1151 (storage-tiers meeting + 
 ## 2026-06-24 17:31 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 review GREEN: id:dab8 CAS-object staging + id:6c4f CAS-json→git D1 verified genuine (601 passed, gaming-scan clean); ticked 4 cross-ledger twins; promoted id:7e21 to ROADMAP [ROUTINE][INTENSIVE]
+
+## 2026-06-24 19:12 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+review: verified version-derivation bugfix (29afa9a) clean — no gaming, 601 tests green, relay-doctor clean, 1 open ROUTINE (id:7e21)
