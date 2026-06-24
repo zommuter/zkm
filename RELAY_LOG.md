@@ -348,3 +348,7 @@ Worked id:7e21 — embeddings annex T3 + drop-superseded-key hook.
 `cli.py`: wired drop hook into `cmd_index` — captures old key before `save_embed_store`, then `annex_add_and_commit` + `annex_drop_superseded_key` after save.
 5 hermetic tests in `tests/test_index_annex_drop.py` (check-attr, bm25 not annexed, two-cycle one-key, graceful no-annex, noop on empty key). Full suite 606 passed.
 Friction: dotfile-path annex quirk (git-annex silently adds dotfiles to git unless `annex.dotfiles=true` is set; `--force-large` alone does not suffice without the config). Gitignore negation requires `.zkm-index/*` not `.zkm-index/` (git won't un-ignore files in an ignored dir). The real-store done-check (two live `zkm index` runs on ~/knowledge) is the INTENSIVE half — not run here per the roadmap spec.
+
+## 2026-06-24 19:38 — executor (sonnet, relay-loop)
+
+feat(id:7e21): embeddings.npz annexed T3 with drop-superseded-key hook; bm25.pkl stays gitignored (T4); 5 hermetic annex tests green; full suite 606 passed
