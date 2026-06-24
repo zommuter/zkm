@@ -318,3 +318,7 @@ meeting "knowledge .git slowdown" → diagnosed root cause: `.gitattributes` `or
 ## 2026-06-24 11:41 — reviewer (claude-opus-4-8, relay-loop)
 
 review of id:dbf2 (the only commit since relay-ckpt-20260623-1951). Trust-but-verify GREEN: gaming-scan.sh clean (no DELETED_TEST/ADDED_SKIP/REMOVED_ASSERT); the 2 new hermetic `check-attr` tests (`test_init.py::test_gitattributes_{annexes,lfs_covers}_nested_cas_objects`) are genuine NEW spec, not modified (no resurrection check applies); the implementation is a pure `.gitattributes` glob-pattern fix with zero branching on test inputs (no fixture special-casing); full suite re-run 597 passed. Spec-drift clean: CLAUDE.md relay-contract pointer current (v4), meeting note present. Reverse-handoff §5b: the 4 new TODO items added by the /meeting session are correctly TODO-only — dbf2/8f1c already `[x]`; 5636 (recreate-lean store surgery) + 0b37 (2nd annex copy, dep 5636) are one-off manual ops on the live ~/knowledge repo (force-replace origin / external HDD), NOT executor-pickable tool work; 5f61 (doctor blob-size warning) is explicitly gate-deferred (observe-before-preventing, build on a 2nd incident). No promotion to ROADMAP warranted. ROADMAP fully derived: 0 open items (all 12 ticked, incl. 29ac from the prior executor turn). routine_open=0.
+
+## 2026-06-24 11:51 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+review GREEN: id:dbf2 gitattributes nested-CAS annex fix verified genuine (suite 597), 0 open ROADMAP items, no gaming flags
