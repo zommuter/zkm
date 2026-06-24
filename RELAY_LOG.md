@@ -322,3 +322,8 @@ review of id:dbf2 (the only commit since relay-ckpt-20260623-1951). Trust-but-ve
 ## 2026-06-24 11:51 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 review GREEN: id:dbf2 gitattributes nested-CAS annex fix verified genuine (suite 597), 0 open ROADMAP items, no gaming flags
+
+## 2026-06-24 — executor (claude-opus-4-8 (high))
+
+Worked id:dab8 — fixed the convert auto-commit leaving CAS attachment objects untracked in the knowledge store. Root cause: `src/zkm/cli.py` scopes the auto-commit `git add` to `created` paths + `plugin.creates_dirs`, but `zkm.cas.write_object(store, "<subdir>", …)` writes objects to `<subdir>/_objects/` where `<subdir>` (e.g. `mail`) is only the top-level *prefix* of a declared dir (`mail/messages`), never a creates_dir itself — so the scoped add silently missed them (e.g. `mail/_objects/19/e8da…` after `zkm convert eml`). Fix: derive each declared dir's top-level prefix and additionally stage `<prefix>/_objects` when it exists on disk — staying scoped (never `-A`, the inbox source-drop guard is preserved). Added hermetic RED spec `tests/test_cli_convert_cas_staging.py` (a fixture plugin that writes both a `.md` and a CAS object, asserting nothing under `_objects/` is left untracked and the tree is clean post-commit) — RED before, GREEN after. Full suite 601 passed.
+Friction: none — root cause matched the handoff hypothesis exactly.

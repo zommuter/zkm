@@ -736,6 +736,17 @@ def cmd_convert(
             # files. This prevents accidentally staging source files deposited by
             # Syncthing or other external tools into inbox/ sub-dirs.
             add_paths = [str(p.relative_to(sdir)) for p in created] + plugin_obj.creates_dirs
+            # CAS objects are written via zkm.cas.write_object(store, "<subdir>", ...)
+            # to "<subdir>/_objects/...", where "<subdir>" is the top-level prefix of
+            # a declared creates_dir (e.g. "mail/messages" -> "mail" -> "mail/_objects").
+            # That CAS subdir is not itself a creates_dir, so add it explicitly —
+            # otherwise the scoped add misses attachment objects and leaves them
+            # untracked (id:dab8). Still scoped (never -A): only _objects/ siblings of
+            # declared dirs are staged, never the inbox source drop zone.
+            cas_dirs = {
+                f"{Path(d).parts[0]}/_objects" for d in plugin_obj.creates_dirs if Path(d).parts
+            }
+            add_paths += [d for d in sorted(cas_dirs) if (sdir / d).is_dir()]
             _git_add(sdir, add_paths)
         else:
             _git_add(sdir)
