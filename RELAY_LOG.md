@@ -339,3 +339,12 @@ review GREEN: id:dab8 CAS-object staging + id:6c4f CAS-json→git D1 verified ge
 ## 2026-06-24 19:12 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 review: verified version-derivation bugfix (29afa9a) clean — no gaming, 601 tests green, relay-doctor clean, 1 open ROUTINE (id:7e21)
+
+## 2026-06-24 — executor (claude-sonnet-4-6)
+
+Worked id:7e21 — embeddings annex T3 + drop-superseded-key hook.
+`store.py`: added `.zkm-index/embeddings.npz annex.largefiles=anything` to `_GITATTRIBUTES_ANNEX`, changed `.zkm-index/` gitignore to `.zkm-index/*` + `!.zkm-index/embeddings.npz` negation so annex can track it, added `git annex config --set annex.dotfiles true` to `init_store` (required for git-annex to honour `annex.largefiles=anything` on dotfile paths).
+`embed.py`: added `get_annex_key`, `annex_add_and_commit` (uses `--force-large` as belt-and-suspenders), and `annex_drop_superseded_key` helpers.
+`cli.py`: wired drop hook into `cmd_index` — captures old key before `save_embed_store`, then `annex_add_and_commit` + `annex_drop_superseded_key` after save.
+5 hermetic tests in `tests/test_index_annex_drop.py` (check-attr, bm25 not annexed, two-cycle one-key, graceful no-annex, noop on empty key). Full suite 606 passed.
+Friction: dotfile-path annex quirk (git-annex silently adds dotfiles to git unless `annex.dotfiles=true` is set; `--force-large` alone does not suffice without the config). Gitignore negation requires `.zkm-index/*` not `.zkm-index/` (git won't un-ignore files in an ignored dir). The real-store done-check (two live `zkm index` runs on ~/knowledge) is the INTENSIVE half — not run here per the roadmap spec.

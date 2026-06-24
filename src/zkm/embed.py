@@ -230,6 +230,73 @@ def save_embed_store(store: Path, es: EmbedStore) -> None:
     os.replace(meta_tmp, meta_path)
 
 
+def annex_drop_superseded_key(store: Path, old_key: str) -> None:
+    """Drop a superseded git-annex key for embeddings.npz (best-effort, never raises).
+
+    Call with the key captured by ``get_annex_key`` *before* writing the new file.
+    After ``git annex add`` + commit for the new embeddings.npz, this removes the
+    stale object from the local annex so exactly one key is present.
+    """
+    import subprocess
+
+    if not old_key:
+        return
+    try:
+        subprocess.run(
+            ["git", "annex", "drop", "--force", "--key", old_key],
+            cwd=store,
+            check=True,
+            capture_output=True,
+        )
+    except Exception:
+        pass  # best-effort; a stale key is a storage nuisance, not a correctness issue
+
+
+def get_annex_key(store: Path, rel_path: str) -> str:
+    """Return the current git-annex key for *rel_path*, or '' if not annexed / no annex."""
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            ["git", "annex", "lookupkey", rel_path],
+            cwd=store,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return result.stdout.strip()
+    except Exception:
+        return ""
+
+
+def annex_add_and_commit(store: Path, rel_path: str) -> bool:
+    """``git annex add --force-large`` then ``git commit`` for *rel_path*.
+
+    Returns True on success.  ``--force-large`` ensures the file is annexed even
+    when it lives in a dotfile path (e.g. ``.zkm-index/``); ``annex.dotfiles=true``
+    in the repo config is the primary gate, this flag is a belt-and-suspenders guard.
+    """
+    import subprocess
+
+    try:
+        subprocess.run(
+            ["git", "annex", "add", "--force-large", rel_path],
+            cwd=store,
+            check=True,
+            capture_output=True,
+        )
+        result = subprocess.run(
+            ["git", "commit", "-m", f"chore(index): update {rel_path}"],
+            cwd=store,
+            capture_output=True,
+            text=True,
+        )
+        # exit 1 with "nothing to commit" is acceptable (key unchanged)
+        return result.returncode == 0 or "nothing to commit" in result.stdout
+    except Exception:
+        return False
+
+
 def load_embed_store(store: Path) -> EmbedStore | None:
     npz_path = store / _NPZ_FILE
     meta_path = store / _META_FILE

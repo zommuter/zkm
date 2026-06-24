@@ -1056,7 +1056,11 @@ def cmd_index(store_override: str | None, no_progress: bool, no_embed: bool, ful
         if not no_embed:
             from zkm.embed import (
                 EmbedUnavailable,
+                _NPZ_FILE as _NPZ_REL,
+                annex_add_and_commit,
+                annex_drop_superseded_key,
                 build_embed_store,
+                get_annex_key,
                 load_embed_store,
                 resolve_embed_config,
                 save_embed_store,
@@ -1089,6 +1093,8 @@ def cmd_index(store_override: str | None, no_progress: bool, no_embed: bool, ful
 
                 try:
                     prev_es = load_embed_store(sdir)
+                    # Capture old annex key before overwriting (best-effort; '' if not annexed).
+                    _old_embed_key = get_annex_key(sdir, _NPZ_REL)
                     es = build_embed_store(
                         sdir,
                         idx.docs,
@@ -1102,6 +1108,10 @@ def cmd_index(store_override: str | None, no_progress: bool, no_embed: bool, ful
                     if embed_bar is not None:
                         embed_bar.close()
                     save_embed_store(sdir, es)
+                    # Annex the new file and drop the superseded key so exactly one
+                    # embeddings.npz key remains in the local annex (D3).
+                    if annex_add_and_commit(sdir, _NPZ_REL) and _old_embed_key:
+                        annex_drop_superseded_key(sdir, _old_embed_key)
                     click.echo(f"Embedded {len(es.paths)} document(s) with {mdl}.")
                 except EmbedUnavailable as exc:
                     if embed_bar is not None:

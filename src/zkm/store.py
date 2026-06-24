@@ -10,7 +10,12 @@ import yaml
 _GITIGNORE = """\
 .env
 .zkm-secrets.yaml
-.zkm-index/
+# Ignore most .zkm-index/ contents (bm25.pkl = T4 regenerate; never synced).
+# Use wildcard so the negation below can un-ignore the specific annexed artifact.
+.zkm-index/*
+# embeddings.npz is annexed (T3 — synced-derived); un-ignore so git-annex can track it.
+# See docs/meeting-notes/2026-06-24-1350-storage-tiers-restore-sync.md (D3).
+!.zkm-index/embeddings.npz
 .zkm-state/
 *.swp
 .DS_Store
@@ -28,6 +33,10 @@ _GITATTRIBUTES_ANNEX = (
     # (`producers[]` grows); keep them in git, not annex — diffable, no key churn.
     # See docs/meeting-notes/2026-06-24-1350-storage-tiers-restore-sync.md (D1).
     "**/_objects/**/*.json annex.largefiles=nothing\n"
+    # Embeddings artifact — large non-append binary; annexed (T3, synced-derived).
+    # bm25.pkl stays gitignored (T4 — cheap regenerate; no annex rule needed).
+    # See docs/meeting-notes/2026-06-24-1350-storage-tiers-restore-sync.md (D3).
+    ".zkm-index/embeddings.npz annex.largefiles=anything\n"
 )
 _GITATTRIBUTES_LFS = (
     "originals/** filter=lfs diff=lfs merge=lfs -text\n"
@@ -79,6 +88,10 @@ def init_store(path: Path, backend: str = "auto") -> None:
 
     if backend == "annex":
         _git(["annex", "init", f"zkm-{_hostname()}"], cwd=path)
+        # Enable tracking of dotfile paths (e.g. .zkm-index/embeddings.npz).
+        # Without this flag, git-annex silently adds dotfiles to git regardless
+        # of annex.largefiles gitattributes — see D3 in the storage-tiers meeting note.
+        _git(["annex", "config", "--set", "annex.dotfiles", "true"], cwd=path)
         (path / ".gitattributes").write_text(_GITATTRIBUTES_ANNEX)
     elif backend == "lfs":
         _git(["lfs", "install", "--local"], cwd=path)
