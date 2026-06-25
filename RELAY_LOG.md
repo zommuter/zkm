@@ -352,3 +352,7 @@ Friction: dotfile-path annex quirk (git-annex silently adds dotfiles to git unle
 ## 2026-06-24 19:38 — executor (sonnet, relay-loop)
 
 feat(id:7e21): embeddings.npz annexed T3 with drop-superseded-key hook; bm25.pkl stays gitignored (T4); 5 hermetic annex tests green; full suite 606 passed
+
+## 2026-06-25 15:20 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+review zkm: 1 commit (id:7e21 TODO-twin cross-ledger reconcile) verified clean; gaming-scan/roadmap-lint/relay-doctor all clean; no reopen, routine_open=0
