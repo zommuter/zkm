@@ -190,3 +190,13 @@ Two cross-plugin rulings confirmed 2026-06-13 (batch triage):
 - **Version derivation**: Canonical version = `pyproject.toml` metadata; a
   plugin's `PLUGIN_VERSION` is derived via `importlib.metadata` with a
   `plugin.yaml` fallback.
+
+## OpenPGP key & signature tracking (decided 2026-06-04-1002-pgp-keys-signature-validity.md)
+
+Feature-level decisions for the OpenPGP tracking work (originally TODO.md §OpenPGP):
+
+- **D1 (zkm-vcard)**: `KEY` field → pgpy fingerprint entity + CAS bytes.
+- **D2 (zkm-eml)**: Tier A = signed messages (pgp-mime / S/MIME); Tier B = provider
+  auth-results headers (`dkim`/`spf`/`dmarc`).
+- **D3 (core entity model)**: fingerprint is a join-grade value-type, NOT a person-merge
+  license. Build order: core → eml → vcard. (See also D6 above.)

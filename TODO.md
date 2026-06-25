@@ -1,8 +1,8 @@
 
 # zkm — Phase 2 TODO
 
-See `CLAUDE.md` for architecture overview. See `docs/phase2-plan.md` for sequencing.
-Completed Phase 1 tasks archived in `docs/phase1-done.md`.
+See `CLAUDE.md` for architecture overview. See `docs/phase2-plan.md` for sequencing. <!-- lint-ok: file-purpose preamble -->
+Completed Phase 1 tasks archived in `docs/phase1-done.md`. <!-- lint-ok: file-purpose preamble -->
 
 ## Cross-project
 
@@ -33,11 +33,10 @@ Completed Phase 1 tasks archived in `docs/phase1-done.md`.
 
 ## OpenPGP key & signature tracking (decided 2026-06-04-1002-pgp-keys-signature-validity.md)
 
-D1: vCard KEY → pgpy fingerprint entity + CAS bytes. D2: zkm-eml Tier A (signed: pgp-mime/smime) + Tier B (auth_results: dkim/spf/dmarc from provider headers). D3: fingerprint = join-grade value-type, NOT person-merge license. Build order: core → eml → vcard.
 
 ## Phase 2.5 — NER (decided 2026-05-10-1148-entity-extraction.md)
 
-NER lands before whatsapp. `zkm convert <plugin>` runs amenders default-on (`--no-amenders` to skip). Session 9d extraction-cache transitions from design-only to implementation alongside zkm-ner.
+NER lands before whatsapp. `zkm convert <plugin>` runs amenders default-on (`--no-amenders` to skip). Session 9d extraction-cache transitions from design-only to implementation alongside zkm-ner. <!-- lint-ok: section decision context -->
 
     **Final state (post two convert+scrub cycles):** 471,894 total mentions (-34.4% vs 719,504 post-N9b). Legit-ORG target MET: Google LLC ×3204, PayPal ×1892, Amazon WS ×1074, SBB ×542, ETH ×485 all intact. Person top is now Tobias Kienzler ×11,270. Second cycle stable (+18 net entities only).
     **Remaining FP classes found:**
@@ -53,64 +52,64 @@ NER lands before whatsapp. `zkm convert <plugin>` runs amenders default-on (`--n
   - [~] **N9d-9.** Per-language accuracy lens — **not pursued** (gate closure pre-empts; reopen only if N9d is revived under a different model).
   - [~] **N9d-11.** N9e sketch into `docs/ner.md` — **not pursued** (N9e gate condition is moot; see N9e backlog entry).
 
-**Scope constraints (from meeting):**
-- `value:` strings are *mention strings*, never UIDs. No `id:`, `same_as:`, cross-doc clustering.
-- Name alone is NOT a UID — manual-merge tooling deferred to Phase 4.
-- Co-reference within doc deferred to v2; intra-doc pronoun coref not in scope.
-- GLiNER is opt-in only; sentence-level language routing out of scope.
+**Scope constraints (from meeting):** <!-- lint-ok: scope constraints from meeting -->
+- `value:` strings are *mention strings*, never UIDs. No `id:`, `same_as:`, cross-doc clustering. <!-- lint-ok: scope constraint bullet -->
+- Name alone is NOT a UID — manual-merge tooling deferred to Phase 4. <!-- lint-ok: scope constraint bullet -->
+- Co-reference within doc deferred to v2; intra-doc pronoun coref not in scope. <!-- lint-ok: scope constraint bullet -->
+- GLiNER is opt-in only; sentence-level language routing out of scope. <!-- lint-ok: scope constraint bullet -->
 
 ## Phase 2.5 — γ schema rollout (decided 2026-05-12-1500-entity-vs-datamining.md)
 
-**Status: γ rollout COMPLETE (E1–E13).** Typed-slot `entities[]`, `(scope,type,value)` dedup, `zkm.canonical`, suspicious dispatch, 8 value-type extractors, P2 index integration, docs contract tables, and zkm-eml signature/salutation γ-scopes all shipped (largely 2026-05-12). E13 (N9g re-eval) closed moot 2026-05-21 — see item below. E14 (TODO bookkeeping) was the only never-run item — reconciled 2026-05-21, see `docs/meeting-notes/2026-05-21-0816-gamma-schema-gap-audit.md` and `docs/field-test-bge-m3.md` step 7.
+**Status: γ rollout COMPLETE (E1–E13).** Typed-slot `entities[]`, `(scope,type,value)` dedup, `zkm.canonical`, suspicious dispatch, 8 value-type extractors, P2 index integration, docs contract tables, and zkm-eml signature/salutation γ-scopes all shipped (largely 2026-05-12). E13 (N9g re-eval) closed moot 2026-05-21 — see item below. E14 (TODO bookkeeping) was the only never-run item — reconciled 2026-05-21, see `docs/meeting-notes/2026-05-21-0816-gamma-schema-gap-audit.md` and `docs/field-test-bge-m3.md` step 7. <!-- lint-ok: status summary -->
 
-- [~] **E13: N9g re-evaluation** — CLOSED MOOT 2026-05-21. Audit confirmed: (1) pattern-overlay overlap filter prevents spaCy from mislabelling value-type strings (amounts, IBANs, etc.); (2) N9c POS filter + `_COMMONNOUN_STOPLIST` handles common-noun FPs; (3) `_SALUTATION_BLOCKLIST` covers sign-off/salutation FPs; (4) `drop_structural_artefacts` + `drop_section_link_artefacts` cover structural pollution; (5) E12 shipped signature-scope extraction. No standalone "general body-NER cleanup" workstream remains. See `docs/meeting-notes/2026-05-12-1500-entity-vs-datamining.md`.
+- [x] **E13: N9g re-evaluation** — CLOSED MOOT 2026-05-21. Audit confirmed: (1) pattern-overlay overlap filter prevents spaCy from mislabelling value-type strings (amounts, IBANs, etc.); (2) N9c POS filter + `_COMMONNOUN_STOPLIST` handles common-noun FPs; (3) `_SALUTATION_BLOCKLIST` covers sign-off/salutation FPs; (4) `drop_structural_artefacts` + `drop_section_link_artefacts` cover structural pollution; (5) E12 shipped signature-scope extraction. No standalone "general body-NER cleanup" workstream remains. See `docs/meeting-notes/2026-05-12-1500-entity-vs-datamining.md`.
 
-**Named deferrals (with triggers):**
-- P3 typed query language — defer until γ + P2 live ≥1 month AND ≥1 concrete typed-query request.
-- PII redaction implementation — defer until sharing scenario lands. Architectural design in E10.
-- Entity-DB checksum-fail "ignore / correct?" policy — defer until ≥50 `valid: false` entries accumulate.
-- `valid: false` forward-flag: re-evaluate dropping the per-type suspicious heuristic (Option 3) after ≥1 month observation.
-- Crypto/stock-ticker domain scope — defer; revisit if real use case lands.
-- WebUI typed-query hint UX — Phase 3 design concern.
+**Named deferrals (with triggers):** <!-- lint-ok: forward-flag note -->
+- P3 typed query language — defer until γ + P2 live ≥1 month AND ≥1 concrete typed-query request. <!-- lint-ok: forward-flag note -->
+- PII redaction implementation — defer until sharing scenario lands. Architectural design in E10. <!-- lint-ok: forward-flag note -->
+- Entity-DB checksum-fail "ignore / correct?" policy — defer until ≥50 `valid: false` entries accumulate. <!-- lint-ok: forward-flag note -->
+- `valid: false` forward-flag: re-evaluate dropping the per-type suspicious heuristic (Option 3) after ≥1 month observation. <!-- lint-ok: forward-flag note -->
+- Crypto/stock-ticker domain scope — defer; revisit if real use case lands. <!-- lint-ok: forward-flag note -->
+- WebUI typed-query hint UX — Phase 3 design concern. <!-- lint-ok: forward-flag note -->
 
 - [ ] **Entity alias / synonym linking (Phase 4 backlog)** — `SBB CFF FFS` (DE/FR/IT names for Swiss Federal Railways) highlights that the same real-world entity can appear under multiple mention strings (abbreviations, translations, official variants). Likewise, persons appear under nicknames, maiden names, or initials. Deferred to Phase 4 alongside manual-merge tooling; design note needed in `docs/entity-model.md` before implementation. No heuristic auto-merge — human-confirmed alias pairs only. <!-- id:af06 -->
 
 ## Phase 2 — mbsync auto-trigger (decided 2026-05-08-mbsync-hook.md)
 
-- [~] **zkm-eml signature stripping** — promoted 2026-05-12 to first-class action item: see **N9g-pre** above. (Original framing 2026-05-10-1640-n9b: heuristic detection of email signature blocks before markdown render; addresses popularity skew of personal contact details. Re-scoped from "stripping" to "typed extraction" in N9g-pre.)
+- [x] **zkm-eml signature stripping** — promoted 2026-05-12 to first-class action item: see **N9g-pre** above. (Original framing 2026-05-10-1640-n9b: heuristic detection of email signature blocks before markdown render; addresses popularity skew of personal contact details. Re-scoped from "stripping" to "typed extraction" in N9g-pre.)
 
 ## Phase 2 — SIGUSR1 progress + `zkm status` (decided 2026-05-08-1913-sigusr1-status.md)
 
-Scope: `convert` and `index` (BM25 + embed phases) only. `query`, `clone`, `push`, `pull` explicitly out. Daemon/supervisor model deferred (N<2 background callers). Host-wide multi-store registry, historical run log, `--kill`, `--watch`, live-tail all deferred.
+Scope: `convert` and `index` (BM25 + embed phases) only. `query`, `clone`, `push`, `pull` explicitly out. Daemon/supervisor model deferred (N<2 background callers). Host-wide multi-store registry, historical run log, `--kill`, `--watch`, live-tail all deferred. <!-- lint-ok: section decision context -->
 
-**Spawned follow-ups (from 2026-05-14 concurrent-run-guard meeting):**
+**Spawned follow-ups (from 2026-05-14 concurrent-run-guard meeting):** <!-- lint-ok: section context preamble -->
 
 - [ ] **Future re-evaluation trigger — local DB with git-tracked autoexport-on-write** — possible architectural pivot from sidecar-files-on-disk. Re-open if any one trigger fires: (a) concurrent-write bugs in sidecars become frequent; (b) WebUI read-write workload makes file-level locking visibly painful; (c) cross-machine sync stops being purely `git pull`-based. See `~/.claude/projects/-home-tobias-src-zkm/memory/project_db_pivot_trigger.md`. <!-- id:1e4a -->
 - [ ] **`zkm queue` design meeting (Phase 3 daemon precursor)** — when attach semantics become a real ask (N=2 consumers wanting `--wait-for-busy`), open a meeting on a queue manager: PID-file → in-memory daemon queue; fail-fast → `attach/wait/wait-rerun` modes; `zkm status` polling → WebSocket push (Phase 3 WebUI alignment). Floor any successor must preserve: the v1 contract in `~/.claude/projects/-home-tobias-src-zkm/memory/project_concurrent_run_guard_contract.md`. <!-- id:906c -->
 
-**Verification checklist** (313 tests passing, 2026-05-08):
-1. `zkm convert zkm-eml` in terminal A → `zkm status` in terminal B shows one row with fresh `last_updated`.
-2. `kill -USR1 <pid>` directly → dd-style line on convert's stderr.
-3. `zkm index` → `phase` toggles `bm25` → `embed`; `zkm index --no-embed` stays at `bm25`.
-4. SIGKILL the process → next `zkm status` drops stale file with stderr notice.
-5. `zkm status --json | jq` → valid JSON array.
+**Verification checklist** (313 tests passing, 2026-05-08): <!-- lint-ok: verification checklist -->
+1. `zkm convert zkm-eml` in terminal A → `zkm status` in terminal B shows one row with fresh `last_updated`. <!-- lint-ok: verification checklist item -->
+2. `kill -USR1 <pid>` directly → dd-style line on convert's stderr. <!-- lint-ok: verification checklist item -->
+3. `zkm index` → `phase` toggles `bm25` → `embed`; `zkm index --no-embed` stays at `bm25`. <!-- lint-ok: verification checklist item -->
+4. SIGKILL the process → next `zkm status` drops stale file with stderr notice. <!-- lint-ok: verification checklist item -->
+5. `zkm status --json | jq` → valid JSON array. <!-- lint-ok: verification checklist item -->
 
 ## zkm-vcard (V-prefix) — contacts plugin (decided 2026-06-01-1334-contacts-calendar-plugins.md)
 
-Ingest-only, source-agnostic. Reads a local tree of standard `.vcf` files via `source_dir` (from proton-moresync / Google Takeout / vdirsyncer / any client export). Never authenticates or fetches. Phase 3 by roadmap, but buildable now against hand-exported fixtures.
+Ingest-only, source-agnostic. Reads a local tree of standard `.vcf` files via `source_dir` (from proton-moresync / Google Takeout / vdirsyncer / any client export). Never authenticates or fetches. Phase 3 by roadmap, but buildable now against hand-exported fixtures. <!-- lint-ok: section decision context -->
 
-**Scope constraints (from meeting):**
-- Contacts are authoritative structured-first data — emit `entities[]` populated, not empty.
-- `scope: contact` entities coexist with `scope: body` NER (zkm-ner amends NOTE field). Dedup key `(scope,type,value)`.
-- NO identity-merge — no auto-linking contact identity to NER mentions or mail participants. Phase 4 manual-merge, human-confirmed pairs only.
-- No fetch, no credentials, no gazetteer/recognition-overlay (forward-flags, not v1 scope).
-- Cross-link with `TODO.md:81` social-network scoping meeting (zkm-vcard front-runs it for structured-export case). <!-- id:2638 -->
+**Scope constraints (from meeting):** <!-- lint-ok: scope constraints from meeting -->
+- Contacts are authoritative structured-first data — emit `entities[]` populated, not empty. <!-- lint-ok: scope constraint bullet -->
+- `scope: contact` entities coexist with `scope: body` NER (zkm-ner amends NOTE field). Dedup key `(scope,type,value)`. <!-- lint-ok: scope constraint bullet -->
+- NO identity-merge — no auto-linking contact identity to NER mentions or mail participants. Phase 4 manual-merge, human-confirmed pairs only. <!-- lint-ok: scope constraint bullet -->
+- No fetch, no credentials, no gazetteer/recognition-overlay (forward-flags, not v1 scope). <!-- lint-ok: scope constraint bullet -->
+- Cross-link with `TODO.md:81` social-network scoping meeting (zkm-vcard front-runs it for structured-export case). <!-- id:2638 --> <!-- lint-ok: scope constraint bullet -->
 
-**v0.2.0 hardening shipped (2026-06-03):** V1 encoding (zkm.encoding.decode_bytes, latin1/cp1252 detection), V2 canonical consolidation (drop _canon_email, phone fallback), V3 reprocess() (re-derive scope:contact, preserve scope:body), V4 scope:contact in entity-model.md, V5 failure counter. See `docs/meeting-notes/2026-06-03-1603-vcard-hardening-series.md`.
+**v0.2.0 hardening shipped (2026-06-03):** V1 encoding (zkm.encoding.decode_bytes, latin1/cp1252 detection), V2 canonical consolidation (drop _canon_email, phone fallback), V3 reprocess() (re-derive scope:contact, preserve scope:body), V4 scope:contact in entity-model.md, V5 failure counter. See `docs/meeting-notes/2026-06-03-1603-vcard-hardening-series.md`. <!-- lint-ok: status summary -->
 
 ## zkm-whatsapp (W-prefix) — chat plugin (decided 2026-06-03-0952-zkm-whatsapp-scope.md)
 
-v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `chat/whatsapp/`. Decryption is an out-of-scope fetch-role step (W-pilot is a hard gate). key_id-based stable IDs, WA-Web-mergeable. Source state = timestamp watermark + dedup-on-key_id.
+v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `chat/whatsapp/`. Decryption is an out-of-scope fetch-role step (W-pilot is a hard gate). key_id-based stable IDs, WA-Web-mergeable. Source state = timestamp watermark + dedup-on-key_id. <!-- lint-ok: section decision context -->
 
 - [ ] **Human-readable chat paths — DECIDED (approach B), ready to implement.** Meeting 2026-06-25 (`plugins/zkm-whatsapp/docs/meeting-notes/2026-06-25-1536-human-readable-chat-folder-names.md`): opaque `thread_id` stays **canonical** at `chat/<network>/by-id/<thread_id>/`; browsability via a regenerable, **gitignored** `by-name/<label>/<leaf> → ../../by-id/<thread_id>/` symlink view (leaf = phone number for DMs / group-short-id; label mechanical from frontmatter w/ fallbacks). One-human-many-threads (number change) deferred to manual **Layer 2** (NER person pages / same-as; `message_system_number_change` is the hook) — no identity guessing in the plugin. **Impl scope:** (1) zkm-whatsapp `by-id/`+`by-name/` + one-time `git mv` migration (`cas_rel` convert.py:753, originals subdir :851, existing-file scan) + gitignore `chat/*/by-name/`; (2) lock layout + leaf/label rules + Layer-1-vs-2 split in `docs/messaging-spec.md` (Telegram/Signal/Threema inherit); (3) **coordinate with zkm-stt** — voicemail transcripts must target `by-id/` and land in lockstep. Calendar (id:9fb8) explicitly OUT (separate session). <!-- id:3b8a -->
 - [ ] **W7 (deferred design note).** Smarter segmentation (burst/temporal-density or per-thread) as additive re-segmentation; MUST NOT rewrite chat-level thread_id. Trigger: v1 live + concrete retrieval pain from day-boundaries. See `docs/meeting-notes/2026-06-03-0952-zkm-whatsapp-scope.md`. <!-- id:367f -->
@@ -123,7 +122,7 @@ v1 = decrypted `msgstore.db` (SQLite) → per-chat-day transcript .md under `cha
 
 ## Messenger plugins: Telegram / Signal / Threema (decided 2026-06-22-1503-messenger-plugins-telegram-signal-threema.md)
 
-Three new chat plugins, all conforming to `docs/messaging-spec.md` per-chat-day doc-type (`chat/<network>/<thread_id>/YYYY-MM-DD.md`). Decryption is an out-of-scope fetch-role step per plugin. Build order Telegram → Signal → Threema (difficulty). Prefixes **reserved** (allocate a row at ≥3 items): `T`=Telegram, `G`=Signal, `H`=Threema. Emit `participants:` only (no `entities[]`, matches zkm-whatsapp). Out of scope v1: secret/E2E device-local chats, live API sync, voice/OCR (→ zkm-stt).
+Three new chat plugins, all conforming to `docs/messaging-spec.md` per-chat-day doc-type (`chat/<network>/<thread_id>/YYYY-MM-DD.md`). Decryption is an out-of-scope fetch-role step per plugin. Build order Telegram → Signal → Threema (difficulty). Prefixes **reserved** (allocate a row at ≥3 items): `T`=Telegram, `G`=Signal, `H`=Threema. Emit `participants:` only (no `entities[]`, matches zkm-whatsapp). Out of scope v1: secret/E2E device-local chats, live API sync, voice/OCR (→ zkm-stt). <!-- lint-ok: section decision context -->
 
 - [x] Core: lift WhatsApp `state.py` → `src/zkm/state.py` (`zkm.state`), behavior-preserving (keyed by source id, atomic write, watermark-speed-only); zkm-whatsapp imports it. Contract: existing whatsapp watermark tests pass unchanged; multi-account keying preserved. See `docs/meeting-notes/2026-06-22-1503-messenger-plugins-telegram-signal-threema.md`. <!-- id:f399 -->
 - [x] Core: shared byte-identical-reemit contract-test helper (`zkm.testing.assert_reemit_identical` or pytest fixture); document in `messaging-spec.md`. Contract: emit→re-emit from same snapshot asserts byte-identical. See `docs/meeting-notes/2026-06-22-1503-messenger-plugins-telegram-signal-threema.md`. <!-- id:ab8b -->
@@ -134,7 +133,7 @@ Three new chat plugins, all conforming to `docs/messaging-spec.md` per-chat-day 
 
 ## PDF routing unification — `zkm.pdftext` (decided 2026-06-22-1546-pdf-routing-unify-pdftext.md)
 
-Kills the zkm-pdf↔zkm-scan two-probe drift bug (whitespace-heavy PDF skipped by BOTH) by giving core one `zkm.pdftext` helper that owns the routing *decision* (`probe()` + `is_scanned_only()` + `resolve_threshold()`), consumed by both plugins. Char-count default `100` ships now; density-ratio discriminator deferred to a gated pilot. HARD cross-repo id:02bd (zkm-scan ROADMAP) decomposed into 3 ordered single-repo executor items (core → zkm-pdf → zkm-scan); id:02bd stays open until all three land + both ROADMAPs ticked + ARCHITECTURE updated. Renamed config keys keep a deprecated alias + warning for one release.
+Kills the zkm-pdf↔zkm-scan two-probe drift bug (whitespace-heavy PDF skipped by BOTH) by giving core one `zkm.pdftext` helper that owns the routing *decision* (`probe()` + `is_scanned_only()` + `resolve_threshold()`), consumed by both plugins. Char-count default `100` ships now; density-ratio discriminator deferred to a gated pilot. HARD cross-repo id:02bd (zkm-scan ROADMAP) decomposed into 3 ordered single-repo executor items (core → zkm-pdf → zkm-scan); id:02bd stays open until all three land + both ROADMAPs ticked + ARCHITECTURE updated. Renamed config keys keep a deprecated alias + warning for one release. <!-- lint-ok: section decision context -->
 
 - [x] **Core: add `zkm/pdftext.py`** — `PdfTextProbe(total_chars, n_pages)`, `probe(reader)`, `is_scanned_only(probe, threshold)`, `resolve_threshold(store_config)` (top-level `pdf_text_threshold:` > per-section > `DEFAULT_TEXT_THRESHOLD=100`; warn on per-section disagree), measurand pinned in docstring; update core `ARCHITECTURE.md` §Routing contract; minor bump (cascade plugin `uv.lock`s). See `docs/meeting-notes/2026-06-22-1546-pdf-routing-unify-pdftext.md`. <!-- id:9e13 -->
 - [ ] **zkm-pdf: migrate to `zkm.pdftext`** — routing (`src/zkm_pdf/convert.py:389`/`:62`) calls `is_scanned_only`; rename `min_text_chars`→`pdf_text_threshold` (deprecated alias 1 release + warn); pin `zkm>=X.Y`; bump. Contract: whitespace-heavy fixture routed by exactly one plugin. After id:9e13. See `docs/meeting-notes/2026-06-22-1546-pdf-routing-unify-pdftext.md`. <!-- id:d3c9 -->
@@ -144,13 +143,13 @@ Kills the zkm-pdf↔zkm-scan two-probe drift bug (whitespace-heavy PDF skipped b
 
 ## zkm-calendar (C-prefix) — calendar plugin (decided 2026-06-01-1334-contacts-calendar-plugins.md)
 
-**Deferred — own meeting/build when zkm-vcard ships.** Ingest-only, standards-parser only (RFC 5545), never NLP. Build order: zkm-vcard → zkm-calendar.
+**Deferred — own meeting/build when zkm-vcard ships.** Ingest-only, standards-parser only (RFC 5545), never NLP. Build order: zkm-vcard → zkm-calendar. <!-- lint-ok: section decision context -->
 
 - [ ] **C3 (deferred): calendar thread-index files** — `calendar/threads/<thread_id>.md` per series. RRULE not expanded in v1, so threads are singletons; deferred to when multi-VEVENT series (override instances) are ingested or a retrieval pain point surfaces. See `docs/meeting-notes/2026-06-05-1300-c1-zkm-calendar-build.md`. <!-- id:9fb8 -->
 
 ## Plugin backlog — conversation / AI session sources
 
-**Scoped (decided 2026-06-06-1617-zkm-claude-ai-claude-code-scoping.md):** claude-ai ✓; claude-code ✓ (v0.1.0, 2026-06-11); `zkm.session` extracted (N=2 done, `src/zkm/session.py`). Other providers deferred until session-import pattern proven with two real plugins.
+**Scoped (decided 2026-06-06-1617-zkm-claude-ai-claude-code-scoping.md):** claude-ai ✓; claude-code ✓ (v0.1.0, 2026-06-11); `zkm.session` extracted (N=2 done, `src/zkm/session.py`). Other providers deferred until session-import pattern proven with two real plugins. <!-- lint-ok: section decision context -->
 
 - [ ] **Other AI provider sessions** (ChatGPT exports, Gemini, etc.) — deferred until zkm-claude-code lands and the session-import pattern is proven. N=2 for a shared `zkm.session` helper requires at least two providers implemented. <!-- id:fd7e -->
 
@@ -313,20 +312,20 @@ Kills the zkm-pdf↔zkm-scan two-probe drift bug (whitespace-heavy PDF skipped b
 
 ## Publishing / distribution (backlog — from 2026-05-12-0844-publish-plugins.md)
 
-**Orphaned publish-plugins items (A1–A9 from 2026-05-12-0844-publish-plugins.md) — done vs. pending:**
+**Orphaned publish-plugins items (A1–A9 from 2026-05-12-0844-publish-plugins.md) — done vs. pending:** <!-- lint-ok: status summary -->
 
-- [~] **ASAP: PyPI publishing** — ~~Stage 1 complete (2026-05-13): core `zkm` 0.5.0 published; 6 plugin names reserved as 0.0.1 stubs.~~ **CORRECTION 2026-06-21:** the "published" claim is WRONG — `https://pypi.org/pypi/zkm/json` returns "Not Found"; `zkm` (and the plugin name stubs) are **not on prod PyPI at all**. The 2026-05-13 `uv build` succeeded but the `uv publish` evidently did not land on prod PyPI (TestPyPI? aborted on creds? never verified). All publishing is **deferred indefinitely** (pip account recovery). Stage 2 (OIDC) + Session B (real plugin code) remaining. See `docs/meeting-notes/2026-05-13-1325-pypi-publish-canary.md`.
-- [~] **Session B (Class 3 meeting): plugin discovery via entry-point groups** — design meeting held 2026-06-03, decisions recorded. See `docs/meeting-notes/2026-06-03-1403-session-b-plugin-entry-points.md`. Implementation items SB1–SB6 below.
+- [x] **ASAP: PyPI publishing** — ~~Stage 1 complete (2026-05-13): core `zkm` 0.5.0 published; 6 plugin names reserved as 0.0.1 stubs.~~ **CORRECTION 2026-06-21:** the "published" claim is WRONG — `https://pypi.org/pypi/zkm/json` returns "Not Found"; `zkm` (and the plugin name stubs) are **not on prod PyPI at all**. The 2026-05-13 `uv build` succeeded but the `uv publish` evidently did not land on prod PyPI (TestPyPI? aborted on creds? never verified). All publishing is **deferred indefinitely** (pip account recovery). Stage 2 (OIDC) + Session B (real plugin code) remaining. See `docs/meeting-notes/2026-05-13-1325-pypi-publish-canary.md`.
+- [x] **Session B (Class 3 meeting): plugin discovery via entry-point groups** — design meeting held 2026-06-03, decisions recorded. See `docs/meeting-notes/2026-06-03-1403-session-b-plugin-entry-points.md`. Implementation items SB1–SB6 below.
 - [ ] **Stage 2: OIDC Trusted Publisher + `.github/workflows/release.yml` in all 7 repos** — tokenless CI publish; closes auto-publish loop with the post-commit auto-tag TODO. Per-project tokens available (created after first publish). <!-- id:3aa3 -->
   - [~] **Ambiguity: bare first/last names in user_names are not unique** — Resolved 2026-05-19: `user_names` mechanism dropped entirely (N15a). See `docs/meeting-notes/2026-05-19-1610-ner-user-names-drop.md`.
 
 ## zkm-eml backlog (M-prefix) — migrated from plugins/zkm-eml/TODO.md 2026-05-13
 
-Items migrated from the orphan per-plugin TODO file (pre-polyrepo-split artefact). Prefix convention documented in `CLAUDE.md`.
+Items migrated from the orphan per-plugin TODO file (pre-polyrepo-split artefact). Prefix convention documented in `CLAUDE.md`. <!-- lint-ok: section context preamble -->
 
 - [ ] **M1.** Decoration vs inline-photo classification — heuristics to distinguish logos/banners from informational inline images (size, repeated cid across senders, alt-text, tracking domains). Currently all attachments treated uniformly. <!-- id:6755 -->
 - [ ] **M4.** Drafts — optional "follow draft updates" mode (Message-ID/content changes on each save). YAGNI for now. <!-- id:2527 -->
 
 ## Test corpus / fixture infrastructure (decided 2026-05-29-1112-synthetic-test-corpus.md)
 
-**Status: COMPLETE (2026-06-01).** Committed `.md` corpus (`tests/fixtures/corpus/`, 6 docs + CORPUS_MANIFEST.json), three pathological anchors (`tests/fixtures/pathological/`), `scripts/seed_dev_store.py`, `tests/conftest.py` `store`+`make_note` fixtures, corpus README with regen procedure, zkm-eml generator (`generate_corpus.py`) + roundtrip test (`test_corpus_roundtrip.py`), `zkm test <plugin>` conformance validator. See `docs/meeting-notes/2026-05-29-1112-synthetic-test-corpus.md`.
+**Status: COMPLETE (2026-06-01).** Committed `.md` corpus (`tests/fixtures/corpus/`, 6 docs + CORPUS_MANIFEST.json), three pathological anchors (`tests/fixtures/pathological/`), `scripts/seed_dev_store.py`, `tests/conftest.py` `store`+`make_note` fixtures, corpus README with regen procedure, zkm-eml generator (`generate_corpus.py`) + roundtrip test (`test_corpus_roundtrip.py`), `zkm test <plugin>` conformance validator. See `docs/meeting-notes/2026-05-29-1112-synthetic-test-corpus.md`. <!-- lint-ok: status summary -->
