@@ -356,3 +356,7 @@ feat(id:7e21): embeddings.npz annexed T3 with drop-superseded-key hook; bm25.pkl
 ## 2026-06-25 15:20 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 review zkm: 1 commit (id:7e21 TODO-twin cross-ledger reconcile) verified clean; gaming-scan/roadmap-lint/relay-doctor all clean; no reopen, routine_open=0
+
+## 2026-06-25 16:27 — reviewer (claude-opus-4-8)
+
+review (zkm* sweep): audited 1 manual commit ed99b14 — /meeting folder-naming ledger adoption (id:3b8a decided + W call-log id:5e19, entity-timeline id:9ee1, BIM id:d35e). TODO.md-only; gaming-scan clean; no code/test changes. routine_open unchanged.
