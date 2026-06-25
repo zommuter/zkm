@@ -10,14 +10,14 @@ Completed Phase 1 tasks archived in `docs/phase1-done.md`.
 
 - [x] **bugfix — some objects in `knowledge` were left uncommitted (observed 20260623 07:05).** Raw incident note: a scan/convert run left CAS objects unstaged/uncommitted in the knowledge store. *Needs triage before it's executor-ready: no repro, no acceptance criterion yet — identify which code path (scan? convert? amender?) leaves the working tree dirty without committing, then a red spec can be written. May relate to id:40d5 (eager git-add) and id:b7e2 (processed-tracking). Reverse-handoff qualified 2026-06-23.* <!-- id:dab8 -->
 
-- [ ] **Cross-project (triad) — `/meeting`:** discuss the potentially connecting dots between **zkm
+- [ ] **Cross-project (triad) — `/meeting`:** discuss the potentially connecting dots between **zkm <!-- id:21ca -->
   infrastructure** (embeddings / semantic retrieval / knowledge-mgmt) and the `.mw`/toesnail/collAIb triad.
   toesnail is the documented triad hub (`toesnail/docs/dependencies.md`); a session would decide whether/how
   zkm becomes a node in that dependency map. **MIRRORED in `toesnail/TODO.md` under the same `id:4159`** — keep
   both copies in sync MANUALLY (no automated cross-PROJECT sync; relay `--cross-ledger` is intra-repo only,
   inbox routing is one-way). Wherever worked/closed, tick the twin. Likely a manual `/meeting`. <!-- id:4159 -->
 
-- [ ] **Polyrepo plugin-ROADMAP ↔ core-TODO drift — shared-`id:` ledgers go out of sync.** This repo's
+- [ ] **Polyrepo plugin-ROADMAP ↔ core-TODO drift — shared-`id:` ledgers go out of sync.** This repo's <!-- id:ddb8 -->
   central TODO.md is the single ledger for all plugin-scoped work (`W`/`V`/`C`/… prefixes), and each plugin
   repo's `ROADMAP.md` declares "items reuse the `id:` tokens of their counterparts in `~/src/zkm/TODO.md`".
   But relay executors tick the **plugin ROADMAP** checkbox in the *plugin* repo; nothing reaches back to tick
@@ -49,7 +49,7 @@ NER lands before whatsapp. `zkm convert <plugin>` runs amenders default-on (`--n
     **Note:** this convert ran with pre-N9c code; in-pipeline POS filter not yet applied. A fresh `zkm convert ner` will bust cache (new version key) and re-extract with POS filter, which will prevent new FPs — required before calling N9c fully clean.
     **Note on multi-word phrase FPs (`'Hallo Tobias'` ×1930 etc.):** decided 2026-05-19 to accept these as-is. Deduped under `(scope,type,value)` they are a closed handful of distinct values; escape hatch = add to `_STOPLIST` if ever annoying. See `docs/meeting-notes/2026-05-19-1610-ner-user-names-drop.md`.
 - [ ] **(deferred) Temporal NER L2+L3 design note.** L2 = actionability classifier (which datetimes are real events/deadlines vs incidental noise) — LLM-shaped, research-grade per n9d-gate-c, gated like N9d (candidate-only, evidence before infra). L3 = Phase-4 manual-merge mention→VEVENT promotion (canonical ISO match + fuzzy summary, provenance-preserving, additive link — extends `TODO.md:47` alias-merge from person-aliases to event-promotion, covering the lifecycle: newsletter mentions event → user registers → formal VEVENT appears in calendar → link them). Design note in `docs/entity-model.md` first. **Gate for L2:** open-set noise confirmed (L1 ships and noise level measured). See `docs/meeting-notes/2026-06-01-1334-contacts-calendar-plugins.md`. <!-- id:6f3a -->
-- [ ] **N9e (backlog — no live trigger path).** Closed-loop verifier denylist — append-only JSONL at `<store>/.zkm-state/ner-verifier-denylist.jsonl`; one record per `(value, type)`: `{value, type, verdict, source, model_version, first_seen, heuristic_would, n_observations}`. `source ∈ {verifier, heuristic, manual}`; `verdict ∈ {drop, keep}` (drops-only direction designed; keeps-becoming-sticky deferred — precedence ambiguity). **Gate: (N9d shipped) AND (≥5 verifier-override cases observed in Stage 2 pilot).** **Status 2026-05-12: gate cannot fire — N9d closed via Gate C; verifier did not ship.** Entry remains in backlog for archival reference; no implementation path until/unless a successor verifier project replaces the gate condition. Conflict-resolution for allow+deny overlap unresolved — design meeting required if revived.
+- [ ] **N9e (backlog — no live trigger path).** Closed-loop verifier denylist — append-only JSONL at `<store>/.zkm-state/ner-verifier-denylist.jsonl`; one record per `(value, type)`: `{value, type, verdict, source, model_version, first_seen, heuristic_would, n_observations}`. `source ∈ {verifier, heuristic, manual}`; `verdict ∈ {drop, keep}` (drops-only direction designed; keeps-becoming-sticky deferred — precedence ambiguity). **Gate: (N9d shipped) AND (≥5 verifier-override cases observed in Stage 2 pilot).** **Status 2026-05-12: gate cannot fire — N9d closed via Gate C; verifier did not ship.** Entry remains in backlog for archival reference; no implementation path until/unless a successor verifier project replaces the gate condition. Conflict-resolution for allow+deny overlap unresolved — design meeting required if revived. <!-- id:f3c6 -->
   - [~] **N9d-9.** Per-language accuracy lens — **not pursued** (gate closure pre-empts; reopen only if N9d is revived under a different model).
   - [~] **N9d-11.** N9e sketch into `docs/ner.md` — **not pursued** (N9e gate condition is moot; see N9e backlog entry).
 
@@ -73,7 +73,7 @@ NER lands before whatsapp. `zkm convert <plugin>` runs amenders default-on (`--n
 - Crypto/stock-ticker domain scope — defer; revisit if real use case lands.
 - WebUI typed-query hint UX — Phase 3 design concern.
 
-- [ ] **Entity alias / synonym linking (Phase 4 backlog)** — `SBB CFF FFS` (DE/FR/IT names for Swiss Federal Railways) highlights that the same real-world entity can appear under multiple mention strings (abbreviations, translations, official variants). Likewise, persons appear under nicknames, maiden names, or initials. Deferred to Phase 4 alongside manual-merge tooling; design note needed in `docs/entity-model.md` before implementation. No heuristic auto-merge — human-confirmed alias pairs only.
+- [ ] **Entity alias / synonym linking (Phase 4 backlog)** — `SBB CFF FFS` (DE/FR/IT names for Swiss Federal Railways) highlights that the same real-world entity can appear under multiple mention strings (abbreviations, translations, official variants). Likewise, persons appear under nicknames, maiden names, or initials. Deferred to Phase 4 alongside manual-merge tooling; design note needed in `docs/entity-model.md` before implementation. No heuristic auto-merge — human-confirmed alias pairs only. <!-- id:af06 -->
 
 ## Phase 2 — mbsync auto-trigger (decided 2026-05-08-mbsync-hook.md)
 
@@ -85,8 +85,8 @@ Scope: `convert` and `index` (BM25 + embed phases) only. `query`, `clone`, `push
 
 **Spawned follow-ups (from 2026-05-14 concurrent-run-guard meeting):**
 
-- [ ] **Future re-evaluation trigger — local DB with git-tracked autoexport-on-write** — possible architectural pivot from sidecar-files-on-disk. Re-open if any one trigger fires: (a) concurrent-write bugs in sidecars become frequent; (b) WebUI read-write workload makes file-level locking visibly painful; (c) cross-machine sync stops being purely `git pull`-based. See `~/.claude/projects/-home-tobias-src-zkm/memory/project_db_pivot_trigger.md`.
-- [ ] **`zkm queue` design meeting (Phase 3 daemon precursor)** — when attach semantics become a real ask (N=2 consumers wanting `--wait-for-busy`), open a meeting on a queue manager: PID-file → in-memory daemon queue; fail-fast → `attach/wait/wait-rerun` modes; `zkm status` polling → WebSocket push (Phase 3 WebUI alignment). Floor any successor must preserve: the v1 contract in `~/.claude/projects/-home-tobias-src-zkm/memory/project_concurrent_run_guard_contract.md`.
+- [ ] **Future re-evaluation trigger — local DB with git-tracked autoexport-on-write** — possible architectural pivot from sidecar-files-on-disk. Re-open if any one trigger fires: (a) concurrent-write bugs in sidecars become frequent; (b) WebUI read-write workload makes file-level locking visibly painful; (c) cross-machine sync stops being purely `git pull`-based. See `~/.claude/projects/-home-tobias-src-zkm/memory/project_db_pivot_trigger.md`. <!-- id:1e4a -->
+- [ ] **`zkm queue` design meeting (Phase 3 daemon precursor)** — when attach semantics become a real ask (N=2 consumers wanting `--wait-for-busy`), open a meeting on a queue manager: PID-file → in-memory daemon queue; fail-fast → `attach/wait/wait-rerun` modes; `zkm status` polling → WebSocket push (Phase 3 WebUI alignment). Floor any successor must preserve: the v1 contract in `~/.claude/projects/-home-tobias-src-zkm/memory/project_concurrent_run_guard_contract.md`. <!-- id:906c -->
 
 **Verification checklist** (313 tests passing, 2026-05-08):
 1. `zkm convert zkm-eml` in terminal A → `zkm status` in terminal B shows one row with fresh `last_updated`.
@@ -152,11 +152,11 @@ Kills the zkm-pdf↔zkm-scan two-probe drift bug (whitespace-heavy PDF skipped b
 
 **Scoped (decided 2026-06-06-1617-zkm-claude-ai-claude-code-scoping.md):** claude-ai ✓; claude-code ✓ (v0.1.0, 2026-06-11); `zkm.session` extracted (N=2 done, `src/zkm/session.py`). Other providers deferred until session-import pattern proven with two real plugins.
 
-- [ ] **Other AI provider sessions** (ChatGPT exports, Gemini, etc.) — deferred until zkm-claude-code lands and the session-import pattern is proven. N=2 for a shared `zkm.session` helper requires at least two providers implemented.
+- [ ] **Other AI provider sessions** (ChatGPT exports, Gemini, etc.) — deferred until zkm-claude-code lands and the session-import pattern is proven. N=2 for a shared `zkm.session` helper requires at least two providers implemented. <!-- id:fd7e -->
 
 ## Plugin backlog — social networks
 
-- [ ] **Meeting: takeout / export archive import** — personal data exports from Google Takeout, Facebook "Download Your Data", Instagram, LinkedIn, Twitter/X, etc. are structured archives (ZIP + JSON/HTML). Distinct from live scraping: deterministic, offline, privacy-safe. Sub-questions: (1) which export formats to support first (LinkedIn most structured); (2) shared `zkm.takeout` extraction helper vs. per-network plugins; (3) "being tagged" in others' posts as a distinct entity-mention type (requires cross-document resolution). Warrants a scoping meeting. Cross-link: LinkedIn browser-save lane in SOC3 converges with LinkedIn-takeout ingest — shared parser opportunity; keep separate but note the overlap.
+- [ ] **Meeting: takeout / export archive import** — personal data exports from Google Takeout, Facebook "Download Your Data", Instagram, LinkedIn, Twitter/X, etc. are structured archives (ZIP + JSON/HTML). Distinct from live scraping: deterministic, offline, privacy-safe. Sub-questions: (1) which export formats to support first (LinkedIn most structured); (2) shared `zkm.takeout` extraction helper vs. per-network plugins; (3) "being tagged" in others' posts as a distinct entity-mention type (requires cross-document resolution). Warrants a scoping meeting. Cross-link: LinkedIn browser-save lane in SOC3 converges with LinkedIn-takeout ingest — shared parser opportunity; keep separate but note the overlap. <!-- id:285f -->
 
 ### zkm-social (new plugin — social-network profile identity cards)
 
@@ -173,7 +173,7 @@ Kills the zkm-pdf↔zkm-scan two-probe drift bug (whitespace-heavy PDF skipped b
 
 ## Plugin backlog — browser state (open tabs / bookmarks / history)
 
-- [ ] **zkm-tabs (idea — salvaged from the retired `gtnsd` repo's "attach a list of open tabs to each commit"
+- [ ] **zkm-tabs (idea — salvaged from the retired `gtnsd` repo's "attach a list of open tabs to each commit" <!-- id:8b5d -->
   / TreeStyleTab thread; history preserved in `toesnail` branch `gtnsd-archive`).** A plugin to capture
   browsing context into the store: currently-open browser tabs (e.g. TreeStyleTab tree export), bookmarks, and
   possibly history — as timestamped knowledge snapshots / per-session context. Open Qs: capture mechanism
@@ -194,7 +194,7 @@ Kills the zkm-pdf↔zkm-scan two-probe drift bug (whitespace-heavy PDF skipped b
 
 ## Plugin backlog — audio / video transcription (STT)
 
-- [ ] **zkm-stt (idea — Speech-to-Text transcription plugin).** Converts audio/video sources to
+- [ ] **zkm-stt (idea — Speech-to-Text transcription plugin).** Converts audio/video sources to <!-- id:ba5c -->
   timestamped transcript `.md` under `transcripts/`. Primary use cases: (1) **WhatsApp voice
   messages** — after zkm-whatsapp v1 ships, STT pass over attached `.opus`/`.m4a` files to
   embed spoken text in the chat transcript rather than leaving `[voice message]` stubs;
@@ -209,7 +209,7 @@ Kills the zkm-pdf↔zkm-scan two-probe drift bug (whitespace-heavy PDF skipped b
   separate `zkm fetch youtube <url>` subcommand or a standalone `zkm convert stt` over
   dropped audio files in `inbox/stt/`. **Scoped 2026-06-21** — see
   `docs/meeting-notes/2026-06-21-2207-zkm-stt-scope.md`; build items STT1–STT4 below. <!-- id:dcf8 -->
-- [ ] **STT1 — Build zkm-stt v1 (standalone converter).** New repo `plugins/zkm-stt/` (new-plugin
+- [ ] **STT1 — Build zkm-stt v1 (standalone converter).** New repo `plugins/zkm-stt/` (new-plugin <!-- id:dd5f -->
   dispatch convention: remote-first, skeleton-first barrier). `plugin.yaml`
   (`creates_dirs: [transcripts, originals/transcripts]`; config `stt_endpoint`/`stt_model`/`stt_api_style`),
   `convert()` over `inbox/stt/` (.opus/.m4a/.wav/.mp3), `transcribe(audio_path, config) -> Transcript`
@@ -218,12 +218,12 @@ Kills the zkm-pdf↔zkm-scan two-probe drift bug (whitespace-heavy PDF skipped b
   `[mm:ss]` + detected language (never pinned), per-file graceful skip on backend error. Contract:
   mocked-`/inference` hermetic test + real `.opus` smoke test. See
   `docs/meeting-notes/2026-06-21-2207-zkm-stt-scope.md`. <!-- id:37aa -->
-- [ ] **STT2 — zkm-stt v2 WhatsApp amender.** Reuse `transcribe()` as an amender scoped to `created`
+- [ ] **STT2 — zkm-stt v2 WhatsApp amender.** Reuse `transcribe()` as an amender scoped to `created` <!-- id:d8af -->
   voice-note paths; enumerate zkm-whatsapp manifest `mime: audio/*`, resolve CAS by sha256, transcribe,
   augment the body line (optional zkm-whatsapp polish: render `[voice: …]` not generic `[media: …]`).
   Gate: zkm-whatsapp v1 shipped (W-pilot). Contract: a day file's voice line gains `[transcript: …]`.
   See `docs/meeting-notes/2026-06-21-2207-zkm-stt-scope.md`. <!-- id:489b -->
-- [ ] **STT3 — ASR quality pilot: compare models/means on real voice notes** `/meeting` **(next session)**.
+- [ ] **STT3 — ASR quality pilot: compare models/means on real voice notes** `/meeting` **(next session)**. <!-- id:f5de -->
   ACTIVATED 2026-06-23: after the `language=auto`+`translate=false` fix (zkm-stt v0.2.0, id from
   whisper.cpp source), German transcripts are "better but still not good" on `ggml-small` — so run a
   proper pilot before picking a default. **Compare (means × models):** whisper.cpp `/inference` with
@@ -259,7 +259,7 @@ Kills the zkm-pdf↔zkm-scan two-probe drift bug (whitespace-heavy PDF skipped b
   (id:4bf2, RED spec). P1 already transcribed the 5-clip sample (whisper-small); large-v3-turbo pending a
   :8090 server. **Umbrella stays open** — closed by the pilot recommendation after the user fills
   `references.json` + runs `score`. Run P2/P3 via relay executor in `plugins/zkm-stt`. <!-- id:4ab4 -->
-- [ ] **STT4 — zkm-stt roadmap enrichments.** Speaker labels / diarisation, background-noise
+- [ ] **STT4 — zkm-stt roadmap enrichments.** Speaker labels / diarisation, background-noise <!-- id:3f46 -->
   identification + filtering, sentiment analysis, word-level timestamps, streaming. Each gated on a
   concrete need + (ML-shaped ones) evidence before infra. **Forward-flag (2026-06-23, stt3 meeting):**
   WhatsApp speaker-ID / diarisation can use **contact/sender metadata** (manifest sender per message),
@@ -304,12 +304,12 @@ Kills the zkm-pdf↔zkm-scan two-probe drift bug (whitespace-heavy PDF skipped b
 ## Amendment contract backlog
 
 - [x] **Core: add `entities` to `_SET_FIELDS` so declarative set-retraction applies to entities.** The shipped `emit_set` / `_retractable_values` machinery (id:25ec) only retracts the `tags` field (`_SET_FIELDS = ("tags",)`). Entities are typed `{scope,type,value}` records keyed on that tuple (the dedup key `merge_fields` already uses), not bare strings, so adding `"entities"` requires keying the producer-set diff/ref-count by `(scope,type,value)`. Prerequisite for zkm-ner scrub↔cache coherence (id:7b4e). Core-runnable (ROADMAP). See `docs/meeting-notes/2026-06-23-1807-zkm-amendments-removal-coherence.md` D1. <!-- id:29ac -->
-- [ ] **Meeting: amendment replace-mode** — set-union merge (current) is correct for additive enrichment but cannot remove stale entities when extractor quality improves. `zkm scrub <plugin>` is the current workaround (N9b + future N9c). Trigger for meeting: a third amender wants single-producer-per-field semantics, OR N9c surfaces a need not solvable by scrub. See `docs/meeting-notes/2026-05-10-2142-n9b-scrub-cli.md` for design context.
+- [ ] **Meeting: amendment replace-mode** — set-union merge (current) is correct for additive enrichment but cannot remove stale entities when extractor quality improves. `zkm scrub <plugin>` is the current workaround (N9b + future N9c). Trigger for meeting: a third amender wants single-producer-per-field semantics, OR N9c surfaces a need not solvable by scrub. See `docs/meeting-notes/2026-05-10-2142-n9b-scrub-cli.md` for design context. <!-- id:4787 -->
 
 ## Plugin dependency loading (backlog)
 
-- [ ] **Plugin-specific deps when loaded via importlib** — option (d) shipped as SB2 (2026-06-03): `_inject_plugin_venv` now called inside `_load_plugin_module` for dev-symlink plugins. Remaining open question: options (a)/(b)/(c) (subprocess isolation / uv-run wrapper / optional extras) for the entry-point install path where `.venv` is absent. Low urgency — entry-point installs already resolve deps via `uv tool install zkm --with zkm-<name>`. Warrants a scoping meeting only if this remaining gap causes problems in practice.
-- [ ] **Re-open derivable-data meeting trigger** — re-open `docs/meeting-notes/2026-05-13-1950-derivable-expensive-data-in-git.md` decision if: first real `zkm clone` to second host makes re-derive wait painful; OR re-derive budget exceeds ~2 h (today: ~50 min).
+- [ ] **Plugin-specific deps when loaded via importlib** — option (d) shipped as SB2 (2026-06-03): `_inject_plugin_venv` now called inside `_load_plugin_module` for dev-symlink plugins. Remaining open question: options (a)/(b)/(c) (subprocess isolation / uv-run wrapper / optional extras) for the entry-point install path where `.venv` is absent. Low urgency — entry-point installs already resolve deps via `uv tool install zkm --with zkm-<name>`. Warrants a scoping meeting only if this remaining gap causes problems in practice. <!-- id:6c07 -->
+- [ ] **Re-open derivable-data meeting trigger** — re-open `docs/meeting-notes/2026-05-13-1950-derivable-expensive-data-in-git.md` decision if: first real `zkm clone` to second host makes re-derive wait painful; OR re-derive budget exceeds ~2 h (today: ~50 min). <!-- id:e344 -->
 
 ## Publishing / distribution (backlog — from 2026-05-12-0844-publish-plugins.md)
 
@@ -317,15 +317,15 @@ Kills the zkm-pdf↔zkm-scan two-probe drift bug (whitespace-heavy PDF skipped b
 
 - [~] **ASAP: PyPI publishing** — ~~Stage 1 complete (2026-05-13): core `zkm` 0.5.0 published; 6 plugin names reserved as 0.0.1 stubs.~~ **CORRECTION 2026-06-21:** the "published" claim is WRONG — `https://pypi.org/pypi/zkm/json` returns "Not Found"; `zkm` (and the plugin name stubs) are **not on prod PyPI at all**. The 2026-05-13 `uv build` succeeded but the `uv publish` evidently did not land on prod PyPI (TestPyPI? aborted on creds? never verified). All publishing is **deferred indefinitely** (pip account recovery). Stage 2 (OIDC) + Session B (real plugin code) remaining. See `docs/meeting-notes/2026-05-13-1325-pypi-publish-canary.md`.
 - [~] **Session B (Class 3 meeting): plugin discovery via entry-point groups** — design meeting held 2026-06-03, decisions recorded. See `docs/meeting-notes/2026-06-03-1403-session-b-plugin-entry-points.md`. Implementation items SB1–SB6 below.
-- [ ] **Stage 2: OIDC Trusted Publisher + `.github/workflows/release.yml` in all 7 repos** — tokenless CI publish; closes auto-publish loop with the post-commit auto-tag TODO. Per-project tokens available (created after first publish).
+- [ ] **Stage 2: OIDC Trusted Publisher + `.github/workflows/release.yml` in all 7 repos** — tokenless CI publish; closes auto-publish loop with the post-commit auto-tag TODO. Per-project tokens available (created after first publish). <!-- id:3aa3 -->
   - [~] **Ambiguity: bare first/last names in user_names are not unique** — Resolved 2026-05-19: `user_names` mechanism dropped entirely (N15a). See `docs/meeting-notes/2026-05-19-1610-ner-user-names-drop.md`.
 
 ## zkm-eml backlog (M-prefix) — migrated from plugins/zkm-eml/TODO.md 2026-05-13
 
 Items migrated from the orphan per-plugin TODO file (pre-polyrepo-split artefact). Prefix convention documented in `CLAUDE.md`.
 
-- [ ] **M1.** Decoration vs inline-photo classification — heuristics to distinguish logos/banners from informational inline images (size, repeated cid across senders, alt-text, tracking domains). Currently all attachments treated uniformly.
-- [ ] **M4.** Drafts — optional "follow draft updates" mode (Message-ID/content changes on each save). YAGNI for now.
+- [ ] **M1.** Decoration vs inline-photo classification — heuristics to distinguish logos/banners from informational inline images (size, repeated cid across senders, alt-text, tracking domains). Currently all attachments treated uniformly. <!-- id:6755 -->
+- [ ] **M4.** Drafts — optional "follow draft updates" mode (Message-ID/content changes on each save). YAGNI for now. <!-- id:2527 -->
 
 ## Test corpus / fixture infrastructure (decided 2026-05-29-1112-synthetic-test-corpus.md)
 
