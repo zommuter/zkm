@@ -173,7 +173,19 @@ Central `TODO.md` is the single ledger for all plugin-scoped and cross-cutting w
 
 **Rule:** when a plugin accumulates ≥3 unchecked items at once that aren't already in a numbered series, assign a single-letter prefix and add it to this table.
 
-**Option 3 trigger (GH Issues):** if a first outside PR is merged OR a first public GH Issue is filed on any plugin repo, migrate the entire topology to "GH Issues for larger items + central TODO.md for tactical" — fires across *all* plugins simultaneously (no per-plugin split). Bundle the /meeting-skill changes into that future session.
+**GH Issues = additional inbox channel (not a migration):** public GitHub Issues on a
+plugin repo are an *extra input*, not a replacement ledger. The canonical source of truth
+stays the central `TODO.md` (+ per-repo `ROADMAP.md` for executor specs). When a repo has
+Issues enabled:
+- Relay/meeting passes additionally run `gh issue list` across those repos.
+- Each open issue is triaged — answer/close it, or route it into `TODO.md` (W-prefix etc.)
+  with a link back to the issue. The issue is a pointer; the ledger is the truth.
+- **No automatic topology flip.** A real migration to "GH Issues for larger items + central
+  TODO.md for tactical" is reconsidered only if *sustained* outside contribution actually
+  materializes (e.g. several merged outside PRs) — a deliberate decision then, never an
+  automatic trigger on the first stranger's issue. (Superseded the old auto-migration
+  trigger 2026-06-26: it hinged a whole-topology flip across all plugins on a single weak
+  signal.)
 
 ## Phases
 
