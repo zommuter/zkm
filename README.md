@@ -157,9 +157,14 @@ See `docs/` for design notes, plugin spec, and future-phase plans.
 
 ## Plugins
 
+The two most fully-fledged converters are **[zkm-eml](https://github.com/zommuter/zkm-eml)**
+(email) and **[zkm-whatsapp](https://github.com/zommuter/zkm-whatsapp)** (chat). The full set
+of available plugins:
+
 | Plugin | Description |
 |--------|-------------|
 | [zkm-eml](https://github.com/zommuter/zkm-eml) | Convert Maildir / `.eml` files to markdown with thread modeling and attachment extraction |
+| [zkm-whatsapp](https://github.com/zommuter/zkm-whatsapp) | Convert a decrypted WhatsApp `msgstore.db` to per-chat-day transcript markdown (media + call logs) |
 | [zkm-ner](https://github.com/zommuter/zkm-ner) | Amender: extract named entities (persons, orgs, locations, contacts) into frontmatter |
 | [zkm-notmuch](https://github.com/zommuter/zkm-notmuch) | Amender: merge notmuch Xapian tags into mail-message frontmatter |
 | [zkm-pdf](https://github.com/zommuter/zkm-pdf) | Import text-extractable PDFs into the knowledge store |
