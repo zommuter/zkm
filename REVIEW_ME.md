@@ -64,3 +64,14 @@ Max ~10 open boxes; the reviewer prunes resolved ones each review turn.
     `dist/zkm-0.15.0-py3-none-any.whl`. Publish is no longer a blocker on this item; re-run
     `UV_PUBLISH_TOKEN=… uv publish` once the account is recovered. Tracked under the Stage 2
     OIDC item in TODO.md.
+
+- [ ] id:8f1c — duplicate canonical token on TWO checkbox lines in TODO.md (one OPEN
+  "Git operations on `$ZKM_STORE` are now slow…" measure-first note, one CLOSED `[x]`
+  "…DECIDED 2026-06-23-2251…" decided version). Pre-existing (already count-2 at
+  relay-ckpt-20260625-1627, NOT introduced this window). The closed item's body says it
+  carries the original note forward, so the id-reuse may be intentional — but a shared
+  canonical id across an open AND a closed checkbox makes orphan-scan / cross-ledger
+  checkbox-state ambiguous (which state is authoritative?). Decide: either re-id the still-
+  open measure-first half to a fresh token, or archive/close the open half if the DECIDED
+  item fully supersedes it. (Review-flagged 2026-06-26; the unrelated f3c6 collision was
+  auto-fixed this turn → N9e re-id'd to 5a0b.)
