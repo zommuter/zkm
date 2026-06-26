@@ -368,3 +368,7 @@ Review: ledger-only window (4 commits, no code); fixed --fix duplicate-mint id:f
 ## 2026-06-26 11:43 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 Review: ledger-only window (1 commit ea0f01e, "todo: file 4 routed inbox items"; no code/tests). gaming-scan clean (no test changes possible), roadmap-lint/todo-conformance/cross-ledger all clean. Reverse-handoff (5b) on the 4 new TODO items: id:aaa3 (zkm-photo DST-safe EXIF) stays in TODO per the ROADMAP scope rule (plugin work is never mirrored to core ROADMAP); id:c85c (core ARCHITECTURE.md plugin-error-contract doc) is the most handoff-ready but is a doc-writing task, not red-spec ROUTINE; id:3d98 (Grand Truth hub note + mindmap) and id:2f7c (verify messaging-spec.md STT surface) are design-judgment / verification — all left as TODO design-ledger, none promoted. ROADMAP remains intentionally drained (core-runnable items only by design); relay-doctor flags the 65-item TODO backlog as a HANDOFF candidate — most are legitimately-TODO plugin/design/cross-repo items. No reopen, no promotions, routine_open=0.
+
+## 2026-06-26 12:05 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+review zkm: window ea0f01e (4 routed inbox TODO items) clean; gaming-scan/lint/conformance/cross-ledger all clean; no promotions, routine_open=0
