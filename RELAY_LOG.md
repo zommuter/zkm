@@ -360,3 +360,7 @@ review zkm: 1 commit (id:7e21 TODO-twin cross-ledger reconcile) verified clean; 
 ## 2026-06-25 16:27 — reviewer (claude-opus-4-8)
 
 review (zkm* sweep): audited 1 manual commit ed99b14 — /meeting folder-naming ledger adoption (id:3b8a decided + W call-log id:5e19, entity-timeline id:9ee1, BIM id:d35e). TODO.md-only; gaming-scan clean; no code/test changes. routine_open unchanged.
+
+## 2026-06-26 10:07 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+Review: ledger-only window (4 commits, no code); fixed --fix duplicate-mint id:f3c6→N9e re-id'd 5a0b, surfaced pre-existing id:8f1c dup; ROADMAP drained, conformance/lint/cross-ledger clean.
