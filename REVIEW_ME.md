@@ -65,7 +65,7 @@ Max ~10 open boxes; the reviewer prunes resolved ones each review turn.
     `UV_PUBLISH_TOKEN=… uv publish` once the account is recovered. Tracked under the Stage 2
     OIDC item in TODO.md.
 
-- [ ] id:8f1c — duplicate canonical token on TWO checkbox lines in TODO.md (one OPEN
+- [x] id:8f1c — duplicate canonical token on TWO checkbox lines in TODO.md (one OPEN
   "Git operations on `$ZKM_STORE` are now slow…" measure-first note, one CLOSED `[x]`
   "…DECIDED 2026-06-23-2251…" decided version). Pre-existing (already count-2 at
   relay-ckpt-20260625-1627, NOT introduced this window). The closed item's body says it
@@ -75,3 +75,9 @@ Max ~10 open boxes; the reviewer prunes resolved ones each review turn.
   open measure-first half to a fresh token, or archive/close the open half if the DECIDED
   item fully supersedes it. (Review-flagged 2026-06-26; the unrelated f3c6 collision was
   auto-fixed this turn → N9e re-id'd to 5a0b.)
+  — **RESOLVED 2026-06-26 (/meeting, owner): re-id the open half.** The CLOSED line 272
+  keeps id:8f1c as the authoritative DECIDED record (annex-anchoring = driver A, pack bloat).
+  The OPEN half was NOT superseded — it carries the independent **driver B** residual
+  (500k-file working-tree walk); verified `core.fsmonitor`+`core.untrackedCache` both UNSET
+  on `~/knowledge`, so the config quick-wins are real and unfinished. Re-id'd to fresh
+  **id:6e13** and narrowed to driver-B-only. Cross-ledger ambiguity gone; work preserved.
