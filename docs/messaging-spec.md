@@ -220,21 +220,7 @@ date: 2026-04-13                             # day (YYYY-MM-DD), store locale TZ
 thread_id: "a1b2c3d4e5f60718"               # sha256(chat_jid.encode())[:16]
 chat_jid: "123456789@g.us"                  # platform JID (group) or phone@s.whatsapp.net
 chat_name: "Family Group"                    # optional; group subject; omit for 1:1
-participants:
-  - address: "123456789@g.us"               # JID; reuses messaging-spec address convention
-    name: "Alice"                            # optional; group participant display name
-    role: member
-  - address: "987654321@s.whatsapp.net"
-    role: member
-messages:                                    # ordered by (timestamp, key_id); manifest of all key_ids in this file
-  - key_id: "abc123DEF456"
-    timestamp: "2026-04-13T14:30:00+02:00"
-    sender_jid: "123456789@s.whatsapp.net"
-    status: sent                             # sent | delivered | read | revoked
-  - key_id: "ghi789JKL012"
-    timestamp: "2026-04-13T14:31:00+02:00"
-    sender_jid: "987654321@s.whatsapp.net"
-    status: revoked
+participants: [{address: "123456789@g.us", name: "Alice", role: member}, {address: "987654321@s.whatsapp.net", role: member}]
 processor: zkm-whatsapp
 processor_version: "0.1.0"
 ---
@@ -243,10 +229,9 @@ processor_version: "0.1.0"
 **Notes:**
 - `sha256` is omitted — there is no single "original" byte source for a day file.
 - `message_id` and `in_reply_to` are NOT in the file-level frontmatter (they appear in the body, see below).
-- `participants` uses the same `address` / `name` / `role` structure as the per-message spec; use `member` for chat participants (or `mentioned` for @-tags). The owner's JID MUST appear in `participants`.
-- `messages:` is a complete ordered manifest of every key_id present in this file, enabling deduplication without body scanning.
-- `status: revoked` marks a deleted-message tombstone.
+- `participants` uses the same `address` / `name` / `role` structure as the per-message spec; use `member` for chat participants (or `mentioned` for @-tags). The owner's JID MUST appear in `participants`. Flow-compacted (block-style only for very large groups).
 - `direction` is NOT written — derivable from `owner_jid` config at query time, same principle as per-message spec.
+- The per-message manifest (`key_id`, `timestamp`, `sender_jid`, `status`, and optional `text`/`quoted_key_id`/`media` fields) lives in the **footer**, not the frontmatter — see [Footer manifest](#footer-manifest) below.
 
 ### Body format
 
@@ -263,7 +248,7 @@ One line per message, sorted by `(timestamp, key_id)`. Lines are separated by a 
 **Rules:**
 - `[HH:MM]` — 24-hour clock in store locale TZ (default: Europe/Zurich for de_CH).
 - `DisplayName` — sender's `name` from `participants` if known, otherwise the bare JID/phone number.
-- **Deleted tombstone:** `«deleted»` (U+00AB + U+00BB, fixed sentinel — NOT the platform's locale string). The `key_id` MUST still appear in `messages:` with `status: revoked`.
+- **Deleted tombstone:** `«deleted»` (U+00AB + U+00BB, fixed sentinel — NOT the platform's locale string). The `key_id` MUST still appear in the footer manifest with `status: revoked`.
 - **Reply indicator:** `↩ (re: <quoted_key_id>)` prefix when the platform provides a quoted-message reference. `quoted_key_id` may point to a message in a different day file.
 - **Media:** `[media: <mime-type> → <store-relative-path>]` for attachments stored via `zkm.cas.write_object`; a `.origin.json` sidecar records provenance.
 - **Reactions:** appended inline as `[reaction: <emoji> from <DisplayName>]`. Never in frontmatter.
@@ -276,7 +261,7 @@ Re-ingesting a source with no new messages for a given day MUST produce a byte-i
 1. Sort all messages by `(timestamp, key_id)` — `key_id` is the tiebreaker for same-second messages.
 2. Use fixed sentinel strings (never platform locale strings).
 3. Format times with `strftime("%H:%M")` in the store locale TZ.
-4. Write `messages:` manifest in the same `(timestamp, key_id)` order as the body lines.
+4. Write the footer manifest entries in the same `(timestamp, key_id)` order as the body lines.
 5. Omit fields whose value would change across runs for unchanged source data.
 
 **Contract test:** emit a day file from a fixed source snapshot; re-emit from the same snapshot; assert the two files are byte-identical.
@@ -288,17 +273,81 @@ returned path is byte-identical across both runs, raising `AssertionError` namin
 offending path on any difference. Every messaging plugin (whatsapp, telegram, signal,
 threema) MUST include a test that exercises this helper against its real emit path.
 
+### Footer manifest
+
+The per-message manifest is written as an end-of-file HTML comment block after the
+transcript body, replacing the old frontmatter `messages:` block. The block is
+machine-parseable and invisible when the `.md` is rendered:
+
+```
+<!-- zkm:manifest
+messages:
+  - key_id: "abc123DEF456"
+    timestamp: "2026-04-13T14:30:00+02:00"
+    sender_jid: "123456789@s.whatsapp.net"
+    status: sent
+    text: "message text here"
+  - key_id: "ghi789JKL012"
+    timestamp: "2026-04-13T14:31:00+02:00"
+    sender_jid: "987654321@s.whatsapp.net"
+    status: revoked
+  - key_id: "stuvWXYZ"
+    timestamp: "2026-04-13T14:32:00+02:00"
+    sender_jid: "987654321@s.whatsapp.net"
+    status: sent
+    quoted_key_id: "abc123DEF456"
+    text: "thanks!"
+  - key_id: "AB12CD34"
+    timestamp: "2026-04-13T14:33:00+02:00"
+    sender_jid: "123456789@s.whatsapp.net"
+    status: sent
+    media: {mime: image/jpeg, sha256: "cafebabe..."}
+-->
+```
+
+**Fields per manifest entry:**
+
+| Field | Required | Description |
+|---|---|---|
+| `key_id` | yes | Platform-stable message ID; dedup key |
+| `timestamp` | yes | ISO 8601 with timezone |
+| `sender_jid` | yes | Sender's platform JID |
+| `status` | yes | `sent` \| `delivered` \| `read` \| `revoked` |
+| `text` | optional | Message text — written when the source is ephemeral and the manifest is the rewrite truth-source (w6f rationale); omit for sources with a durable original |
+| `quoted_key_id` | optional | `key_id` of the quoted/replied-to message; mirrors the `↩ (re: …)` body indicator |
+| `media` | optional | `{mime: <media-type>, sha256: <cas-sha256>}`; mirrors the `[media: …]` body indicator for CAS-stored attachments |
+
+**Format rules:** entries in the same `(timestamp, key_id)` order as the body lines
+(deterministic). The `<!-- zkm:manifest` block MUST be the final content in the file,
+placed after the last transcript line.
+
+**Reading:** `_load_existing_manifest` reads the footer block; pre-change day-files
+that still carry `messages:` in frontmatter are healed on next rewrite (frontmatter
+fallback → footer on save). Reconstitution (`_reconstitute`) reads the footer only.
+
 ### Deduplication
 
-Use the `messages:` manifest as the truth source:
+Use the footer manifest as the truth source:
 
-1. Load existing `messages[*].key_id` for this day (if the file exists).
+1. Load existing `key_id` values from the footer manifest for this day (if the file exists).
 2. Fetch rows from the source with `timestamp` in this day's window.
 3. Skip rows whose `key_id` is already in the manifest.
 4. Append new rows in `(timestamp, key_id)` order and rewrite the full manifest.
 
 Rowid renumbering across backup-restore does NOT affect correctness — only `key_id` (the
 platform-level stable ID) is used for dedup.
+
+### Plugin conformance — footer manifest
+
+> **Conformance contract (id:03ae):** The per-chat-day footer-manifest layout described
+> above (`<!-- zkm:manifest … -->`) IS the contract that `zkm-signal`, `zkm-threema`,
+> and every future chat-day plugin MUST inherit. A new plugin stub MUST NOT ship the old
+> frontmatter `messages:` shape. Signal and Threema stubs should adopt this footer shape
+> from day one rather than migrating later.
+
+See also: `docs/object-storage.md` §Sidecar vs. in-document storage for the
+heuristic that explains why the manifest lives in the document footer rather than a
+sidecar.
 
 ## Future plugins that should conform
 
