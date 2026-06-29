@@ -228,7 +228,13 @@ def build_index(
                 progress(i, total, path.name)
 
             rel = path.relative_to(store).as_posix()
-            mtime_ns = path.stat().st_mtime_ns
+            try:
+                mtime_ns = path.stat().st_mtime_ns
+            except FileNotFoundError:
+                # File vanished between rglob enumeration and stat (e.g. a
+                # concurrent rename/move). Skip it; a later run will pick up
+                # the new location.
+                continue
 
             if rel in prev and prev[rel].mtime_ns == mtime_ns:
                 docs.append(prev[rel])
