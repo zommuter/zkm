@@ -372,3 +372,7 @@ Review: ledger-only window (1 commit ea0f01e, "todo: file 4 routed inbox items";
 ## 2026-06-26 12:05 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 review zkm: window ea0f01e (4 routed inbox TODO items) clean; gaming-scan/lint/conformance/cross-ledger all clean; no promotions, routine_open=0
+
+## 2026-06-29 10:46 — reviewer (claude-opus-4-8)
+
+review: clean; mini-handoff promoted footer-manifest doc trio id:2b0b/68fc/03ae [ROUTINE]; pointer v4->v5; pruned 5 REVIEW_ME (routine_open=3)
