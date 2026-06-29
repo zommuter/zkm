@@ -370,6 +370,25 @@ the gate (N9c/N9d accepted-as-is decisions stand).
   - **Context**: `docs/meeting-notes/2026-06-26-1746-day-file-frontmatter-footer-manifest.md`.
     Core-runnable alone.
 
+- [ ] Unify `build_index` file enumeration on the TOCTOU-safe guard + surface dropped files [ROUTINE] <!-- id:f1d7 -->
+  - **Reverse-handoff context**: the full-rebuild crash hotfix (commit `6dc0132`, `index.py`
+    full-rebuild loop `try/except FileNotFoundError: continue`) is **VERIFIED GREEN this review**
+    — `tests/test_index_toctou.py::test_full_rebuild_skips_vanished_file` passes against the
+    shipped implementation (genuine fix, not a weakened spec). Two follow-ups remain open:
+  - **Acceptance**: (1) the *incremental/fast* path (`index.py:204-206`) still does
+    `if not path.exists(): continue` then a bare `path.stat()` — the same TOCTOU window the
+    full-rebuild path now guards. Unify both paths on the `try/except FileNotFoundError: continue`
+    form so a file that vanishes between the existence check and `stat()` is skipped, not fatal.
+    (2) the skip is currently silent; per the repo's "no silent caps" instinct, count and `log()`
+    the dropped-vanished paths so a truncated index isn't mistaken for a complete run (decide the
+    surface — a `log()` line per drop and/or a returned/logged count; do not invent a noisy default).
+  - **Tests**: `tests/test_index_toctou.py` — `test_incremental_path_survives_stat_toctou`
+    (`# roadmap:f1d7`, currently **RED**: the incremental loop crashes when `stat()` raises after
+    `exists()` passed). Add an assertion for the drop-count/log surface once (2)'s interface is chosen.
+  - **Done-check**: `uv run pytest tests/test_index_toctou.py` green, then the full suite green.
+  - **Context**: real production incident — a live `zkm index` over `~/knowledge` crashed at 43%
+    on a path removed mid-walk (chat by-id rename / Syncthing churn). TODO id:f1d7. Core-runnable alone.
+
 ## Pointers (NOT executor items — wrong repo or gated)
 
 - zkm-whatsapp W-series (W6f media manifest, W-key secret source, W8 owner-JID
