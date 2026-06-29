@@ -376,3 +376,7 @@ review zkm: window ea0f01e (4 routed inbox TODO items) clean; gaming-scan/lint/c
 ## 2026-06-29 10:46 — reviewer (claude-opus-4-8)
 
 review: clean; mini-handoff promoted footer-manifest doc trio id:2b0b/68fc/03ae [ROUTINE]; pointer v4->v5; pruned 5 REVIEW_ME (routine_open=3)
+
+## 2026-06-29 13:12 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+review: verified id:f1d7 index full-rebuild TOCTOU hotfix green (gaming-scan clean); promoted its 2 follow-ups to ROADMAP [ROUTINE] with red spec; c0a4 left as TODO investigation
