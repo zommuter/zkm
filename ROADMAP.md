@@ -370,7 +370,7 @@ the gate (N9c/N9d accepted-as-is decisions stand).
   - **Context**: `docs/meeting-notes/2026-06-26-1746-day-file-frontmatter-footer-manifest.md`.
     Core-runnable alone.
 
-- [ ] Unify `build_index` file enumeration on the TOCTOU-safe guard + surface dropped files [ROUTINE] <!-- id:f1d7 -->
+- [x] Unify `build_index` file enumeration on the TOCTOU-safe guard + surface dropped files [ROUTINE] <!-- id:f1d7 -->
   - **Reverse-handoff context**: the full-rebuild crash hotfix (commit `6dc0132`, `index.py`
     full-rebuild loop `try/except FileNotFoundError: continue`) is **VERIFIED GREEN this review**
     — `tests/test_index_toctou.py::test_full_rebuild_skips_vanished_file` passes against the

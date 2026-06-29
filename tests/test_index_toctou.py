@@ -58,13 +58,14 @@ def test_full_rebuild_skips_vanished_file(
 
 
 def test_incremental_path_survives_stat_toctou(
-    store: Path, make_note: Callable[..., Path], monkeypatch
+    store: Path, make_note: Callable[..., Path], monkeypatch, caplog
 ) -> None:
     """Incremental fast path: a changed file that exists() at check time but is
-    gone by the explicit stat() (the TOCTOU window) must be skipped, not crash.
-
-    Currently RED — the incremental loop does `exists()` then a bare `stat()`.
+    gone by the explicit stat() (the TOCTOU window) must be skipped, not crash,
+    and a WARNING must be logged so the drop is observable.
     """
+    import logging
+
     make_note("notes/a.md", "apple")
     sha1 = _commit_all(store, "add a")
     idx1 = build_index(store)
@@ -78,17 +79,26 @@ def test_incremental_path_survives_stat_toctou(
     calls = {"n": 0}
 
     def flaky_stat(self: Path, *a, **k):
-        # Let exists() (call 1) succeed, then make the explicit stat() (call 2)
-        # raise — simulating the file vanishing inside the TOCTOU window.
+        # Simulate the file vanishing inside the TOCTOU window: the explicit
+        # stat() call (for mtime_ns) raises FileNotFoundError.
+        # NOTE: In Python ≥3.12 Path.exists() no longer routes through
+        # Path.stat(), so exists() succeeds via the OS layer while the
+        # explicit stat() here raises — this IS the TOCTOU window.
         if str(self).endswith("notes/b.md"):
             calls["n"] += 1
-            if calls["n"] >= 2:
+            if calls["n"] >= 1:
                 raise FileNotFoundError(self)
         return real_stat(self, *a, **k)
 
     monkeypatch.setattr(Path, "stat", flaky_stat)
 
-    idx2 = build_index(store)  # must not raise; b.md simply skipped this round
+    with caplog.at_level(logging.WARNING, logger="zkm.index"):
+        idx2 = build_index(store)  # must not raise; b.md simply skipped this round
+
     rels = {d.rel_path for d in idx2.docs}
     assert "notes/a.md" in rels
     assert "notes/b.md" not in rels
+    # Drop is observable: a WARNING must have been emitted for the vanished file.
+    assert any("notes/b.md" in r.message for r in caplog.records), (
+        "expected a WARNING log for the vanished file; got: " + str(caplog.records)
+    )
