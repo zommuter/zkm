@@ -380,3 +380,13 @@ review: clean; mini-handoff promoted footer-manifest doc trio id:2b0b/68fc/03ae 
 ## 2026-06-29 13:12 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 review: verified id:f1d7 index full-rebuild TOCTOU hotfix green (gaming-scan clean); promoted its 2 follow-ups to ROADMAP [ROUTINE] with red spec; c0a4 left as TODO investigation
+
+## 2026-06-29 — executor (claude-sonnet-4-6)
+
+Worked id:2b0b/68fc/03ae (docs trio) and id:f1d7 (index TOCTOU fix).
+id:2b0b: messaging-spec.md — removed `messages:` from frontmatter schema, flow-compacted participants, added §Footer manifest with full field table (text/quoted_key_id/media), updated dedup+deterministic-emission sections.
+id:68fc: object-storage.md — added §Sidecar vs. in-document storage heuristic table + applied examples.
+id:03ae: messaging-spec.md §Plugin conformance note — footer shape IS the contract signal/threema stubs must inherit.
+id:f1d7: index.py incremental path — wrapped path.stat() in try/except FileNotFoundError; drops logged at WARNING level (no silent caps); test updated with caplog assertion + monkeypatch threshold adjusted for Python ≥3.12 (Path.exists() no longer routes through Path.stat()).
+Friction: Python 3.14 behaviour change in Path.exists() (no longer calls Path.stat()) needed the test's flaky_stat threshold to drop from ≥2 to ≥1 — not a test weakening, just matching the new call-count reality while preserving the same TOCTOU scenario.
+Full suite 608 green.
