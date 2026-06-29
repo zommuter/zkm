@@ -337,6 +337,39 @@ the gate (N9c/N9d accepted-as-is decisions stand).
     index-sync lever. `[INTENSIVE — local-llm]`: the real done-check loads the embedding
     model. TODO id:7e21.
 
+- [ ] Document the day-file footer-manifest layout in `docs/messaging-spec.md` [ROUTINE] <!-- id:2b0b -->
+  - **Acceptance** (footer meeting D5, `docs/meeting-notes/2026-06-26-1746-day-file-frontmatter-footer-manifest.md`):
+    replace the pre-w6f minimal-manifest schema (`docs/messaging-spec.md:229-237`) with the
+    end-of-file `<!-- zkm:manifest … -->` footer layout, AND document the shipped
+    `text` / `quoted_key_id` / `media` manifest fields (current spec gap). Make explicit that
+    signal/threema stubs inherit the footer shape, NOT the old frontmatter-manifest shape.
+    No code change — `docs/messaging-spec.md` only.
+  - **Done-check**: `grep -q 'zkm:manifest' docs/messaging-spec.md` and the
+    `messages:`-in-frontmatter schema block is gone; full suite still green
+    (`uv run pytest -q`).
+  - **Context**: pairs with the shipped whatsapp footer migration (TODO id:767e, plugin repo).
+    TODO.md §Frontmatter field governance. Core-runnable alone.
+
+- [ ] Add the sidecar-vs-in-document heuristic to `docs/object-storage.md` [ROUTINE] <!-- id:68fc -->
+  - **Acceptance** (footer meeting D4): document the heuristic in `docs/object-storage.md` and
+    cross-ref it from `docs/messaging-spec.md`: single-producer + in-band + primary-data →
+    in-document (frontmatter/footer); multi-producer + out-of-band + machine-bookkeeping
+    (values mirrored to frontmatter) → sidecar. State that the amendment ledger is a sidecar
+    under this rule, consistently. No code change — docs only.
+  - **Done-check**: the heuristic text is present in `docs/object-storage.md` with a
+    cross-ref from `docs/messaging-spec.md`; full suite still green.
+  - **Context**: `docs/meeting-notes/2026-06-26-1746-day-file-frontmatter-footer-manifest.md` D4.
+    Core-runnable alone.
+
+- [ ] Spec/conformance note: footer-manifest layout is the `messaging-spec.md` contract [ROUTINE] <!-- id:03ae -->
+  - **Acceptance**: add an explicit conformance note in `docs/messaging-spec.md` that the
+    per-chat-day footer-manifest layout IS the contract signal/threema (and future chat
+    plugins) must inherit, so a new plugin stub does not ship the old frontmatter-manifest
+    shape. Smallest of the trio; lands with id:2b0b/68fc in one execute session. Docs only.
+  - **Done-check**: the conformance note is present in `docs/messaging-spec.md`; full suite green.
+  - **Context**: `docs/meeting-notes/2026-06-26-1746-day-file-frontmatter-footer-manifest.md`.
+    Core-runnable alone.
+
 ## Pointers (NOT executor items — wrong repo or gated)
 
 - zkm-whatsapp W-series (W6f media manifest, W-key secret source, W8 owner-JID
