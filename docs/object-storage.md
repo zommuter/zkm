@@ -108,6 +108,29 @@ from zkm.inbox   import symlink_with_sidecar              # implements one-canon
 
 Plugins SHOULD import from these rather than re-implementing the protocol. See `docs/plugin-spec.md § Core helpers`.
 
+## Sidecar vs. in-document storage
+
+When deciding whether new per-file data belongs in the `.md` itself or in a sidecar
+file, apply this heuristic (ratified 2026-06-26, meeting id:3322):
+
+> **Single-producer + in-band + primary data → in-document (frontmatter or footer).**
+> **Multi-producer + out-of-band + machine bookkeeping (values mirrored to frontmatter) → sidecar.**
+
+In practice:
+
+| Property | In-document | Sidecar |
+|---|---|---|
+| Writer count | Single (the plugin that owns the file) | Multiple (amenders, cross-plugin) |
+| Write timing | In-band with the same convert pass that writes the body | Out-of-band / async (queued, applied later) |
+| Content type | Primary data or truth-source (manifest, transcript) | Machine bookkeeping; human-facing values mirrored elsewhere |
+| Self-contained? | Yes — git-mv / restore works on the `.md` alone | No — needs the sidecar to reconstruct full state |
+
+**Applied examples:**
+- **Per-chat-day manifest** (`<!-- zkm:manifest … -->` footer): single-producer (the chat plugin), in-band, primary data → **in-document footer**. See `docs/messaging-spec.md §Footer manifest`.
+- **Amendment ledger** (`<md>.amendments.json`): multi-producer (NER, notmuch, future amenders), out-of-band (queued and applied asynchronously), machine bookkeeping (producer-sets + ref-counts; values mirrored to frontmatter) → **sidecar**.
+
+The amendment ledger uses a sidecar for the EXACT INVERSE reason the manifest uses the footer: if attribution lived in the `.md`, every amender would rewrite a file owned by a different plugin, creating write contention with the body-writer and each other.
+
 ## Hygiene commands
 
 - **`zkm rm <path>`** — remove a managed `.md`; decrement sidecar `producers[]`; if last producer, remove the inbox symlink; if the CAS object is now unreferenced, remove it. Dry-run by default; `--apply` to commit.

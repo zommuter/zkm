@@ -203,7 +203,17 @@ def build_index(
             path = store / rel
             if not path.exists():
                 continue
-            mtime_ns = path.stat().st_mtime_ns
+            try:
+                mtime_ns = path.stat().st_mtime_ns
+            except FileNotFoundError:
+                # File vanished between exists() and stat() (TOCTOU window, e.g.
+                # concurrent rename/Syncthing churn). Skip it silently is wrong;
+                # log so a truncated incremental run is observable.
+                import logging
+                logging.getLogger(__name__).warning(
+                    "index: file vanished in incremental walk, skipping: %s", path
+                )
+                continue
             try:
                 post = frontmatter.load(path)
             except Exception:
