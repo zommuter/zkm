@@ -390,3 +390,7 @@ id:03ae: messaging-spec.md §Plugin conformance note — footer shape IS the con
 id:f1d7: index.py incremental path — wrapped path.stat() in try/except FileNotFoundError; drops logged at WARNING level (no silent caps); test updated with caplog assertion + monkeypatch threshold adjusted for Python ≥3.12 (Path.exists() no longer routes through Path.stat()).
 Friction: Python 3.14 behaviour change in Path.exists() (no longer calls Path.stat()) needed the test's flaky_stat threshold to drop from ≥2 to ≥1 — not a test weakening, just matching the new call-count reality while preserving the same TOCTOU scenario.
 Full suite 608 green.
+
+## 2026-06-29 13:23 — executor (sonnet, relay-loop)
+
+executor: shipped id:2b0b/68fc/03ae (footer-manifest docs + sidecar heuristic) and id:f1d7 (index incremental TOCTOU fix + log surface); 608 green, ROADMAP drained
