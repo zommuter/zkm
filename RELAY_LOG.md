@@ -423,3 +423,7 @@ Worked id:c85c — expanded one-liner RuntimeError note in ARCHITECTURE.md §Plu
 a three-point Plugin error contract (raise-to-fail, amender WARN+continue, hard-converter exit-code);
 full suite still 609 passed.
 Friction: none.
+
+## 2026-06-30 12:13 — executor (sonnet, relay-loop)
+
+executor: close a285 (conformance path-resolution fix) and c85c (plugin error contract doc) — 609 tests green [id:a285,c85c]
