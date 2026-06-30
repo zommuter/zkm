@@ -29,6 +29,27 @@ Completed Phase 1 tasks archived in `docs/phase1-done.md`. <!-- lint-ok: file-pu
   reviewer/`/meeting` close-out should reconcile the core W-/V-/C- twins when ticking a plugin ROADMAP item.
   Relates to dotclaude-skills id:69f4, id:3947; the manual-sync `id:4159` above is the same pattern for triad repos. <!-- id:1d41 -->
 
+- [ ] **[HARD — meeting] Revisit the 2026-05-13 central-all-in-zkm-TODO decision — per-plugin TODO independence vs. central ledger.** <!-- id:f98d -->
+  The 2026-05-13 per-plugin-todo-topology meeting put ALL plugin-scoped work in this central `TODO.md` (single-letter
+  `W`/`V`/`C`/… prefixes); each plugin repo has only a `ROADMAP.md`. Verified 2026-06-30 (`/relay handoff zkm`): this
+  causes structural drift — (1) plugin ROADMAP items often carry a DIFFERENT `id:` than their core-TODO twin (core
+  `id:d3c9` ↔ zkm-pdf `id:cd59`, already SHIPPED), breaking single-id-two-views; (2) ticking a plugin ROADMAP `[x]` never
+  propagates back to the core-TODO twin, so this file's "open plugin" count is INFLATED with already-done work (`orphan-scan
+  --cross-ledger` is intra-repo, can't catch it). **Decision space:** **(A)** status quo + build cross-PROJECT sync
+  machinery (the id:ddb8/69f4 path — *guards* the drift); **(B)** each plugin owns its OWN `TODO.md`+`ROADMAP.md`
+  (single-id-two-views becomes intra-repo, `orphan-scan --cross-ledger` ALREADY handles it), central `TODO.md` keeps ONLY
+  core + genuinely cross-cutting items; **(C)** keep central but mechanically enforce id-reuse across repos. **Recommend B**
+  (dissolve-not-guard heuristic: B turns cross-repo drift into intra-repo drift the existing scan catches, instead of
+  building id:69f4 to guard it; constraint archaeology: "central = single pane of visibility" was decided before the relay
+  could sweep repos — it now routinely does via discover-repos/unpromoted-scan/gather-human-backlog, so the relay IS the
+  aggregator). **Meeting must resolve:** (1) the boundary rule for "stays central" (proposal: touches `src/zkm/` OR ≥2
+  plugins OR a shared schema/spec → central; else plugin-local); (2) how the human sees all-plugin work at a glance
+  (relay `--all` rollup vs a `zkm projects` view); (3) migration — reconcile the already-done inflated items FIRST (reuse
+  ids), then move plugin-local items into their repos; (4) joint decision with the GH-Issues-as-inbox topology (per-plugin
+  TODO + per-plugin Issues is coherent); (5) fate of the `W`/`V`/`C` prefix table (retired under B); (6) whether B
+  OBSOLETES id:ddb8/dotclaude-skills id:69f4 (the cross-project sync) — likely yes. Cross-cutting: pairs with
+  dotclaude-skills id:d097 (relay-side handoff/review/scan assumptions). Filed 2026-06-30 (from `/relay handoff zkm`).
+
 ## Phase 2.5 — NER (decided 2026-05-10-1148-entity-extraction.md)
 
 NER lands before whatsapp. `zkm convert <plugin>` runs amenders default-on (`--no-amenders` to skip). Session 9d extraction-cache transitions from design-only to implementation alongside zkm-ner. <!-- lint-ok: section decision context -->
