@@ -394,3 +394,7 @@ Full suite 608 green.
 ## 2026-06-29 13:23 — executor (sonnet, relay-loop)
 
 executor: shipped id:2b0b/68fc/03ae (footer-manifest docs + sidecar heuristic) and id:f1d7 (index incremental TOCTOU fix + log surface); 608 green, ROADMAP drained
+
+## 2026-06-30 09:23 — reviewer (opus)
+
+review: 4 unaudited commits (chore/todo/relay docs-only + id:7d26 conformance fix); diffs doc/ledger-only, no code/tests; health clean (cross-ledger drift clean). Surfaced: ROADMAP drained + 69 un-promoted TODO items → needs handoff-C2 lane-triage pass (68 surface/untagged, 1 was untracked, now id:7d26).
