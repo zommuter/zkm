@@ -151,6 +151,7 @@ Repos in this polyrepo (each tags `vX.Y.Z` independently):
 - `plugins/zkm-photo/`, `zkm-pdf/`, `zkm-scan/`, `zkm-notmuch/`, `zkm-ner/` — own repos
 - `plugins/zkm-vcard/`, `plugins/zkm-calendar/` — own repos (decided 2026-06-01)
 - `plugins/zkm-claude-ai/` — own repo (decided 2026-06-06)
+- `plugins/zkm-chatgpt/` — own repo (scoped 2026-06-30, ChatGPT conversations.json importer)
 - `examples/zkm-notes/` — not independently versioned; follows core tags
 
 **Bump trigger:** every pyproject `version` change → tag in same commit. Never bump silently. After each bump-and-tag commit, run `uv publish` in the affected repo to release the wheel. Plugin PyPI releases are gated on Session B (entry-point discovery — plugin stubs are at 0.0.1 until then).
