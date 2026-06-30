@@ -156,37 +156,43 @@ Repos in this polyrepo (each tags `vX.Y.Z` independently):
 
 **Bump trigger:** every pyproject `version` change → tag in same commit. Never bump silently. After each bump-and-tag commit, run `uv publish` in the affected repo to release the wheel. Plugin PyPI releases are gated on Session B (entry-point discovery — plugin stubs are at 0.0.1 until then).
 
-## TODO prefix convention
+## TODO topology — where work lives (Option B, decided 2026-06-30)
 
-Central `TODO.md` is the single ledger for all plugin-scoped and cross-cutting work (decided 2026-05-13, see `docs/meeting-notes/2026-05-13-1915-per-plugin-todo-topology.md`). Plugin-scoped items use a single-letter prefix:
+Each plugin owns its **own** `plugins/zkm-*/TODO.md` (the tactical work ledger; executor
+specs in its `ROADMAP.md`). The central `~/src/zkm/TODO.md` holds ONLY **core** +
+**genuinely cross-cutting** items. This replaces the 2026-05-13 central-everything decision
+(superseded — see `docs/meeting-notes/2026-06-30-1004-per-plugin-todo-topology-revisited.md`;
+the prior decision was `docs/meeting-notes/2026-05-13-1915-per-plugin-todo-topology.md`).
+The old single-letter prefix table (`N`/`A`/`E`/`S`/`M`/`V`/`C`/`W`/…) is **retired** — the
+repo is the namespace.
 
-| Prefix | Plugin / scope |
-|--------|---------------|
-| `N` | zkm-ner (NER pipeline) |
-| `A` | zkm-eml auto-trigger (mbsync hook) |
-| `E` | γ schema (cross-cutting core + zkm-ner) |
-| `S` | SIGUSR1/status (core runstate) |
-| `M` | zkm-eml backlog (general) |
-| `V` | zkm-vcard (contacts plugin) |
-| `C` | zkm-calendar (calendar plugin) |
-| `W` | zkm-whatsapp (chat plugin) |
-| — | core / cross-cutting (no prefix) |
+**Boundary rule (first match wins):**
+1. Edits `src/zkm/**` or a core test → **central**.
+2. A shared schema/spec/library imported by **≥2 plugins** (γ schema, `zkm.pdftext`,
+   object-storage, `messaging-spec.md`, conformance) → **central**.
+3. Otherwise → the **owning plugin's** `TODO.md`.
 
-**Rule:** when a plugin accumulates ≥3 unchecked items at once that aren't already in a numbered series, assign a single-letter prefix and add it to this table.
+Default is plugin-local. Tiebreaker: "would closing it touch ≥2 repos?" → central; a
+single-repo close → plugin-local. Classify **once at filing**; only re-home an item if a
+second plugin deliberately picks it up (no drift-thrash). Single-id-two-views drift
+(TODO↔ROADMAP) is now **intra-repo**, so `orphan-scan.sh --cross-ledger` catches it natively.
+
+**All-plugin visibility:** `proj` / `/projects` (walks `plugins/*/TODO.md`) for the human
+glance; the relay `--all` rollup for executor-facing status. No central plugin ledger needed —
+the relay sweep (`discover-repos`/`unpromoted-scan`/`gather-human-backlog`) is the aggregator.
 
 **GH Issues = additional inbox channel (not a migration):** public GitHub Issues on a
-plugin repo are an *extra input*, not a replacement ledger. The canonical source of truth
-stays the central `TODO.md` (+ per-repo `ROADMAP.md` for executor specs). When a repo has
+plugin repo are an *extra input*, not a replacement ledger. The canonical source of truth is
+that plugin's **own `TODO.md`** (+ its `ROADMAP.md` for executor specs). When a repo has
 Issues enabled:
 - Relay/meeting passes additionally run `gh issue list` across those repos.
-- Each open issue is triaged — answer/close it, or route it into `TODO.md` (W-prefix etc.)
-  with a link back to the issue. The issue is a pointer; the ledger is the truth.
-- **No automatic topology flip.** A real migration to "GH Issues for larger items + central
-  TODO.md for tactical" is reconsidered only if *sustained* outside contribution actually
+- Each open issue is triaged — answer/close it, or route it into the **plugin's own
+  `TODO.md`** with a link back to the issue. The issue is a pointer; the ledger is the truth.
+- **No automatic topology flip.** A real migration to "GH Issues for larger items + TODO.md
+  for tactical" is reconsidered only if *sustained* outside contribution actually
   materializes (e.g. several merged outside PRs) — a deliberate decision then, never an
   automatic trigger on the first stranger's issue. (Superseded the old auto-migration
-  trigger 2026-06-26: it hinged a whole-topology flip across all plugins on a single weak
-  signal.)
+  trigger 2026-06-26.)
 
 ## Phases
 
