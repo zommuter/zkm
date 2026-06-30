@@ -406,3 +406,7 @@ review (CORRECTION to 0923): cross-ledger drift was NOT clean — id:2b0b/68fc/0
 ## 2026-06-30 09:47 — reviewer (opus)
 
 handoff (C2+C3): promoted 2 core executor-ready items into drained ROADMAP — a285 (conformance.run_dynamic path-resolution bug; RED spec test_run_dynamic_preserves_non_path_config) + c85c (doc the existing plugin error contract in ARCHITECTURE.md). 608 green + 1 intended RED spec (a285). Triaged 69 un-promoted TODO: ~60 are plugin-scoped (own plugin repos' ROADMAPs) or meeting/deferred/gated design backlog; 5f61 left unpromoted (self-gated). Lease held; no code beyond the behavior-preserving helper extraction.
+
+## 2026-06-30 10:42 — reviewer (opus)
+
+review: f98d Option-B per-plugin-TODO migration audited clean — gaming/roadmap-lint/cross-ledger all clean; ledger consistent post-restructure; 2 ROUTINE items (a285 conformance path-resolution, c85c plugin-error-contract doc) ready for executor; routed:2649 (d097 relay-side) awaiting dotclaude-skills ingest
