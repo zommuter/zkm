@@ -154,7 +154,8 @@ Kills the zkm-pdf↔zkm-scan two-probe drift bug (whitespace-heavy PDF skipped b
 
 **Scoped (decided 2026-06-06-1617-zkm-claude-ai-claude-code-scoping.md):** claude-ai ✓; claude-code ✓ (v0.1.0, 2026-06-11); `zkm.session` extracted (N=2 done, `src/zkm/session.py`). Other providers deferred until session-import pattern proven with two real plugins. <!-- lint-ok: section decision context -->
 
-- [ ] **Other AI provider sessions** (ChatGPT exports, Gemini, etc.) — deferred until zkm-claude-code lands and the session-import pattern is proven. N=2 for a shared `zkm.session` helper requires at least two providers implemented. <!-- id:fd7e -->
+- [ ] **Other AI provider sessions** (Gemini, etc.) — deferred until a real export shows up. ChatGPT carved out + built (see below). N=2 for a shared `SessionImporter` scaffold now has its second foreign schema (chatgpt). <!-- id:fd7e -->
+- [ ] **zkm-chatgpt** (provider plugin, own repo `plugins/zkm-chatgpt/` → `fievel:src/zkm-plugins/zkm-chatgpt.git`, v0.1.0) — kickoff baseline shipped 2026-06-30 (importer + D-privacy renderer + mapping ordering + dedup, 13 tests). Remainder tracked in the plugin's `ROADMAP.md`: `_context.md` hybrid (id:ctx1, needs real export), conformance `zkm test chatgpt` (id:conf), shared-scaffold extraction (id:scaf, gated). Scoped in `plugins/zkm-claude-ai/docs/meeting-notes/2026-06-30-0820-chatgpt-importer-scope.md`. <!-- routed:bf5d -->
 
 ## Plugin backlog — social networks
 
