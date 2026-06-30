@@ -3,7 +3,7 @@
 Judgment calls encoded in red tests — confirm or correct the interpretation.
 Max ~10 open boxes; the reviewer prunes resolved ones each review turn.
 
-- [ ] **ROADMAP near-drained — remaining TODO backlog is design-ledger, not executor-ready.**
+- [x] **ROADMAP near-drained — remaining TODO backlog is design-ledger, not executor-ready.** — ✅ ack 2026-06-30 /relay human: confirmed: remaining TODO backlog is design-ledger (plugin/inbox/design-judgment), none auto-promotable; handoff/meeting is the right venue.
   After the 2026-06-30 review re-derivation, ROADMAP holds 2 open `[ROUTINE]` core items
   (id:a285 run_dynamic path-resolution fix, id:c85c plugin runtime-error-contract doc).
   `unpromoted-scan` flags 32 further un-promoted TODO items, but every one is design-judgment
