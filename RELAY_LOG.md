@@ -398,3 +398,7 @@ executor: shipped id:2b0b/68fc/03ae (footer-manifest docs + sidecar heuristic) a
 ## 2026-06-30 09:23 — reviewer (opus)
 
 review: 4 unaudited commits (chore/todo/relay docs-only + id:7d26 conformance fix); diffs doc/ledger-only, no code/tests; health clean (cross-ledger drift clean). Surfaced: ROADMAP drained + 69 un-promoted TODO items → needs handoff-C2 lane-triage pass (68 surface/untagged, 1 was untracked, now id:7d26).
+
+## 2026-06-30 09:32 — reviewer (opus)
+
+review (CORRECTION to 0923): cross-ledger drift was NOT clean — id:2b0b/68fc/03ae/f1d7 were ROADMAP[x]/TODO[ ]. Re-derived all 4: 3 docs verified present; id:f1d7 was a FALSE done-claim (ROADMAP[x] 'surface dropped files' met on only the incremental path; full-rebuild path dropped silently). Completed f1d7 (2c77e55), reconciled TODO (726db35). 608 green, orphan-scan --cross-ledger clean. Routed false-claim case to chidiai + relay process-gap TODO.
