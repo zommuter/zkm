@@ -30,6 +30,41 @@ the gate (N9c/N9d accepted-as-is decisions stand).
 
 ## Items
 
+- [ ] Fix `run_dynamic` path-resolution clobbering non-path conformance-config values [ROUTINE] <!-- id:a285 -->
+  - **Problem**: `src/zkm/conformance.py` resolved EVERY `conformance.config` value as a
+    plugin-relative path, so a non-path scalar like `network: linkedin` was clobbered into a
+    bogus absolute path — a plugin (zkm-social) that declares a scalar dynamic-check selector
+    cannot be `zkm test`ed. The buggy loop is now isolated in the helper
+    `_resolve_conformance_config(plugin_path, conf_config)` (extracted in the C3 commit,
+    behavior-preserving) so it has a test seam.
+  - **Fix**: in `_resolve_conformance_config`, only path-resolve a value whose resolved path
+    actually **exists**; pass any other value through **unchanged**
+    (`resolved = plugin_path / str(v); config[k] = str(resolved.resolve()) if resolved.exists() else v`).
+    Real fixture paths must still resolve to absolute.
+  - **Tests**: `tests/test_conformance.py::TestResolveConformanceConfig::test_run_dynamic_preserves_non_path_config`
+    (`# roadmap:a285`, currently **RED**: asserts the real path key resolves absolute AND
+    `config["network"] == "linkedin"`; today the scalar is clobbered to `/tmp/.../linkedin`).
+  - **Done-check**: `uv run pytest tests/test_conformance.py -k run_dynamic` green, then full suite green.
+  - **Context**: found 2026-06-12 relay handoff (zkm-social child); also inbox-routed. Core-runnable alone.
+
+- [ ] Document the plugin runtime-error contract in `ARCHITECTURE.md` [ROUTINE] <!-- id:c85c -->
+  - **Problem**: the store-wide plugin error contract is implemented but undocumented — a plugin
+    signals a runtime/CLI failure by raising (e.g. `RuntimeError`); core's amender loop catches it
+    and prints a one-line `WARN` rather than aborting the whole `zkm convert`. Owner-ratified
+    2026-06-13 (inbox routed:4d69), **core-only** (not a plugin-side change).
+  - **Behavior already exists** (do NOT re-implement): `src/zkm/cli.py` amender loop —
+    `except Exception as e: click.echo(f"WARN: amender '{amender.name}' failed: {e}", err=True)`
+    (around `cli.py:708-710`). This is a DOC item: write `ARCHITECTURE.md` §"Plugin error contract"
+    stating (a) a plugin raises to signal failure, (b) core's amender sweep catches + WARNs +
+    continues, (c) a hard converter (non-amender) failure still surfaces via the convert exit code.
+  - **Tests**: doc item — no red pytest required. OPTIONAL green regression-guard the executor MAY
+    add (`# regression-guard (passes today): roadmap:c85c`): a synthetic amender that raises →
+    `zkm convert` still exits 0 and prints the `WARN` line (see `tests/test_cli_amenders.py` for the
+    synthetic-plugin pattern). If added, flag it green-guard in the header per the C3 rule.
+  - **Done-check**: `ARCHITECTURE.md` contains a "Plugin error contract" section matching cli.py's
+    actual behavior; `uv run pytest` stays green.
+  - **Context**: inbox routed:4d69 from zkm core owner. Core-runnable alone.
+
 - [x] Lift zkm-whatsapp `state.py` → `src/zkm/state.py` (`zkm.state`) [ROUTINE] <!-- id:f399 -->
   - **Acceptance**: a core `zkm.state` module provides `load_state(store, plugin, source)`
     and `save_state(store, plugin, source, state)`, generalizing the whatsapp module with a
