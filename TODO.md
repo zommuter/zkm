@@ -5,7 +5,7 @@ See `CLAUDE.md` for architecture overview. See `docs/phase2-plan.md` for sequenc
 Completed Phase 1 tasks archived in `docs/phase1-done.md`. <!-- lint-ok: file-purpose preamble -->
 
 > **Topology (decided 2026-06-30, `docs/meeting-notes/2026-06-30-1004-per-plugin-todo-topology-revisited.md`, Option B):** <!-- lint-ok: file-purpose preamble -->
-> This file holds ONLY **core** + **genuinely cross-cutting** items. Plugin-scoped work lives in each plugin's own `plugins/zkm-*/TODO.md` (executor specs in its `ROADMAP.md`). Boundary rule (first match wins): (1) edits `src/zkm/**` or a core test → here; (2) shared schema/spec/library imported by ≥2 plugins (γ, `zkm.pdftext`, object-storage, messaging-spec, conformance) → here; (3) else → the owning plugin's TODO.md. Tiebreaker: "would closing it touch ≥2 repos?" → here. All-plugin glance: `proj`/`/projects` (walks plugin TODOs) + relay `--all` rollup. The W/V/C/… prefix table is **retired** — the repo is the namespace.
+> This file holds ONLY **core** + **genuinely cross-cutting** items. Plugin-scoped work lives in each plugin's own `plugins/zkm-*/TODO.md` (executor specs in its `ROADMAP.md`). Boundary rule (first match wins): (1) edits `src/zkm/**` or a core test → here; (2) shared schema/spec/library imported by ≥2 plugins (γ, `zkm.pdftext`, object-storage, messaging-spec, conformance) → here; (3) else → the owning plugin's TODO.md. Tiebreaker: "would closing it touch ≥2 repos?" → here. All-plugin glance: `proj`/`/projects` (walks plugin TODOs) + relay `--all` rollup. The W/V/C/… prefix table is **retired** — the repo is the namespace. <!-- lint-ok: file-purpose preamble -->
 
 ## Cross-project
 
@@ -59,7 +59,7 @@ Shared `zkm.pdftext` helper owns the pdf/scan routing *decision* (`probe()` + `i
 
 ## Chat / messaging — cross-cutting (shared `messaging-spec.md` + entity model)
 
-Per-plugin chat work (whatsapp/telegram/signal/threema ingest, segmentation, footer manifests) lives in each plugin's own TODO.md. Only the genuinely cross-cutting items — shared transcript conventions and Phase-3 entity-model work spanning ≥2 plugins — stay here.
+Per-plugin chat work (whatsapp/telegram/signal/threema ingest, segmentation, footer manifests) lives in each plugin's own TODO.md. Only the genuinely cross-cutting items — shared transcript conventions and Phase-3 entity-model work spanning ≥2 plugins — stay here. <!-- lint-ok: section preamble -->
 
 - [ ] **Call/voice-event rendering convention in `docs/messaging-spec.md`** — define one shared transcript shape for calls/missed-calls so all chat plugins (whatsapp/telegram/signal/threema) render them identically; the per-platform call-table *ingest* stays per-plugin. Cross-cutting (the spec) half of zkm-whatsapp's call-log ingest. From 2026-06-25 whatsapp folder-naming meeting. <!-- id:5e19 -->
 - [ ] **Forward-flag (Phase 3 entity-timeline).** Cross-channel merged per-person conversation timeline: Instagram reel + WhatsApp voice message + phone call as one chronological thread for a contact. Layer-2 entity work (`docs/entity-model.md`); overlaps zkm-social activity-feed (id:a580). Reopen when entity pages + ≥2 channels are ingested. <!-- id:9ee1 -->
@@ -108,7 +108,7 @@ Per-plugin chat work (whatsapp/telegram/signal/threema ingest, segmentation, foo
 
 ## Frontmatter schema vocabulary (decided 2026-06-13-1413-frontmatter-schema-vocabulary.md)
 
-Cross-cutting schema rules (core-owned scalar registry + per-plugin namespacing) — span core docs + ≥2 plugins, so they stay central.
+Cross-cutting schema rules (core-owned scalar registry + per-plugin namespacing) — span core docs + ≥2 plugins, so they stay central. <!-- lint-ok: section preamble -->
 
 - [ ] Add a **core-owned scalar registry** table to `docs/plugin-spec.md` (key/type/semantics/enum) seeded with `status` (enum confirmed/cancelled/tentative), `subject`, `project`, `tags`, `sha256`, `url_sha256`; document the flat `<plugin>_<key>` rule for plugin-private scalars; mirror the rule into `ARCHITECTURE.md` §Conventions. <!-- id:4431 -->
 - [ ] `zkm test` (conformance.py): warn-level finding when an emitted `.md` carries a bare scalar key not in the core-owned registry and not in `<plugin>_*` form. <!-- id:e2c4 -->

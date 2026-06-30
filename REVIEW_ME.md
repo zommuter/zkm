@@ -4,12 +4,23 @@ Judgment calls encoded in red tests — confirm or correct the interpretation.
 Max ~10 open boxes; the reviewer prunes resolved ones each review turn.
 
 - [ ] **ROADMAP near-drained — remaining TODO backlog is design-ledger, not executor-ready.**
-  After this review re-derivation, ROADMAP holds 3 open `[ROUTINE]` core-doc items (id:2b0b/68fc/03ae,
-  the footer-manifest spec docs). `unpromoted-scan` flags ~68 further un-promoted TODO items, but
-  every one is design-judgment (a `/meeting` candidate), plugin-repo work (kept in central TODO by
-  the ROADMAP scope rule), or an inbox-routed cross-repo item — none are auto-promotable. A future
-  HANDOFF pass (or `/meeting`) is the right venue to qualify the design-ledger backlog; this review
-  promoted only the already-decided doc trio. (Surfaced by relay-doctor 2026-06-29.)
+  After the 2026-06-30 review re-derivation, ROADMAP holds 2 open `[ROUTINE]` core items
+  (id:a285 run_dynamic path-resolution fix, id:c85c plugin runtime-error-contract doc).
+  `unpromoted-scan` flags 32 further un-promoted TODO items, but every one is design-judgment
+  (a `/meeting` candidate), plugin-repo work (kept in central TODO by the ROADMAP scope rule),
+  or an inbox-routed cross-repo item — none are auto-promotable. A future HANDOFF pass (or
+  `/meeting`) is the right venue to qualify the design-ledger backlog. (Refreshed by relay
+  review 2026-06-30; supersedes the stale id:2b0b/68fc/03ae note.)
+
+- [ ] **Qualify inbox item id:1e4f (url_sha256 frontmatter contract) — needs zkm-social context.**
+  Ingested this window (routed:7f55): document `url_sha256` in core `docs/plugin-spec.md`
+  frontmatter + accept it in `zkm.conformance.FRONTMATTER_REQUIRED` for `source=social`, then
+  drop the transitional sha256 dup in zkm-social's `_github.py`/`_linkedin.py`. Description is
+  concrete, but it is a cross-cutting frontmatter/conformance CONTRACT change whose spec rationale
+  lives in zkm-social's roadmap (id:72ef, D4) — a plugin repo this core review must NOT descend
+  into. Left as TODO (not force-promoted to ROADMAP); qualify via a HANDOFF pass once the
+  zkm-social D4 design is read, or a `/meeting` if the contract shape is still open. (Reverse-handoff
+  D6, relay review 2026-06-30.)
 
 - [x] tests/test_amendments_retract.py (roadmap:25ec, relay HARD-execute
   2026-06-19) — TWO items for the human budget:
