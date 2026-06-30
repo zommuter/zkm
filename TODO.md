@@ -18,19 +18,6 @@ Completed Phase 1 tasks archived in `docs/phase1-done.md`. <!-- lint-ok: file-pu
   both copies in sync MANUALLY (no automated cross-PROJECT sync; relay `--cross-ledger` is intra-repo only,
   inbox routing is one-way). Wherever worked/closed, tick the twin. Likely a manual `/meeting`. <!-- id:4159 -->
 
-- [x] **Polyrepo plugin-ROADMAP ↔ core-TODO drift — shared-`id:` ledgers go out of sync.** CLOSED 2026-06-30 — <!-- id:ddb8 -->
-  obsoleted by the Option B topology decision (`docs/meeting-notes/2026-06-30-1004-per-plugin-todo-topology-revisited.md`).
-  Under B the central file no longer holds plugin twins, so there is no cross-repo twin to drift; `orphan-scan
-  --cross-ledger` now catches plugin TODO↔ROADMAP drift intra-repo. The cross-PROJECT guard work is routed to
-  dotclaude-skills (d097 / 69f4 demoted). This bullet also carried id:1d41 (the "bridge to 69f4's scanner" sibling),
-  closed by the same decision. <!-- id:1d41 -->
-
-- [x] **[HARD — meeting] Revisit the 2026-05-13 central-all-in-zkm-TODO decision — per-plugin TODO independence vs. central ledger.** <!-- id:f98d -->
-  RESOLVED 2026-06-30 → **Option B** (per-plugin owns its TODO.md; central keeps only core + cross-cutting). See
-  `docs/meeting-notes/2026-06-30-1004-per-plugin-todo-topology-revisited.md` for the boundary rule, visibility
-  (`proj`/`/projects`), migration, prefix-table retirement, and guard-item fates (ddb8/1d41 closed here; 69f4/d097
-  routed to dotclaude-skills inbox `routed:2649`).
-
 ## Phase 2.5 — γ schema rollout (decided 2026-05-12-1500-entity-vs-datamining.md)
 
 **Status: γ rollout COMPLETE (E1–E13).** Typed-slot `entities[]`, `(scope,type,value)` dedup, `zkm.canonical`, suspicious dispatch, 8 value-type extractors, P2 index integration, docs contract tables, and zkm-eml signature/salutation γ-scopes all shipped (largely 2026-05-12). E13 (N9g re-eval) closed moot 2026-05-21 — see item below. E14 (TODO bookkeeping) was the only never-run item — reconciled 2026-05-21, see `docs/meeting-notes/2026-05-21-0816-gamma-schema-gap-audit.md` and `docs/field-test-bge-m3.md` step 7. <!-- lint-ok: status summary -->
@@ -58,7 +45,6 @@ Scope: `convert` and `index` (BM25 + embed phases) only. `query`, `clone`, `push
 
 Shared `zkm.pdftext` helper owns the pdf/scan routing *decision* (`probe()` + `is_scanned_only()` + `resolve_threshold()`), consumed by both zkm-pdf and zkm-scan — a ≥2-plugin shared library, so it stays central. The per-plugin migration shipped 2026-06-24; only the cross-plugin density pilot remains. <!-- lint-ok: section decision context -->
 
-- [x] **zkm-pdf + zkm-scan migrate to `zkm.pdftext`** — both adoptions SHIPPED 2026-06-24 (zkm-pdf seam id:cd59 / a60c76b; zkm-scan migration + plugin-ledger rewrites landed). Closed 2026-06-30 (the per-plugin executor specs live in each plugin's ROADMAP; central twins d3c9/1681/835c reconciled). <!-- id:d3c9 -->
 - [ ] **Density-ratio pilot (gated, OPEN)** — per-page density/coverage discriminator vs char-count default; gated on "labeled PDF corpus built + ≥1 documented char-count misclassification". Needs `page_chars` on `PdfTextProbe` + a labeled corpus (MSA study). Shared zkm-pdf/zkm-scan concern → stays central (plugin-side seams: zkm-pdf id:8aa4, zkm-scan id:02bd). Not auto-fired. See `docs/meeting-notes/2026-06-22-1546-pdf-routing-unify-pdftext.md`. <!-- id:c63c -->
 
 ## Plugin backlog — conversation / AI session sources
@@ -128,18 +114,13 @@ Cross-cutting schema rules (core-owned scalar registry + per-plugin namespacing)
 - [ ] `zkm test` (conformance.py): warn-level finding when an emitted `.md` carries a bare scalar key not in the core-owned registry and not in `<plugin>_*` form. <!-- id:e2c4 -->
 - [ ] Implement D2/D3 across plugins: keep `status:` core-owned/enum in zkm-calendar (bdfb); rename WhatsApp `status: system` → `message_type: system` (w11, reconcile with `messaging-spec.md`); namespace `recurrence_id:` → `cal_recurrence_id` (92ce) and `ocr_confidence:` → `scan_ocr_confidence` (5d7d); register `subject:` (pdf 03c2) + `project:` (claude-ai 303a) as core-owned. <!-- id:cfd1 -->
 - [ ] Implement D4: zkm-social writes `url_sha256:` (not `sha256:`) for source:social; dedup index (297a) keys on it; document `sha256:` vs `url_sha256:` in `plugin-spec.md`; one-off migration/reprocess to rename the key in existing social docs. <!-- id:f3c6 -->
-- [x] **Core docs: document the footer-manifest layout in `docs/messaging-spec.md`** (D5, 2026-06-26 footer meeting) — verified by /relay review (footer-manifest section + `<!-- zkm:manifest -->` layout present in messaging-spec.md) on 2026-06-30 <!-- id:2b0b -->
-- [x] **Core docs: add the sidecar-vs-in-document heuristic to `docs/object-storage.md`** (D4, 2026-06-26 footer meeting) — verified by /relay review (object-storage.md §'Sidecar vs. in-document storage' present) on 2026-06-30 <!-- id:68fc -->
-- [x] **Core: spec/conformance note that the per-chat-day footer-manifest layout is the `messaging-spec.md` contract** — verified by /relay review (conformance contract id:03ae note in messaging-spec.md) on 2026-06-30 <!-- id:03ae -->
 
 ## NER false-positive doctrine (decided 2026-06-13-1413-ner-false-positive-doctrine.md)
 
 - [ ] Apply the doctrine to the open REVIEW_ME boxes: 204c (drop org fallback, zkm-social), b081 (accept lowercase IBAN + valid:false, no penalty, zkm-ner) — verify the red tests encode the doctrine arm, then tick. Cross-plugin (zkm-social + zkm-ner REVIEW_ME) → stays central. <!-- id:346c -->
-- [x] **(core) `zkm index` TOCTOU guard + surface dropped files** — both code paths now guard stat() against mid-walk FileNotFoundError AND log the drop (incremental 107d26e; full-rebuild completed 2c77e55 during this review). Covered by tests/test_index_toctou.py. Verified+completed by /relay review on 2026-06-30 <!-- id:f1d7 -->
 
 ## Amendment contract backlog
 
-- [x] **zkm-ner tombstone store + `emit`→`emit_set` (id:0566 + id:fa5a)** — CLOSED 2026-06-30 reconciling the central twins: both shipped and ticked `[x]` in `plugins/zkm-ner/TODO.md` (relay note id:9c46, 2026-06-26 — scrub↔cache coherence, id:7b4e decided+decomposed, core prereq id:29ac). The central copies were stale-open (exactly the Option-B drift). <!-- id:0566 --> <!-- id:fa5a -->
 - [ ] **Meeting: amendment replace-mode** — set-union merge (current) is correct for additive enrichment but cannot remove stale entities when extractor quality improves. `zkm scrub <plugin>` is the current workaround (N9b + future N9c). Trigger for meeting: a third amender wants single-producer-per-field semantics, OR N9c surfaces a need not solvable by scrub. Cross-cutting (core amendments contract) → stays central. See `docs/meeting-notes/2026-05-10-2142-n9b-scrub-cli.md` for design context. <!-- id:4787 -->
 
 ## Plugin dependency loading (backlog)
