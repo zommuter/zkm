@@ -30,7 +30,7 @@ the gate (N9c/N9d accepted-as-is decisions stand).
 
 ## Items
 
-- [ ] Fix `run_dynamic` path-resolution clobbering non-path conformance-config values [ROUTINE] <!-- id:a285 -->
+- [x] Fix `run_dynamic` path-resolution clobbering non-path conformance-config values [ROUTINE] <!-- id:a285 -->
   - **Problem**: `src/zkm/conformance.py` resolved EVERY `conformance.config` value as a
     plugin-relative path, so a non-path scalar like `network: linkedin` was clobbered into a
     bogus absolute path — a plugin (zkm-social) that declares a scalar dynamic-check selector
@@ -47,7 +47,7 @@ the gate (N9c/N9d accepted-as-is decisions stand).
   - **Done-check**: `uv run pytest tests/test_conformance.py -k run_dynamic` green, then full suite green.
   - **Context**: found 2026-06-12 relay handoff (zkm-social child); also inbox-routed. Core-runnable alone.
 
-- [ ] Document the plugin runtime-error contract in `ARCHITECTURE.md` [ROUTINE] <!-- id:c85c -->
+- [x] Document the plugin runtime-error contract in `ARCHITECTURE.md` [ROUTINE] <!-- id:c85c -->
   - **Problem**: the store-wide plugin error contract is implemented but undocumented — a plugin
     signals a runtime/CLI failure by raising (e.g. `RuntimeError`); core's amender loop catches it
     and prints a one-line `WARN` rather than aborting the whole `zkm convert`. Owner-ratified

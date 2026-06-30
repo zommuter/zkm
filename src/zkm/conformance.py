@@ -333,15 +333,16 @@ def _resolve_conformance_config(plugin_path: Path, conf_config: dict) -> dict[st
     an existing path — e.g. a scalar selector like ``network: linkedin`` — is
     passed through unchanged so the plugin's dynamic check can read it.
 
-    NOTE (id:a285, currently BUGGY on purpose — this is the C3 red-spec seam):
-    the loop below resolves EVERY value as a plugin-relative path, clobbering
-    non-path scalars. The fix is to pass a value through unchanged when its
-    resolved path does not exist. See ``tests/test_conformance.py`` roadmap:a285.
+    Only a value whose resolved path actually exists on disk is treated as a
+    plugin-relative path and returned as an absolute string.  A value that does
+    not resolve to an existing path (e.g. a scalar selector like
+    ``network: linkedin``) is passed through unchanged, so the plugin's dynamic
+    check can read it as-is.
     """
     config: dict[str, str] = {}
     for k, v in conf_config.items():
         resolved = plugin_path / str(v)
-        config[k] = str(resolved.resolve())
+        config[k] = str(resolved.resolve()) if resolved.exists() else v
     return config
 
 

@@ -414,3 +414,12 @@ review: f98d Option-B per-plugin-TODO migration audited clean — gaming/roadmap
 ## 2026-06-30 11:13 — reviewer (claude-opus-4-8)
 
 review: relay-ckpt-20260630-1042..HEAD core (1 commit, inbox-ingest id:1e4f). gaming-scan clean; roadmap-lint clean (a285/c85c open ROUTINE); contract pointer v5->v6; lint-ok preambles; id:1e4f surfaced to REVIEW_ME (plugin-spec, not promoted). relay-doctor clean. routine_open=2.
+
+## 2026-06-30 — executor (claude-sonnet-4-6)
+
+Worked id:a285 — fixed `_resolve_conformance_config` to pass non-path scalars through
+unchanged (one-line fix: `resolved.exists()` guard); RED spec test turned green; full suite 609 passed.
+Worked id:c85c — expanded one-liner RuntimeError note in ARCHITECTURE.md §Plugin contract into
+a three-point Plugin error contract (raise-to-fail, amender WARN+continue, hard-converter exit-code);
+full suite still 609 passed.
+Friction: none.
