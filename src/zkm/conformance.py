@@ -325,6 +325,26 @@ def check_interface(plugin) -> list[Finding]:  # plugin: Plugin
 # ---------------------------------------------------------------------------
 
 
+def _resolve_conformance_config(plugin_path: Path, conf_config: dict) -> dict[str, str]:
+    """Resolve a plugin's ``conformance.config`` for a dynamic check run.
+
+    A config value that names a real path relative to the plugin root (a fixture
+    dir/file) is resolved to its absolute path. A value that does NOT resolve to
+    an existing path — e.g. a scalar selector like ``network: linkedin`` — is
+    passed through unchanged so the plugin's dynamic check can read it.
+
+    NOTE (id:a285, currently BUGGY on purpose — this is the C3 red-spec seam):
+    the loop below resolves EVERY value as a plugin-relative path, clobbering
+    non-path scalars. The fix is to pass a value through unchanged when its
+    resolved path does not exist. See ``tests/test_conformance.py`` roadmap:a285.
+    """
+    config: dict[str, str] = {}
+    for k, v in conf_config.items():
+        resolved = plugin_path / str(v)
+        config[k] = str(resolved.resolve())
+    return config
+
+
 def run_dynamic(plugin) -> list[Finding]:  # plugin: Plugin
     """
     Run convert() against the plugin's declared conformance fixtures in a temp store
@@ -342,11 +362,9 @@ def run_dynamic(plugin) -> list[Finding]:  # plugin: Plugin
     findings: list[Finding] = []
     conf_config: dict = plugin.conformance.get("config", {})
 
-    # Resolve relative fixture paths against the plugin root
-    config: dict[str, str] = {}
-    for k, v in conf_config.items():
-        resolved = plugin.path / str(v)
-        config[k] = str(resolved.resolve())
+    # Resolve relative fixture paths against the plugin root (see helper for the
+    # non-path-passthrough rule).
+    config = _resolve_conformance_config(plugin.path, conf_config)
 
     tmp = tempfile.mkdtemp(prefix="zkm-test-")
     tmp_store = Path(tmp)

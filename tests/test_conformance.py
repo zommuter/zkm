@@ -316,3 +316,23 @@ class TestAmenderCreatedParam:
         plugin = _make_tmp_plugin(tmp_path, kind="amender", convert_src=_CONVERT_NO_CREATED)
         findings = [f for f in check_interface(plugin) if "created" in f.message]
         assert findings and all(f.level == "warn" for f in findings)
+
+
+class TestResolveConformanceConfig:
+    """roadmap:a285 — run_dynamic must not clobber non-path config scalars."""
+
+    # roadmap:a285 — RED spec: a real fixture path resolves; a scalar selector
+    # (e.g. `network: linkedin`) passes through UNCHANGED. The current loop
+    # resolves every value as a plugin-relative path, so the scalar is clobbered.
+    def test_run_dynamic_preserves_non_path_config(self, tmp_path):
+        from zkm.conformance import _resolve_conformance_config
+
+        (tmp_path / "fixtures").mkdir()
+        conf_config = {"fixtures": "fixtures", "network": "linkedin"}
+
+        resolved = _resolve_conformance_config(tmp_path, conf_config)
+
+        # real path key → absolute, points at the existing dir
+        assert resolved["fixtures"] == str((tmp_path / "fixtures").resolve())
+        # scalar selector key → unchanged (NOT a bogus resolved path)
+        assert resolved["network"] == "linkedin"
