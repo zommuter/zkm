@@ -410,3 +410,7 @@ handoff (C2+C3): promoted 2 core executor-ready items into drained ROADMAP — a
 ## 2026-06-30 10:42 — reviewer (opus)
 
 review: f98d Option-B per-plugin-TODO migration audited clean — gaming/roadmap-lint/cross-ledger all clean; ledger consistent post-restructure; 2 ROUTINE items (a285 conformance path-resolution, c85c plugin-error-contract doc) ready for executor; routed:2649 (d097 relay-side) awaiting dotclaude-skills ingest
+
+## 2026-06-30 11:13 — reviewer (claude-opus-4-8)
+
+review: relay-ckpt-20260630-1042..HEAD core (1 commit, inbox-ingest id:1e4f). gaming-scan clean; roadmap-lint clean (a285/c85c open ROUTINE); contract pointer v5->v6; lint-ok preambles; id:1e4f surfaced to REVIEW_ME (plugin-spec, not promoted). relay-doctor clean. routine_open=2.
