@@ -30,7 +30,7 @@ the gate (N9c/N9d accepted-as-is decisions stand).
 
 ## Items
 
-- [ ] Fix `run_dynamic` path-resolution clobbering non-path conformance-config values [ROUTINE] <!-- id:a285 -->
+- [x] Fix `run_dynamic` path-resolution clobbering non-path conformance-config values [ROUTINE] <!-- id:a285 -->
   - **Problem**: `src/zkm/conformance.py` resolved EVERY `conformance.config` value as a
     plugin-relative path, so a non-path scalar like `network: linkedin` was clobbered into a
     bogus absolute path — a plugin (zkm-social) that declares a scalar dynamic-check selector

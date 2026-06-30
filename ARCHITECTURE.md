@@ -184,9 +184,20 @@ less-than). A PDF at exactly the threshold is NOT scanned-only.
 
 Two cross-plugin rulings confirmed 2026-06-13 (batch triage):
 
-- **RuntimeError error-contract**: A zkm plugin signals runtime/CLI failure by
-  raising `RuntimeError`; the core amender loop catches it and prints a one-line
-  WARN (does not abort the sweep).
+- **Plugin error contract** (inbox routed:4d69, owner-ratified 2026-06-13;
+  `src/zkm/cli.py` amender loop ~line 706-710):
+  - (a) A plugin signals runtime or CLI failure by **raising** (any exception,
+    typically `RuntimeError`). Returning normally means success.
+  - (b) The core **amender sweep** catches any exception from `run_convert`,
+    prints a one-line `WARN: amender '<name>' failed: <msg>` to stderr, and
+    **continues** to the next amender — the amender pass never aborts mid-sweep
+    on a single amender failure, and `zkm convert` exits 0 if the primary
+    converter succeeded.
+  - (c) A **hard converter** (non-amender, i.e. `zkm convert <plugin>` where
+    `<plugin>` is not an amender) failure still surfaces via the convert exit
+    code: the subprocess result is checked and `sys.exit(1)` is called on a
+    non-zero return code. The soft-WARN treatment applies to the amender
+    post-pass only.
 - **Version derivation**: Canonical version = `pyproject.toml` metadata; a
   plugin's `PLUGIN_VERSION` is derived via `importlib.metadata` with a
   `plugin.yaml` fallback.
