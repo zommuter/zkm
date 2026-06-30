@@ -243,7 +243,12 @@ def build_index(
             except FileNotFoundError:
                 # File vanished between rglob enumeration and stat (e.g. a
                 # concurrent rename/move). Skip it; a later run will pick up
-                # the new location.
+                # the new location. Log so a truncated full rebuild is
+                # observable (mirrors the incremental path; "no silent caps").
+                import logging
+                logging.getLogger(__name__).warning(
+                    "index: file vanished in full walk, skipping: %s", path
+                )
                 continue
 
             if rel in prev and prev[rel].mtime_ns == mtime_ns:
