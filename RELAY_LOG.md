@@ -427,3 +427,7 @@ Friction: none.
 ## 2026-06-30 12:13 — executor (sonnet, relay-loop)
 
 executor: close a285 (conformance path-resolution fix) and c85c (plugin error contract doc) — 609 tests green [id:a285,c85c]
+
+## 2026-07-01 14:51 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+review: ledger-only window (inbox+human-ack), suite green (609); reconciled cross-ledger drift (ticked TODO a285/c85c), pruned 3 resolved REVIEW_ME boxes; ROADMAP drained [id:a285,c85c]
