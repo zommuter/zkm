@@ -435,3 +435,7 @@ review: ledger-only window (inbox+human-ack), suite green (609); reconciled cros
 ## 2026-07-01 23:15 — reviewer (claude-fable-5, relay-loop)
 
 Fable recheck (claude-fable-5) of the Opus fable-standin review: confirms all verdicts — 609 green, gaming-clean, a285/c85c genuinely green (spec tests unweakened), ledgers clean, ROADMAP drained, routine_open=0; set fable_rechecked=2026-07-01 [id:a285,c85c]
+
+## 2026-07-02 00:18 — reviewer (claude-fable-5, relay-loop)
+
+redundant recheck dispatch root-caused (stale standin flag: classify-repo.sh substring test matches the prior recheck tag's own message; recheck was already consumed 2026-07-01 — defect routed to dotclaude-skills, routed:f3d0); empty window re-verified anyway: tier uv-run-pytest full suite 609 green, gaming-clean, ledgers clean, ROADMAP drained, routine_open=0
