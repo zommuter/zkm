@@ -23,6 +23,25 @@ FRONTMATTER_REQUIRED = [
 
 _SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+")
 
+# Core-owned bare-scalar frontmatter keys — mirrors the authoritative table in
+# docs/plugin-spec.md §Core-owned scalar registry (ROADMAP id:4431). Any plugin
+# may emit these; every other bare scalar must be namespaced `<plugin>_<key>`
+# or it is flagged as an unregistered bare scalar (ROADMAP id:e2c4).
+CORE_OWNED_SCALARS = {
+    "source",
+    "date",
+    "processor",
+    "processor_version",
+    "sha256",
+    "url_sha256",
+    "status",
+    "subject",
+    "project",
+    "thread_id",
+    "message_id",
+    "key_id",
+}
+
 # config entry keys allowed by the plugin spec
 _CONFIG_ENTRY_KNOWN_KEYS = {"required", "default", "description", "secret"}
 
@@ -70,7 +89,14 @@ def validate_frontmatter(meta: dict, plugin_name: str) -> list[Finding]:
     # Exemptions per docs/messaging-spec.md: sha256 omitted (no single original byte source);
     # date is YYYY-MM-DD (day only, store locale TZ).
     _is_chat_day = "thread_id" in meta and "message_id" not in meta
-    _exempt_from_required = {"sha256"} if _is_chat_day else set()
+    # source=social docs carry url_sha256 (identity-only dedup hash of the profile/
+    # source URL) INSTEAD of the byte-content sha256 — zkm-social D4, ROADMAP id:1e4f.
+    _is_social_with_url_hash = meta.get("source") == "social" and "url_sha256" in meta
+    _exempt_from_required = set()
+    if _is_chat_day:
+        _exempt_from_required.add("sha256")
+    if _is_social_with_url_hash:
+        _exempt_from_required.add("sha256")
 
     for key in FRONTMATTER_REQUIRED:
         if key in _exempt_from_required:
@@ -144,6 +170,25 @@ def validate_frontmatter(meta: dict, plugin_name: str) -> list[Finding]:
                     findings.append(
                         Finding("fail", "frontmatter", f"participants[{i}] missing 'role'")
                     )
+
+    # Unregistered bare-scalar keys (ROADMAP id:e2c4): warn-level, never fail —
+    # existing stores must keep validating. A bare scalar (str/int/float/bool;
+    # lists/dicts like entities/participants are exempt) is fine iff it's in the
+    # core-owned registry (id:4431) or namespaced `<plugin_name>_<key>` for the
+    # plugin under test. A foreign plugin's prefix is treated as unregistered.
+    _private_prefix = f"{plugin_name}_"
+    for key, value in meta.items():
+        if not isinstance(value, (str, int, float, bool)):
+            continue
+        if key in CORE_OWNED_SCALARS:
+            continue
+        if key.startswith(_private_prefix):
+            continue
+        findings.append(Finding(
+            "warn", "frontmatter",
+            f"unregistered bare scalar key '{key}' (not core-owned, not "
+            f"'{plugin_name}_'-prefixed)",
+        ))
 
     return findings
 

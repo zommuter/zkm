@@ -447,3 +447,20 @@ review: ledger-only window (apex DQ lane-triage of 22 TODO ids + human-answer 3d
 ## 2026-07-02 12:40 — reviewer (claude-fable-5, relay-loop)
 
 review: ledger-only window gaming-clean (609 green); reverse-handoff promoted 4431/e2c4/1e4f to ROADMAP w/ red specs, closed 2f7c inline (STT audio-mime spec), laned f9a7; routine_open=3 [id:2f7c,4431,e2c4,1e4f,f9a7]
+
+## 2026-07-02 — executor (sonnet)
+
+Worked id:4431, id:e2c4, id:1e4f — all three open [ROUTINE] items closed in one session.
+id:4431: added the Core-owned scalar registry table to docs/plugin-spec.md (seeded
+status/subject/project/sha256/url_sha256 + existing required/messaging keys) and a
+mirror paragraph in ARCHITECTURE.md §Conventions. Docs only.
+id:e2c4: added `CORE_OWNED_SCALARS` constant to conformance.py and a warn-level
+unregistered-bare-scalar check in `validate_frontmatter` (foreign-plugin prefixes
+treated as unregistered per spec). 4/4 tests green.
+id:1e4f: `validate_frontmatter` now exempts `sha256` when `source == "social"` and
+`url_sha256` is present (mirrors the existing chat-day exemption); documented in
+plugin-spec.md; filed inbox routed:9a7a for the zkm-social plugin-side dual-write
+cleanup. 3/3 tests green.
+Full suite: 616 passed, 0 failing.
+Friction: none — items were sequenced with an explicit dependency note (4431 before
+e2c4) in ROADMAP.md, which held.

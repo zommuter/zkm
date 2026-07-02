@@ -194,6 +194,43 @@ The `original` field is optional for sources without binary originals (e.g. a ge
 
 For plugins that handle conversations (email, chat, SMS), see [docs/messaging-spec.md](messaging-spec.md) for additional required fields (`message_id`, `thread_id`, `in_reply_to`, etc.).
 
+**`source: social` identity hash**: `source: social` docs (profile/connection captures with no single
+byte-content original) carry `url_sha256:` — the SHA-256 of the normalized profile/source URL —
+**instead of** `sha256`. This is an identity-only dedup hash, distinct from the byte-content
+`sha256` every other source requires; `zkm.conformance.validate_frontmatter` accepts it as
+satisfying the hash requirement only when `source == "social"` (ROADMAP id:1e4f; zkm-social D4).
+
+### Core-owned scalar registry
+
+Bare-scalar frontmatter keys (str/int/float/bool — not lists/dicts) fall into two
+namespaces: **core-owned** (below — meaning is fixed store-wide, any plugin may
+emit them) and **plugin-private**, written as the flat `<plugin>_<key>` form (e.g.
+`scan_ocr_confidence`, `cal_recurrence_id`) so a reader can always tell, from the
+key alone, whether a scalar's meaning is core-standard or scoped to one plugin.
+This is the ONE authoritative list; `zkm.conformance.CORE_OWNED_SCALARS` (id:e2c4)
+is its code mirror and must be kept in sync.
+
+| Key | Type | Semantics |
+|-----|------|-----------|
+| `source` | str | Originating plugin name (`FRONTMATTER_REQUIRED`) |
+| `date` | str (ISO 8601) | Document timestamp (`FRONTMATTER_REQUIRED`) |
+| `processor` | str | Same as `source`; used for `--reprocess` targeting (`FRONTMATTER_REQUIRED`) |
+| `processor_version` | str (semver) | Plugin's version at conversion time (`FRONTMATTER_REQUIRED`) |
+| `sha256` | str | SHA-256 of the original content or a stable canonical form |
+| `url_sha256` | str | SHA-256 of the normalized profile/source URL — identity-only dedup hash for `source: social` docs (used instead of `sha256`; see id:1e4f) |
+| `status` | str (enum: `confirmed`\|`cancelled`\|`tentative`) | Calendar/event confirmation state |
+| `subject` | str | Message/document subject line |
+| `project` | str | Associated project label |
+| `tags` | list | Set-union merge field (not a bare scalar, listed for completeness) |
+| `thread_id` | str | Messaging: conversation/thread identifier |
+| `message_id` | str | Messaging: unique message identifier |
+| `participants` | list | Messaging: list of participant dicts (not a bare scalar, listed for completeness) |
+| `key_id` | str | Messaging: encryption/signing key identifier |
+
+A frontmatter key not in this table and not of the form `<plugin>_<key>` for the
+emitting plugin is an **unregistered bare scalar** — `zkm test <plugin>` warns
+(never fails) on it (id:e2c4).
+
 ## Frontmatter amendments
 
 Amender plugins SHOULD declare `created=None` as a keyword argument in `convert()`. When present, `zkm convert <primary>` passes only the files created by the triggering convert, enabling a scoped amend instead of a full store sweep. Without `created`, the amender sweeps the entire store on every triggered run. `zkm test <amender>` emits a warn-level finding when `created` is absent.

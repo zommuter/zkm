@@ -424,7 +424,7 @@ the gate (N9c/N9d accepted-as-is decisions stand).
   - **Context**: real production incident — a live `zkm index` over `~/knowledge` crashed at 43%
     on a path removed mid-walk (chat by-id rename / Syncthing churn). TODO id:f1d7. Core-runnable alone.
 
-- [ ] Core-owned scalar registry table in `docs/plugin-spec.md` + `ARCHITECTURE.md` mirror [ROUTINE] <!-- id:4431 -->
+- [x] Core-owned scalar registry table in `docs/plugin-spec.md` + `ARCHITECTURE.md` mirror [ROUTINE] <!-- id:4431 -->
   - **Acceptance**: `docs/plugin-spec.md` gains a "Core-owned scalar registry" table
     (columns: key / type / semantics / enum values where applicable) seeded with `status`
     (enum `confirmed|cancelled|tentative`), `subject`, `project`, `tags`, `sha256`,
@@ -444,7 +444,7 @@ the gate (N9c/N9d accepted-as-is decisions stand).
     same-day decisions D2/D3). Sibling of id:e2c4 (code check) — do 4431 FIRST.
     Core-runnable alone.
 
-- [ ] Conformance warn on unregistered bare scalar frontmatter keys [ROUTINE] <!-- id:e2c4 -->
+- [x] Conformance warn on unregistered bare scalar frontmatter keys [ROUTINE] <!-- id:e2c4 -->
   - **Acceptance**: `zkm.conformance.validate_frontmatter` emits a **warn-level**
     finding (never fail — existing stores must keep validating) for each frontmatter
     key whose value is a bare scalar (str/int/float/bool — lists/dicts like `entities`
@@ -464,7 +464,7 @@ the gate (N9c/N9d accepted-as-is decisions stand).
     "warn" pattern already exists — see `check_interface` warn findings). Depends on
     id:4431 (registry table) for the authoritative key list. Core-runnable alone.
 
-- [ ] Accept `url_sha256` as the source=social identity hash in core conformance + docs [ROUTINE] <!-- id:1e4f -->
+- [x] Accept `url_sha256` as the source=social identity hash in core conformance + docs [ROUTINE] <!-- id:1e4f -->
   - **Acceptance** (inbox routed:7f55; zkm-social D4, plugin roadmap id:72ef —
     SHIPPED plugin-side, so the contract shape is settled): (1) `docs/plugin-spec.md`
     documents `url_sha256:` in the frontmatter section — identity-only dedup hash

@@ -158,6 +158,11 @@ Ingest is deterministic (parsers, spaCy NER); no LLM writes to the store.
   `docs/meeting-notes/2026-06-01-1616-zkm-test-conformance.md`.
 - **Versioning**: bump-and-tag per repo (`vX.Y.Z`, loose-0.x); every
   `pyproject.toml` version change is tagged in the same commit.
+- **Core-owned scalar registry**: bare-scalar frontmatter keys are either
+  core-owned (fixed meaning, any plugin may emit) or plugin-private, written
+  as the flat `<plugin>_<key>` form (e.g. `scan_ocr_confidence`). The
+  authoritative table lives in `docs/plugin-spec.md` §Core-owned scalar
+  registry; `zkm.conformance.CORE_OWNED_SCALARS` is its code mirror.
 
 ## Routing contract
 
