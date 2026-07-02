@@ -251,6 +251,13 @@ One line per message, sorted by `(timestamp, key_id)`. Lines are separated by a 
 - **Deleted tombstone:** `«deleted»` (U+00AB + U+00BB, fixed sentinel — NOT the platform's locale string). The `key_id` MUST still appear in the footer manifest with `status: revoked`.
 - **Reply indicator:** `↩ (re: <quoted_key_id>)` prefix when the platform provides a quoted-message reference. `quoted_key_id` may point to a message in a different day file.
 - **Media:** `[media: <mime-type> → <store-relative-path>]` for attachments stored via `zkm.cas.write_object`; a `.origin.json` sidecar records provenance.
+  The body `[media: …]` line plus the trailing `<!-- key_id: … -->` anchor is the
+  **guaranteed audio-discovery surface**: downstream consumers (e.g. zkm-stt) locate
+  transcribable voice notes by scanning body lines for an `audio/*` mime and resolve
+  the message via the `key_id` anchor — producers MUST keep both on the same line.
+  Producers SHOULD set a **precise `audio/*` mime for voice notes** (e.g. `audio/ogg`
+  for WhatsApp/Signal opus notes, `audio/mp4` for AAC), never a generic
+  `application/octet-stream`, so mime-based discovery does not miss them.
 - **Reactions:** appended inline as `[reaction: <emoji> from <DisplayName>]`. Never in frontmatter.
 - Inline key_id anchors (`<!-- key_id: ... -->`) MUST be the last token on the line.
 

@@ -424,6 +424,69 @@ the gate (N9c/N9d accepted-as-is decisions stand).
   - **Context**: real production incident — a live `zkm index` over `~/knowledge` crashed at 43%
     on a path removed mid-walk (chat by-id rename / Syncthing churn). TODO id:f1d7. Core-runnable alone.
 
+- [ ] Core-owned scalar registry table in `docs/plugin-spec.md` + `ARCHITECTURE.md` mirror [ROUTINE] <!-- id:4431 -->
+  - **Acceptance**: `docs/plugin-spec.md` gains a "Core-owned scalar registry" table
+    (columns: key / type / semantics / enum values where applicable) seeded with `status`
+    (enum `confirmed|cancelled|tentative`), `subject`, `project`, `tags`, `sha256`,
+    `url_sha256` — plus the existing `FRONTMATTER_REQUIRED` keys (`source`, `date`,
+    `processor`, `processor_version`) and the messaging keys the spec already core-owns
+    (`thread_id`, `message_id`, `participants`, `key_id`) so the table is the ONE
+    authoritative list. Document the flat `<plugin>_<key>` rule for plugin-private
+    scalars (e.g. `scan_ocr_confidence`, `cal_recurrence_id`). Mirror the rule (one
+    short paragraph + pointer to the table, not a copy of the table) into
+    `ARCHITECTURE.md` §Conventions. Docs only — no code change.
+  - **Tests**: docs item — no red pytest. The id:e2c4 red spec
+    (`tests/test_conformance_scalar_registry.py`) encodes the registry seed in code and
+    lands as the NEXT item; keep the table and that constant in sync.
+  - **Done-check**: `grep -q 'Core-owned scalar registry' docs/plugin-spec.md` and
+    `grep -q '<plugin>_' ARCHITECTURE.md`; full suite unaffected.
+  - **Context**: frontmatter field-governance batch (TODO §Frontmatter field governance,
+    same-day decisions D2/D3). Sibling of id:e2c4 (code check) — do 4431 FIRST.
+    Core-runnable alone.
+
+- [ ] Conformance warn on unregistered bare scalar frontmatter keys [ROUTINE] <!-- id:e2c4 -->
+  - **Acceptance**: `zkm.conformance.validate_frontmatter` emits a **warn-level**
+    finding (never fail — existing stores must keep validating) for each frontmatter
+    key whose value is a bare scalar (str/int/float/bool — lists/dicts like `entities`
+    / `participants` are exempt) that is neither in the core-owned scalar registry
+    (id:4431 table; add a module constant, e.g. `CORE_OWNED_SCALARS`, as the code
+    mirror) nor in the plugin-private `<plugin>_<key>` form for the plugin under test
+    (`key.startswith(f"{plugin_name}_")`). Judgment note (encode, don't debate): a
+    FOREIGN plugin's prefix (`ner_confidence` while testing `social`) is treated as
+    unregistered → warn — a plugin's own emissions should not carry another plugin's
+    private keys.
+  - **Tests**: `tests/test_conformance_scalar_registry.py`, marked `# roadmap:e2c4`
+    (RED: `test_unregistered_bare_scalar_warns`; guards already green:
+    plugin-prefixed pass, core-owned pass, non-scalar exempt).
+  - **Done-check**: `uv run pytest tests/test_conformance_scalar_registry.py` then the
+    full suite green.
+  - **Context**: `src/zkm/conformance.py` `validate_frontmatter` (Finding level
+    "warn" pattern already exists — see `check_interface` warn findings). Depends on
+    id:4431 (registry table) for the authoritative key list. Core-runnable alone.
+
+- [ ] Accept `url_sha256` as the source=social identity hash in core conformance + docs [ROUTINE] <!-- id:1e4f -->
+  - **Acceptance** (inbox routed:7f55; zkm-social D4, plugin roadmap id:72ef —
+    SHIPPED plugin-side, so the contract shape is settled): (1) `docs/plugin-spec.md`
+    documents `url_sha256:` in the frontmatter section — identity-only dedup hash
+    (SHA-256 of the normalized profile/source URL), distinct from the byte-content
+    `sha256:`; states that `source: social` docs carry `url_sha256` INSTEAD of
+    `sha256`. (2) `zkm.conformance.validate_frontmatter` accepts `url_sha256` as
+    satisfying the hash requirement when `meta["source"] == "social"` (mirror the
+    existing `_is_chat_day` exemption pattern for `sha256`); every other source keeps
+    requiring byte `sha256`; a social doc with NEITHER key still fails. (3) The
+    zkm-social transitional-dup removal (`_github.py`/`_linkedin.py` still write both
+    keys) is PLUGIN-repo follow-up — on closing this item, route a reminder to
+    zkm-social via the shared inbox (`append.sh -t inbox`), do NOT touch the plugin here.
+  - **Tests**: `tests/test_conformance_url_sha256.py`, marked `# roadmap:1e4f`
+    (RED: `test_social_doc_with_url_sha256_needs_no_sha256`; guards already green:
+    neither-hash-fails, non-social-still-requires-sha256).
+  - **Done-check**: `uv run pytest tests/test_conformance_url_sha256.py` then the full
+    suite green.
+  - **Context**: `src/zkm/conformance.py:15` (`FRONTMATTER_REQUIRED`), `:70-76`
+    (chat-day sha256 exemption — the pattern to mirror). REVIEW_ME box that gated this
+    promotion resolved this review (zkm-social 72ef verified closed). Register
+    `url_sha256` in the id:4431 table too. Core-runnable alone.
+
 ## Pointers (NOT executor items — wrong repo or gated)
 
 - zkm-whatsapp W-series (W6f media manifest, W-key secret source, W8 owner-JID

@@ -3,12 +3,16 @@
 Judgment calls encoded in red tests — confirm or correct the interpretation.
 Max ~10 open boxes; the reviewer prunes resolved ones each review turn.
 
-- [ ] **Qualify inbox item id:1e4f (url_sha256 frontmatter contract) — needs zkm-social context.**
-  Ingested routed:7f55: document `url_sha256` in core `docs/plugin-spec.md`
-  frontmatter + accept it in `zkm.conformance.FRONTMATTER_REQUIRED` for `source=social`, then
-  drop the transitional sha256 dup in zkm-social's `_github.py`/`_linkedin.py`. Description is
-  concrete, but it is a cross-cutting frontmatter/conformance CONTRACT change whose spec rationale
-  lives in zkm-social's roadmap (id:72ef, D4) — a plugin repo this core review must NOT descend
-  into. Left as TODO (not force-promoted to ROADMAP); qualify via a HANDOFF pass once the
-  zkm-social D4 design is read, or a `/meeting` if the contract shape is still open. (Reverse-handoff
-  D6, relay review 2026-06-30.)
+- [ ] **Central `[ROUTINE]` items that execute in PLUGIN repos are un-promotable —
+  disposition gap.** Four TODO items are lane-tagged `[ROUTINE]` (apex DQ triage
+  2026-07-02 / this review) but their execution lives in plugin repos, which the
+  ROADMAP scope rule ("plugin-repo work stays in TODO.md, NOT mirrored here")
+  correctly excludes: id:cfd1 (D2/D3 renames across calendar/whatsapp/scan),
+  id:f3c6 (zkm-social url_sha256 write + migration), id:346c (zkm-social/zkm-ner
+  REVIEW_ME boxes), id:f9a7 (16-plugin dev-deps sweep). `unpromoted-scan` will
+  keep reporting them as `promote` candidates every round — a standing false
+  "needs HANDOFF" signal on this repo. Decide the disposition: (a) route each into
+  the owning plugin repo's ledger via the shared inbox and close the central line
+  to a pointer, (b) teach the scan a "central-tracking, executes-elsewhere" marker,
+  or (c) accept the noise. (Relay review 2026-07-02; the three CORE-runnable
+  `[ROUTINE]` items 4431/e2c4/1e4f were promoted to ROADMAP this same pass.)
