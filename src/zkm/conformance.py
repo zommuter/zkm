@@ -23,6 +23,25 @@ FRONTMATTER_REQUIRED = [
 
 _SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+")
 
+# Core-owned bare-scalar frontmatter keys — mirrors the authoritative table in
+# docs/plugin-spec.md §Core-owned scalar registry (ROADMAP id:4431). Any plugin
+# may emit these; every other bare scalar must be namespaced `<plugin>_<key>`
+# or it is flagged as an unregistered bare scalar (ROADMAP id:e2c4).
+CORE_OWNED_SCALARS = {
+    "source",
+    "date",
+    "processor",
+    "processor_version",
+    "sha256",
+    "url_sha256",
+    "status",
+    "subject",
+    "project",
+    "thread_id",
+    "message_id",
+    "key_id",
+}
+
 # config entry keys allowed by the plugin spec
 _CONFIG_ENTRY_KNOWN_KEYS = {"required", "default", "description", "secret"}
 
@@ -144,6 +163,25 @@ def validate_frontmatter(meta: dict, plugin_name: str) -> list[Finding]:
                     findings.append(
                         Finding("fail", "frontmatter", f"participants[{i}] missing 'role'")
                     )
+
+    # Unregistered bare-scalar keys (ROADMAP id:e2c4): warn-level, never fail —
+    # existing stores must keep validating. A bare scalar (str/int/float/bool;
+    # lists/dicts like entities/participants are exempt) is fine iff it's in the
+    # core-owned registry (id:4431) or namespaced `<plugin_name>_<key>` for the
+    # plugin under test. A foreign plugin's prefix is treated as unregistered.
+    _private_prefix = f"{plugin_name}_"
+    for key, value in meta.items():
+        if not isinstance(value, (str, int, float, bool)):
+            continue
+        if key in CORE_OWNED_SCALARS:
+            continue
+        if key.startswith(_private_prefix):
+            continue
+        findings.append(Finding(
+            "warn", "frontmatter",
+            f"unregistered bare scalar key '{key}' (not core-owned, not "
+            f"'{plugin_name}_'-prefixed)",
+        ))
 
     return findings
 
