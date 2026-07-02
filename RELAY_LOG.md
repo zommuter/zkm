@@ -443,3 +443,7 @@ redundant recheck dispatch root-caused (stale standin flag: classify-repo.sh sub
 ## 2026-07-02 11:30 — reviewer (claude-fable-5, relay-loop)
 
 review: ledger-only window (apex DQ lane-triage of 22 TODO ids + human-answer 3d98 + inbox f9a7), gaming-clean, suite 609 green. Reverse-handoff: promoted the 3 core-runnable [ROUTINE] TODO items to ROADMAP with red specs — 4431 (scalar-registry table, docs), e2c4 (conformance warn on unregistered bare scalars, RED test_conformance_scalar_registry.py), 1e4f (url_sha256 source=social conformance+docs, RED test_conformance_url_sha256.py; the 2026-06-30 REVIEW_ME qualification box resolved — zkm-social 72ef verified shipped, contract shape settled). Executed 2f7c inline (messaging-spec.md audio/* mime recommendation paragraph — unblocks zkm-stt 2b9b) and ticked it. Lane-tagged f9a7 [ROUTINE] (plugin-repo sweep, excluded from core ROADMAP by scope rule). New REVIEW_ME box: 4 central [ROUTINE] items (cfd1/f3c6/346c/f9a7) execute in plugin repos and are un-promotable under the scope rule — unpromoted-scan will keep flagging them; disposition is the human's call. routine_open=3 [id:4431,e2c4,1e4f,2f7c,f9a7]
+
+## 2026-07-02 12:40 — reviewer (claude-fable-5, relay-loop)
+
+review: ledger-only window gaming-clean (609 green); reverse-handoff promoted 4431/e2c4/1e4f to ROADMAP w/ red specs, closed 2f7c inline (STT audio-mime spec), laned f9a7; routine_open=3 [id:2f7c,4431,e2c4,1e4f,f9a7]
