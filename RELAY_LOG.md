@@ -464,3 +464,7 @@ cleanup. 3/3 tests green.
 Full suite: 616 passed, 0 failing.
 Friction: none — items were sequenced with an explicit dependency note (4431 before
 e2c4) in ROADMAP.md, which held.
+
+## 2026-07-02 16:49 — executor (sonnet, relay-loop)
+
+Closed all 3 open [ROUTINE] items: core-owned scalar registry docs (id:4431), conformance warn on unregistered bare scalars (id:e2c4), url_sha256 as source=social identity hash (id:1e4f); full suite 616 green. [id:4431,e2c4,1e4f]
