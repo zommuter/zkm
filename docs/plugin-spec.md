@@ -194,6 +194,12 @@ The `original` field is optional for sources without binary originals (e.g. a ge
 
 For plugins that handle conversations (email, chat, SMS), see [docs/messaging-spec.md](messaging-spec.md) for additional required fields (`message_id`, `thread_id`, `in_reply_to`, etc.).
 
+**`source: social` identity hash**: `source: social` docs (profile/connection captures with no single
+byte-content original) carry `url_sha256:` — the SHA-256 of the normalized profile/source URL —
+**instead of** `sha256`. This is an identity-only dedup hash, distinct from the byte-content
+`sha256` every other source requires; `zkm.conformance.validate_frontmatter` accepts it as
+satisfying the hash requirement only when `source == "social"` (ROADMAP id:1e4f; zkm-social D4).
+
 ### Core-owned scalar registry
 
 Bare-scalar frontmatter keys (str/int/float/bool — not lists/dicts) fall into two

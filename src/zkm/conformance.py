@@ -89,7 +89,14 @@ def validate_frontmatter(meta: dict, plugin_name: str) -> list[Finding]:
     # Exemptions per docs/messaging-spec.md: sha256 omitted (no single original byte source);
     # date is YYYY-MM-DD (day only, store locale TZ).
     _is_chat_day = "thread_id" in meta and "message_id" not in meta
-    _exempt_from_required = {"sha256"} if _is_chat_day else set()
+    # source=social docs carry url_sha256 (identity-only dedup hash of the profile/
+    # source URL) INSTEAD of the byte-content sha256 — zkm-social D4, ROADMAP id:1e4f.
+    _is_social_with_url_hash = meta.get("source") == "social" and "url_sha256" in meta
+    _exempt_from_required = set()
+    if _is_chat_day:
+        _exempt_from_required.add("sha256")
+    if _is_social_with_url_hash:
+        _exempt_from_required.add("sha256")
 
     for key in FRONTMATTER_REQUIRED:
         if key in _exempt_from_required:

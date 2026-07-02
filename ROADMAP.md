@@ -464,7 +464,7 @@ the gate (N9c/N9d accepted-as-is decisions stand).
     "warn" pattern already exists — see `check_interface` warn findings). Depends on
     id:4431 (registry table) for the authoritative key list. Core-runnable alone.
 
-- [ ] Accept `url_sha256` as the source=social identity hash in core conformance + docs [ROUTINE] <!-- id:1e4f -->
+- [x] Accept `url_sha256` as the source=social identity hash in core conformance + docs [ROUTINE] <!-- id:1e4f -->
   - **Acceptance** (inbox routed:7f55; zkm-social D4, plugin roadmap id:72ef —
     SHIPPED plugin-side, so the contract shape is settled): (1) `docs/plugin-spec.md`
     documents `url_sha256:` in the frontmatter section — identity-only dedup hash
