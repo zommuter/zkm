@@ -3,7 +3,7 @@
 Judgment calls encoded in red tests — confirm or correct the interpretation.
 Max ~10 open boxes; the reviewer prunes resolved ones each review turn.
 
-- [ ] **Central `[ROUTINE]` items that execute in PLUGIN repos are un-promotable —
+- [x] **Central `[ROUTINE]` items that execute in PLUGIN repos are un-promotable —
   disposition gap.** Four TODO items are lane-tagged `[ROUTINE]` (apex DQ triage
   2026-07-02 / this review) but their execution lives in plugin repos, which the
   ROADMAP scope rule ("plugin-repo work stays in TODO.md, NOT mirrored here")
@@ -16,3 +16,5 @@ Max ~10 open boxes; the reviewer prunes resolved ones each review turn.
   to a pointer, (b) teach the scan a "central-tracking, executes-elsewhere" marker,
   or (c) accept the noise. (Relay review 2026-07-02; the three CORE-runnable
   `[ROUTINE]` items 4431/e2c4/1e4f were promoted to ROADMAP this same pass.)
+  — OWNER DECISION: route to plugin repos — cfd1/f3c6/346c/f9a7 filed via shared
+  inbox (routed twins), central lines reduced to pointers (relay human 2026-07-02)
