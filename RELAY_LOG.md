@@ -472,3 +472,7 @@ Closed all 3 open [ROUTINE] items: core-owned scalar registry docs (id:4431), co
 ## 2026-07-04 17:06 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 review: executor window (4431/e2c4/1e4f) genuinely green — 616 suite, gaming-clean, specs unweakened; ticked TODO twins (D2 cross-ledger), ROADMAP drained, routine_open=0 [id:4431,e2c4,1e4f]
+
+## 2026-07-10 11:09 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+Review since relay-ckpt-20260704-1706: window bookkeeping-only (1 inbox-ingest commit adding gated TODO id:3174); gaming-scan+relay-doctor clean, ROADMAP drained, contract pointer v6 current, no reopens.
