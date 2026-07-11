@@ -476,3 +476,7 @@ review: executor window (4431/e2c4/1e4f) genuinely green — 616 suite, gaming-c
 ## 2026-07-10 11:09 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 Review since relay-ckpt-20260704-1706: window bookkeeping-only (1 inbox-ingest commit adding gated TODO id:3174); gaming-scan+relay-doctor clean, ROADMAP drained, contract pointer v6 current, no reopens.
+
+## 2026-07-11 14:14 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+review: window is manual ledger-reshaping only (no code); gaming-scan+relay-doctor clean, contract pointer v6 current, ROADMAP legitimately drained (routine_open=0), pruned resolved REVIEW_ME box + surfaced 3 UNMARKED-GATE items
