@@ -103,15 +103,12 @@ Per-plugin chat work (whatsapp/telegram/signal/threema ingest, segmentation, foo
 
 ## Workflow / process backlog
 
-- [x] **conformance.run_dynamic path-resolution bug** — `run_dynamic` resolves ALL `conformance.config` values as plugin-relative paths (conformance.py ~line 345), clobbering non-path values; zkm-social cannot declare `network: linkedin`, so `zkm test social` dynamic check is impossible. Fix: only path-resolve values whose resolved path exists, or mark path keys in plugin.yaml. Found during 2026-06-12 relay handoff (zkm-social child, also in shared inbox). Done — shipped + verified green (ROADMAP id:a285, review 2026-07-01). <!-- id:a285 -->
 - [ ] (Forward-flag, deferred — D4) Design a TODO-mutating script/tool that enforces the `@{u}` done-gate at `[x]`-write time. Gate: next todo-update skill revision OR second enforcement need. <!-- id:f1cf -->
 
 ## Frontmatter schema vocabulary (decided 2026-06-13-1413-frontmatter-schema-vocabulary.md)
 
 Cross-cutting schema rules (core-owned scalar registry + per-plugin namespacing) — span core docs + ≥2 plugins, so they stay central. <!-- lint-ok: section preamble -->
 
-- [x] [ROUTINE] Add a **core-owned scalar registry** table to `docs/plugin-spec.md` (key/type/semantics/enum) seeded with `status` (enum confirmed/cancelled/tentative), `subject`, `project`, `tags`, `sha256`, `url_sha256`; document the flat `<plugin>_<key>` rule for plugin-private scalars; mirror the rule into `ARCHITECTURE.md` §Conventions. <!-- id:4431 -->
-- [x] [ROUTINE] `zkm test` (conformance.py): warn-level finding when an emitted `.md` carries a bare scalar key not in the core-owned registry and not in `<plugin>_*` form. <!-- id:e2c4 -->
 - [ ] **D2/D3 plugin field doctrine (status enum, namespacing, core-owned registrations)** — routed to zkm-calendar (routed:c74e, 2026-07-02); central line is a pointer, execution tracked in the plugin ledger. <!-- id:cfd1 -->
 - [ ] **D4 url_sha256 write + migration for source:social** — routed to zkm-social (routed:8607, 2026-07-02); central line is a pointer, execution tracked in the plugin ledger. <!-- id:f3c6 -->
 
@@ -138,10 +135,7 @@ Cross-cutting schema rules (core-owned scalar registry + per-plugin namespacing)
 
 ## inbox intake 2026-06-26 (routed from todo-inbox.md)
 
-- [x] **Document plugin error contract in core ARCHITECTURE.md** — document the store-wide plugin error contract in core ARCHITECTURE.md §plugin-contract — a plugin signals runtime/CLI failure by raising RuntimeError; core's amender loop catches it + prints a one-line WARN (owner ratified 2026-06-13; core only, not the plugin) (inbox routed:4d69 from zkm core owner) Done — ARCHITECTURE.md Plugin error contract section shipped (ROADMAP id:c85c, review 2026-07-01). <!-- id:c85c -->
 - [ ] **Grand Truth Project zk hub note + mindmap** — Grand Truth Project zk hub note + mermaid mindmap of the certainty-gating mesh (zelegator/chidiai/mathematical-writing/toesnail/zkm) + one-sentence thesis; spoke repos link up via a CLAUDE.md 'Part of: Grand Truth Project' line (inbox routed:eb36 from project_manager, docs/meeting-notes/2026-06-16-1018-chidiai-scoping.md) *(scheduled as a ~1h owner slot on the human-sprint list; raw-material packet = mathematical-writing docs/meeting-notes/2026-07-02-1000 (triad §1/§5-inputs) + 2026-07-02-1100 §5 (tensions + strawmen))* <!-- id:3d98 -->
-- [x] [ROUTINE] **Verify messaging-spec.md guarantees STT audio-discovery surface** — Verify docs/messaging-spec.md guarantees the STT audio-discovery surface (body-line `[media: <mime> → <store-relative-path>]` + `key_id` comment) and recommends producers set a precise `audio/*` mime for voice notes; one-paragraph clarification if underspecified (blocks STT-chat id:2b9b) (inbox routed:73da from zkm-stt, plugins/zkm-stt/docs/meeting-notes/2026-06-22-1723-stt-chat-generalize-vs-duplicate.md) Done — verified body-line + key_id anchor were already guaranteed (messaging-spec.md Rules §Media); the missing `audio/*`-mime recommendation added as a spec paragraph (relay review 2026-07-02); unblocks zkm-stt id:2b9b. <!-- id:2f7c -->
-- [x] [ROUTINE] [INBOUND routed:7f55 from ?] document url_sha256 in core docs/plugin-spec.md frontmatter (identity-only dedup hash, alongside sha256) + accept url_sha256 in zkm.conformance.FRONTMATTER_REQUIRED for source=social; once landed remove the transitional sha256 dup in _github.py/_linkedin.py (zkm-social D4, social roadmap id:72ef) <!-- id:1e4f -->
 - [ ] [HARD — meeting] [INBOUND routed:1328 from zomni] HDD/external-drive asset inventory — searchable catalog (zkm search -> which drive); design manifest format (per-drive entity vs find-dump) in own /meeting <!-- id:f22d -->
 - [ ] **16-plugin dev-deps → [dependency-groups] sweep** [INBOUND routed:97a9 from zkm-eml relay review 2026-07-02] — routed to zkm-calendar (routed:1dbe, 2026-07-02); central line is a pointer, execution tracked in the plugin ledger. <!-- id:f9a7 -->
 - [ ] [INBOUND routed:b46d from dotclaude-skills] Subject-clouds semantic/embedding overlap layer — build ONLY for overlaps dc60 slice-0's ground-truth run provably misses; toesnail/docs/se-corpus.md = hand-labeled eval fixture; GATED on slice-0 miss-set non-empty <!-- id:3174 -->
