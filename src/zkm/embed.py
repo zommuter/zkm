@@ -17,7 +17,7 @@ from pathlib import Path
 import httpx
 import numpy as np
 
-from zkm.config import load_config
+from zkm.config import load_config, path_has_skip_prefix
 
 _DEFAULT_ENDPOINT = "http://localhost:8080"
 _DEFAULT_MODEL = "bge-m3"
@@ -70,6 +70,15 @@ def resolve_embed_config(
     key = api_key if api_key is not None else (cfg.core_value("embed", "key") or "")
     stall = float(cfg.core_value("embed", "stall_timeout") or 1800.0)
     return ep, mdl, key, stall
+
+
+def resolve_dense_skip_prefixes(store: Path) -> list[str]:
+    """Return the configured dense_skip_prefixes list (defaults applied via config)."""
+    cfg = load_config(store)
+    prefixes = cfg.core_value("embed", "dense_skip_prefixes")
+    if not isinstance(prefixes, list):
+        return []
+    return [str(p) for p in prefixes]
 
 
 def embed_texts(
@@ -342,7 +351,15 @@ def build_embed_store(
     Reuses all cached chunks for docs whose mtime_ns is unchanged and whose
     model matches. Saves a checkpoint to disk every checkpoint_every newly
     embedded texts so that interrupted runs can resume without re-embedding.
+
+    Docs whose rel_path starts with a configured ``dense_skip_prefixes`` prefix
+    (default includes ``inventory/find-dump/``) are excluded entirely from the
+    dense leg — BM25 indexing of the same docs is unaffected (id:8fb4 / INV3a).
     """
+    skip_prefixes = resolve_dense_skip_prefixes(store)
+    if skip_prefixes:
+        docs = [d for d in docs if not path_has_skip_prefix(d.rel_path, skip_prefixes)]
+
     # Group previous store by rel_path: {path: (mtime_ns, [(chunk_idx, vec), ...])}
     prev_cached: dict[str, tuple[int, list[tuple[int, np.ndarray]]]] = {}
     if prev_es is not None and prev_es.model == model:

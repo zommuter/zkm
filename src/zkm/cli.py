@@ -676,6 +676,19 @@ def cmd_convert(
             else:
                 click.echo("Skipping amenders (0 files created)", err=True)
         elif not cancelled and not no_amenders and not is_amender:
+            from zkm.config import load_config, path_has_skip_prefix
+
+            _amender_skip_prefixes = load_config(sdir).core_value(
+                "convert", "amender_skip_prefixes"
+            )
+            amender_created = created
+            if isinstance(_amender_skip_prefixes, list) and _amender_skip_prefixes:
+                _skip = [str(p) for p in _amender_skip_prefixes]
+                amender_created = [
+                    p for p in created
+                    if not path_has_skip_prefix(str(p.relative_to(sdir)), _skip)
+                ]
+
             for amender in list_amenders():
                 _abar: list[tqdm | None] = [None]
 
@@ -704,7 +717,9 @@ def cmd_convert(
                         _abar[0].set_postfix_str(message[:60])
 
                 try:
-                    run_convert(amender.name, sdir, progress=_amender_progress, created=created)
+                    run_convert(
+                        amender.name, sdir, progress=_amender_progress, created=amender_created
+                    )
                     click.echo(f"Amended via '{amender.name}'")
                 except Exception as e:
                     click.echo(f"WARN: amender '{amender.name}' failed: {e}", err=True)

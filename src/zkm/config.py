@@ -56,6 +56,18 @@ _CORE_DEFAULTS: dict[str, Any] = {
         "chunk_overlap": 200,
         "key": "",
         "stall_timeout": 1800.0,
+        # Docs whose rel_path starts with one of these prefixes are skipped by the
+        # dense/embeddings leg only (BM25 stays unchanged). Prereq for the
+        # zkm-inventory find-dump lane, whose per-drive filename-listing shards would
+        # otherwise explode the dense chunker (id:8fb4 / INV3a).
+        "dense_skip_prefixes": ["inventory/find-dump/"],
+    },
+    "convert": {
+        # Paths under these prefixes are excluded from the `created` list threaded to
+        # amender plugins (id:63bb) after a `zkm convert` — e.g. so zkm-ner never runs
+        # NER over millions of find-dump filename tokens (id:8fb4 / INV3a). Does not
+        # affect BM25/dense indexing or the primary convert's own output.
+        "amender_skip_prefixes": ["inventory/find-dump/"],
     },
     "expand": {
         "timeout": 30.0,
@@ -114,6 +126,32 @@ class StoreConfig:
         bare = name.removeprefix("zkm-")
         section = self._data.get(bare)
         return dict(section) if isinstance(section, dict) else {}
+
+
+def normalize_rel_path(rel_path: str) -> str:
+    """Normalize a store-relative path for prefix matching.
+
+    Strips a leading './' and converts backslashes to forward slashes so both
+    'inventory/find-dump/x.md' and './inventory/find-dump/x.md' compare equal.
+    """
+    p = rel_path.replace("\\", "/")
+    while p.startswith("./"):
+        p = p[2:]
+    return p
+
+
+def path_has_skip_prefix(rel_path: str, prefixes: list[str]) -> bool:
+    """True if *rel_path* starts with any of *prefixes* (both sides normalized)."""
+    norm = normalize_rel_path(rel_path)
+    for prefix in prefixes:
+        p = normalize_rel_path(prefix)
+        if not p:
+            continue
+        if not p.endswith("/"):
+            p += "/"
+        if norm.startswith(p):
+            return True
+    return False
 
 
 # ---------------------------------------------------------------------------

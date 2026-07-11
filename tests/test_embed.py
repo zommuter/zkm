@@ -279,6 +279,98 @@ def test_build_embed_store_embeds_all_docs(tmp_path: Path) -> None:
     assert es.vectors.shape == (3, 4)
 
 
+# ---------------------------------------------------------------------------
+# dense_skip_prefixes (id:8fb4 / INV3a) — dense leg per-path opt-out
+# ---------------------------------------------------------------------------
+
+
+def _fake_post_any(url, headers, json, timeout):  # noqa: A002
+    n = len(json["input"])
+    resp = MagicMock()
+    resp.json.return_value = _fake_embed_response(n, 4)
+    resp.raise_for_status = MagicMock()
+    return resp
+
+
+def test_build_embed_store_skips_default_find_dump_prefix(tmp_path: Path) -> None:
+    """A doc under the default-skipped inventory/find-dump/ prefix is excluded from
+    the dense leg even with no explicit config (default prefix set)."""
+    store = tmp_path / "store"
+    init_store(store, backend="none")
+    normal = _make_doc(store, "notes/normal.md", "hello", mtime_ns=100)
+    finddump = _make_doc(
+        store, "inventory/find-dump/drive1/0001.md", "file1.mkv file2.mkv", mtime_ns=200
+    )
+
+    with patch("httpx.post", side_effect=_fake_post_any):
+        es = build_embed_store(
+            store, [normal, finddump], prev_es=None, endpoint="http://localhost:8080",
+            model="bge-m3", api_key="",
+        )
+
+    assert "notes/normal.md" in es.paths
+    assert "inventory/find-dump/drive1/0001.md" not in es.paths
+    assert all(p != "inventory/find-dump/drive1/0001.md" for p in es.paths)
+
+
+def test_build_embed_store_dense_skip_prefix_leading_dot_slash(tmp_path: Path) -> None:
+    """A rel_path with a leading './' still matches the skip prefix."""
+    store = tmp_path / "store"
+    init_store(store, backend="none")
+    finddump = _make_doc(store, "inventory/find-dump/drive1/0002.md", "x", mtime_ns=300)
+    finddump.rel_path = "./inventory/find-dump/drive1/0002.md"
+
+    with patch("httpx.post", side_effect=_fake_post_any):
+        es = build_embed_store(
+            store, [finddump], prev_es=None, endpoint="http://localhost:8080",
+            model="bge-m3", api_key="",
+        )
+
+    assert es.paths == []
+
+
+def test_build_embed_store_explicit_dense_skip_prefixes_config(tmp_path: Path) -> None:
+    """An explicit dense_skip_prefixes config value governs which docs are skipped."""
+    import yaml
+
+    store = tmp_path / "store"
+    init_store(store, backend="none")
+    cfg_path = store / "zkm-config.yaml"
+    data = yaml.safe_load(cfg_path.read_text()) or {}
+    data.setdefault("core", {})["embed"] = {"dense_skip_prefixes": ["scratch/"]}
+    cfg_path.write_text(yaml.dump(data, default_flow_style=False))
+
+    scratch = _make_doc(store, "scratch/big.md", "hello", mtime_ns=400)
+    normal = _make_doc(store, "notes/normal.md", "hello", mtime_ns=500)
+
+    with patch("httpx.post", side_effect=_fake_post_any):
+        es = build_embed_store(
+            store, [scratch, normal], prev_es=None, endpoint="http://localhost:8080",
+            model="bge-m3", api_key="",
+        )
+
+    assert "notes/normal.md" in es.paths
+    assert "scratch/big.md" not in es.paths
+
+
+def test_build_embed_store_bm25_unaffected_by_dense_skip(tmp_path: Path) -> None:
+    """The dense skip is dense-only: BM25 build_index over the same store still
+    indexes the find-dump doc's rel_path (BM25 stays unchanged)."""
+    from zkm.index import build_index
+
+    store = tmp_path / "store"
+    init_store(store, backend="none")
+    _make_doc(store, "notes/normal.md", "hello world", mtime_ns=100)
+    _make_doc(
+        store, "inventory/find-dump/drive1/0001.md", "file1.mkv file2.mkv", mtime_ns=200
+    )
+
+    idx = build_index(store)
+    rel_paths = {d.rel_path for d in idx.docs}
+    assert "notes/normal.md" in rel_paths
+    assert "inventory/find-dump/drive1/0001.md" in rel_paths
+
+
 def test_build_embed_store_splits_oversized_chunk(tmp_path: Path) -> None:
     """A chunk the server rejects as 'too large to process' is split + mean-pooled
     instead of aborting the whole build (deterministic 500, not retried with backoff)."""
