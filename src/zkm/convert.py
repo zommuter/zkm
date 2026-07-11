@@ -63,9 +63,13 @@ class Plugin:
     conformance: dict = field(default_factory=dict)
     origin: str = "filesystem"
     shadows_entry_point: bool = False
+    module: str = "convert"
 
 
 def _plugin_from_data(data: dict, plugin_path: Path) -> Plugin:
+    module = data.get("module") or "convert"
+    if module.endswith(".py"):
+        module = module[: -len(".py")]
     return Plugin(
         name=data["name"],
         version=data.get("version", "0.0.0"),
@@ -76,6 +80,7 @@ def _plugin_from_data(data: dict, plugin_path: Path) -> Plugin:
         creates_dirs=data.get("creates_dirs") or [],
         gitignore_patterns=data.get("gitignore_patterns") or [],
         conformance=data.get("conformance") or {},
+        module=module,
     )
 
 
@@ -576,13 +581,13 @@ def _inject_plugin_venv(plugin: Plugin) -> None:
 
 
 def _load_plugin_module(plugin: Plugin) -> types.ModuleType:
-    convert_py = plugin.path / "convert.py"
-    if not convert_py.exists():
-        raise FileNotFoundError(f"{convert_py} not found")
+    module_py = plugin.path / f"{plugin.module}.py"
+    if not module_py.exists():
+        raise FileNotFoundError(f"{module_py} not found")
     _inject_plugin_venv(plugin)
-    spec_obj = importlib.util.spec_from_file_location(f"zkm_plugin_{plugin.name}", convert_py)
+    spec_obj = importlib.util.spec_from_file_location(f"zkm_plugin_{plugin.name}", module_py)
     if spec_obj is None or spec_obj.loader is None:
-        raise ImportError(f"Could not load {convert_py}")
+        raise ImportError(f"Could not load {module_py}")
     mod = importlib.util.module_from_spec(spec_obj)
     # Register in sys.modules BEFORE exec: on Python 3.14, dataclass processing
     # resolves a class's defining module via sys.modules[cls.__module__]; an

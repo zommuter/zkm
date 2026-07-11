@@ -16,6 +16,8 @@ from zkm.convert import (
     list_amenders,
     list_plugins,
     load_env,
+    load_plugin_manifest,
+    load_plugin_manifests,
     prompt_required_config,
     remove_plugin,
     run_convert,
@@ -136,6 +138,62 @@ def test_multidoc_plugin_yaml_discovers_all(isolated_plugins: Path) -> None:
     assert by_name["multi"].kind == "converter"
     assert by_name["multi-amend"].kind == "amender"
     assert {p.name for p in list_amenders()} == {"multi-amend"}
+
+
+def test_multidoc_plugin_module_key_dispatches_to_named_file(tmp_path: Path) -> None:
+    """A secondary multi-doc plugin declaring ``module: other`` must load
+    ``other.py``, not the hardcoded ``convert.py`` (regression for id:3f86:
+    ``_load_plugin_module`` hardcoded ``convert.py`` and ``Plugin`` never
+    parsed the ``module:`` key, so zkm-stt's ``stt-wa`` (module: stt_wa) and
+    zkm-inventory's ``inventory-finddump`` (module: finddump) silently ran
+    ``convert.py`` instead of their declared module).
+    """
+    import sys
+
+    repo = tmp_path / "zkm-modtest"
+    repo.mkdir()
+    (repo / "plugin.yaml").write_text(
+        "name: modtest\n"
+        "version: 0.1.0\n"
+        "creates_dirs: []\n"
+        "---\n"
+        "name: modtest-other\n"
+        "kind: amender\n"
+        "version: 0.1.0\n"
+        "module: other\n"
+        "creates_dirs: []\n"
+    )
+    (repo / "convert.py").write_text("MARKER = 'primary'\ndef convert(s, c, **kw): return []\n")
+    (repo / "other.py").write_text("MARKER = 'secondary'\ndef convert(s, c, **kw): return []\n")
+
+    plugins = load_plugin_manifests(repo)
+    primary, secondary = plugins[0], plugins[1]
+
+    assert primary.module == "convert"
+    assert secondary.module == "other"
+
+    try:
+        primary_mod = _load_plugin_module(primary)
+        assert primary_mod.MARKER == "primary"
+    finally:
+        sys.modules.pop("zkm_plugin_modtest", None)
+
+    try:
+        secondary_mod = _load_plugin_module(secondary)
+        assert secondary_mod.MARKER == "secondary"
+    finally:
+        sys.modules.pop("zkm_plugin_modtest-other", None)
+
+
+def test_single_doc_plugin_defaults_module_to_convert(tmp_path: Path) -> None:
+    """A single-doc plugin.yaml with no ``module:`` key still loads convert.py."""
+    repo = tmp_path / "zkm-single"
+    repo.mkdir()
+    (repo / "plugin.yaml").write_text("name: single\nversion: 0.1.0\ncreates_dirs: []\n")
+    (repo / "convert.py").write_text("def convert(s, c, **kw): return []\n")
+
+    plugin = load_plugin_manifest(repo)
+    assert plugin.module == "convert"
 
 
 def test_find_plugin(isolated_plugins: Path, notes_plugin_dir: Path) -> None:
