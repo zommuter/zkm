@@ -480,3 +480,14 @@ Review since relay-ckpt-20260704-1706: window bookkeeping-only (1 inbox-ingest c
 ## 2026-07-11 14:14 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 review: window is manual ledger-reshaping only (no code); gaming-scan+relay-doctor clean, contract pointer v6 current, ROADMAP legitimately drained (routine_open=0), pruned resolved REVIEW_ME box + surfaced 3 UNMARKED-GATE items
+
+## 2026-07-11 — executor (sonnet)
+
+Worked id:8fb4 (INV3a) — added dense_skip_prefixes (embed.py build_embed_store +
+config.py, default inventory/find-dump/) so the dense leg skips docs under configured
+prefixes while BM25 stays unchanged, and sibling amender_skip_prefixes (cli.py
+cmd_convert amender-dispatch loop) so the created-list threaded to amenders (id:63bb)
+excludes those paths too. Shared prefix-match helper zkm.config.path_has_skip_prefix.
+TDD: 7 new RED→GREEN tests (tests/test_embed.py, tests/test_cli_amender_skip_prefixes.py);
+full suite 623 passed. No version bump / uv.lock touch (deferred to a batched release).
+Friction: none.
