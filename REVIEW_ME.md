@@ -21,3 +21,16 @@ Max ~10 open boxes; the reviewer prunes resolved ones each review turn.
   each `--shipped` scan — a durable `prose-only confirmed` marker for orphan-scan.sh is routed
   to dotclaude-skills so the loud detector shrinks rather than re-litigating. See
   docs/meeting-notes/2026-07-11-2132-inventory-data-scope.md (Amendment session).
+
+- [ ] **CI `ruff check` tier is RED (122 errors) — PRE-EXISTING, not this window.**
+  (relay review 2026-07-12) The `.github/workflows/ci.yml` Lint step runs
+  `uv run ruff check`; against the locked ruff 0.15.10 it reports 122 violations
+  (78 E501 line-too-long, 24 I001 import-order, 7 UP017, 6 UP035, 3 F401, 2 UP037,
+  1 F841, 1 F541). This is repo-wide lint debt from ruff-version drift (pin `>=0.4`
+  → locked 0.15.10), **NOT introduced by this window's commits**: the changed source
+  files carry the *same* count at the checkpoint tree (`cli.py` 13 both, `convert.py`
+  2 both, `store.py` 0 both — id:998b added zero lint errors). The pytest tier is
+  fully green (628 passed). Decide: run `ruff check --fix` for the 43 auto-fixable
+  (I001/F401) + address E501, or relax the ruff config — either way the CI Lint step
+  fails today. Advisory — does not block this review (pytest green, work verified
+  genuine).

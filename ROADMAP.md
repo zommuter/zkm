@@ -30,6 +30,22 @@ the gate (N9c/N9d accepted-as-is decisions stand).
 
 ## Items
 
+- [ ] [ROUTINE] **Shell autocompletion for `zkm` (bash + zsh + fish)** <!-- id:e9e2 -->
+  Ship a `zkm completion [bash|zsh|fish]` subcommand that prints the shell
+  completion script (Click's native `_ZKM_COMPLETE=<shell>_source` mechanism) plus
+  install docs in `docs/install.md`. Wire DYNAMIC plugin-name completion on the
+  plugin-argument commands (`zkm convert <TAB>`, `zkm scrub <TAB>`) via a Click
+  `shell_complete` callback that lists names from the live discovered plugin set
+  (`convert.list_plugins()` — entry-points ∪ `plugins/*/plugin.yaml`, incl. multi-doc
+  secondaries). Completion MUST stay fast: use the lightweight manifest scan, never
+  `_load_plugin_module` (no heavy plugin imports on `<TAB>`).
+  - **Acceptance**: `zkm completion bash|zsh|fish` each exit 0 and print a non-empty
+    script; the `convert` command's `plugin` argument completes from the discovered
+    plugin set. Green: `tests/test_completion.py` (currently RED — 4 specs).
+  - **Done-check**: `uv run pytest tests/test_completion.py` green; full suite green;
+    `uv run ruff check src/zkm/cli.py` introduces no NEW lint errors vs. baseline.
+  - Reverse-handoff mini-handoff of TODO id:e9e2 (single-id-two-views; reuse token).
+
 ## Pointers (NOT executor items — wrong repo or gated)
 
 - zkm-whatsapp W-series (W6f media manifest, W-key secret source, W8 owner-JID
