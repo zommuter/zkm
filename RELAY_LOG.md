@@ -491,3 +491,7 @@ excludes those paths too. Shared prefix-match helper zkm.config.path_has_skip_pr
 TDD: 7 new RED→GREEN tests (tests/test_embed.py, tests/test_cli_amender_skip_prefixes.py);
 full suite 623 passed. No version bump / uv.lock touch (deferred to a batched release).
 Friction: none.
+
+## 2026-07-12 21:30 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+review: id:998b/8fb4/3f86 verified genuine-green (628 pytest); mini-handoff id:e9e2 shell-completion [ROUTINE]+RED spec; CI ruff-lint RED (pre-existing) surfaced [id:998b,8fb4,3f86,e9e2]
