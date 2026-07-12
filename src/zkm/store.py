@@ -181,13 +181,54 @@ def clone_store(url: str, dest: Path) -> str:
     return backend
 
 
-def push_store(store: Path, remote: str | None = None, *, content: bool = False) -> None:
-    """Push store commits (and optionally annex content) to a remote."""
+def _resolve_push_remote(store: Path) -> str:
+    """Resolve a default remote for an annex *content* push.
+
+    ``git annex copy --to`` needs an explicit target remote. Prefer the current
+    branch's tracking remote, else ``origin`` when configured. Raise a clear
+    error otherwise so the user knows to pass a remote or ``--no-content``.
+    """
+    try:
+        branch = _git_output(["rev-parse", "--abbrev-ref", "HEAD"], cwd=store).strip()
+        tracking = _git_output(
+            ["config", "--get", f"branch.{branch}.remote"], cwd=store
+        ).strip()
+        if tracking:
+            return tracking
+    except subprocess.CalledProcessError:
+        pass
+    try:
+        remotes = _git_output(["remote"], cwd=store).split()
+    except subprocess.CalledProcessError:
+        remotes = []
+    if "origin" in remotes:
+        return "origin"
+    raise ValueError(
+        "zkm push: no remote specified and no default could be resolved "
+        "(no tracking remote, no 'origin'). Pass a remote name explicitly, "
+        "or use --no-content to push refs only."
+    )
+
+
+def push_store(store: Path, remote: str | None = None, *, content: bool = True) -> None:
+    """Push store commits (and, by default, annex content) to a remote.
+
+    One-directional *durability* push (never a bidirectional sync): git refs go
+    up and, for the annex backend, content is uploaded with correct location
+    tracking. A diverged remote makes the ref push fail loudly rather than
+    silently merging remote history back (see the 2026-07-12 D2 meeting note).
+    """
     backend = read_zkm_config(store).get("binary_backend", "none")
     if backend == "annex":
-        args = ["annex", "sync"]
+        # Content via `git annex copy --to` (push-only, records location);
+        # refs via `git annex sync --no-pull --no-content` (git-annex-branch
+        # aware, one-directional). `copy --to` requires an explicit target.
         if content:
-            args.append("--content")
+            target = remote or _resolve_push_remote(store)
+            _git(["annex", "copy", "--to", target], store)
+            _git(["annex", "sync", "--no-pull", "--no-content", target], store)
+            return
+        args = ["annex", "sync", "--no-pull", "--no-content"]
         if remote:
             args.append(remote)
     elif backend == "lfs":

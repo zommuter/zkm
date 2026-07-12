@@ -103,27 +103,77 @@ def test_push_dispatch_none_with_remote(tmp_path: Path, monkeypatch: pytest.Monk
 
 
 def test_push_dispatch_annex_no_content(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # --no-content: refs only, one-directional (no --content, no copy --to).
     (tmp_path / ".zkm-config").write_text("binary_backend=annex\n")
     calls: list[list[str]] = []
     monkeypatch.setattr("zkm.store._git", lambda args, _cwd: calls.append(list(args)))
-    push_store(tmp_path, "origin")
-    assert calls == [["annex", "sync", "origin"]]
+    push_store(tmp_path, "origin", content=False)
+    assert calls == [["annex", "sync", "--no-pull", "--no-content", "origin"]]
 
 
 def test_push_dispatch_annex_with_content(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Default durability push: content via copy --to, then one-directional refs.
     (tmp_path / ".zkm-config").write_text("binary_backend=annex\n")
     calls: list[list[str]] = []
     monkeypatch.setattr("zkm.store._git", lambda args, _cwd: calls.append(list(args)))
     push_store(tmp_path, "origin", content=True)
-    assert calls == [["annex", "sync", "--content", "origin"]]
+    assert calls == [
+        ["annex", "copy", "--to", "origin"],
+        ["annex", "sync", "--no-pull", "--no-content", "origin"],
+    ]
 
 
-def test_push_dispatch_annex_no_remote(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_push_dispatch_annex_content_is_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # content=True is the default — a bare push_store moves content.
     (tmp_path / ".zkm-config").write_text("binary_backend=annex\n")
     calls: list[list[str]] = []
     monkeypatch.setattr("zkm.store._git", lambda args, _cwd: calls.append(list(args)))
+    push_store(tmp_path, "origin")
+    assert calls == [
+        ["annex", "copy", "--to", "origin"],
+        ["annex", "sync", "--no-pull", "--no-content", "origin"],
+    ]
+
+
+def test_push_dispatch_annex_no_content_no_remote(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / ".zkm-config").write_text("binary_backend=annex\n")
+    calls: list[list[str]] = []
+    monkeypatch.setattr("zkm.store._git", lambda args, _cwd: calls.append(list(args)))
+    push_store(tmp_path, content=False)
+    assert calls == [["annex", "sync", "--no-pull", "--no-content"]]
+
+
+def test_push_annex_content_resolves_default_remote(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # content push with no remote resolves a default and uses it for both calls.
+    (tmp_path / ".zkm-config").write_text("binary_backend=annex\n")
+    calls: list[list[str]] = []
+    monkeypatch.setattr("zkm.store._git", lambda args, _cwd: calls.append(list(args)))
+    monkeypatch.setattr("zkm.store._resolve_push_remote", lambda _store: "origin")
     push_store(tmp_path, content=True)
-    assert calls == [["annex", "sync", "--content"]]
+    assert calls == [
+        ["annex", "copy", "--to", "origin"],
+        ["annex", "sync", "--no-pull", "--no-content", "origin"],
+    ]
+
+
+def test_push_annex_content_unresolvable_remote_raises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / ".zkm-config").write_text("binary_backend=annex\n")
+    monkeypatch.setattr("zkm.store._git", lambda args, _cwd: None)
+
+    def _boom(_store: Path) -> str:
+        raise ValueError("no remote")
+
+    monkeypatch.setattr("zkm.store._resolve_push_remote", _boom)
+    with pytest.raises(ValueError):
+        push_store(tmp_path, content=True)
 
 
 def test_push_dispatch_lfs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

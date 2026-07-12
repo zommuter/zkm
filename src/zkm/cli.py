@@ -143,7 +143,12 @@ def cmd_clone(url: str, path: str | None) -> None:
 
 @main.command("push")
 @click.argument("remote", required=False, default=None, metavar="[REMOTE]")
-@click.option("--content", is_flag=True, help="Sync file content to remote (annex only)")
+@click.option(
+    "--no-content",
+    "no_content",
+    is_flag=True,
+    help="Push refs only, skip annex content (annex only)",
+)
 @click.option(
     "--store",
     "store_override",
@@ -151,12 +156,18 @@ def cmd_clone(url: str, path: str | None) -> None:
     metavar="PATH",
     help="Store path (default: $ZKM_STORE or ~/knowledge)",
 )
-def cmd_push(remote: str | None, content: bool, store_override: str | None) -> None:
-    """Push store commits to REMOTE."""
+def cmd_push(remote: str | None, no_content: bool, store_override: str | None) -> None:
+    """Push store commits + annex content to REMOTE (durability push).
+
+    Content is pushed by default; pass --no-content for a fast refs-only push.
+    """
     sdir = Path(store_override) if store_override else store_path()
     _require_store(sdir)
     try:
-        push_store(sdir, remote, content=content)
+        push_store(sdir, remote, content=not no_content)
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
     except subprocess.CalledProcessError as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
