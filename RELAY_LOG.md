@@ -499,3 +499,13 @@ review: id:998b/8fb4/3f86 verified genuine-green (628 pytest); mini-handoff id:e
 ## 2026-07-12 21:31 — executor (sonnet, relay-loop)
 
 No-op: ROADMAP.md has zero open [ROUTINE] items; classifier's "1 open item" verdict was stale.
+
+## 2026-07-12 — executor (sonnet)
+
+Worked id:e9e2 — shipped `zkm completion [bash|zsh|fish]` (Click native
+`_ZKM_COMPLETE=<shell>_source`) plus a `shell_complete` callback on the
+`convert`/`scrub` plugin arguments backed by `list_plugins()`'s lightweight
+manifest scan (no heavy plugin imports on <TAB>). Added install docs to
+docs/install.md. tests/test_completion.py 4/4 green, full suite 632 passed,
+ruff introduces no new errors vs baseline. Ticked ROADMAP checkbox.
+Friction: none.

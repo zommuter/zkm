@@ -106,3 +106,27 @@ systemctl --user start zkm-embed.service
 
 After installing, follow the hook setup in `plugins/zkm-eml/README.md` to wire up
 `zkm convert zkm-eml && zkm index` as a `~/mail` post-commit hook.
+
+## Shell completion
+
+`zkm completion <shell>` prints a completion script for `bash`, `zsh`, or `fish`
+(Click's native `_ZKM_COMPLETE=<shell>_source` mechanism). The `convert` and
+`scrub` commands' `plugin` argument completes dynamically from the discovered
+plugin set (entry-points ∪ `plugins/*/plugin.yaml`, incl. multi-doc
+secondaries) via a lightweight manifest scan — it never imports plugin code,
+so `<TAB>` stays fast even with many plugins installed.
+
+Install for your shell:
+
+```bash
+# bash — append to ~/.bashrc
+zkm completion bash >> ~/.bashrc
+
+# zsh — append to ~/.zshrc
+zkm completion zsh >> ~/.zshrc
+
+# fish — write to the fish completions dir
+zkm completion fish > ~/.config/fish/completions/zkm.fish
+```
+
+Restart your shell (or `source ~/.bashrc` / `source ~/.zshrc`) to pick it up.
