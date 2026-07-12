@@ -28,6 +28,46 @@ def main() -> None:
     """ze knowledge manager — personal knowledge base CLI."""
 
 
+def _complete_plugin_names(
+    ctx: click.Context, param: click.Parameter, incomplete: str
+) -> list[str]:
+    """Shell-completion callback for plugin-name arguments.
+
+    Uses the lightweight manifest scan (`list_plugins()`), never
+    `_load_plugin_module` — completion must stay fast, no heavy plugin imports
+    on <TAB>.
+    """
+    from zkm.convert import list_plugins
+
+    try:
+        names = [p.name for p in list_plugins()]
+    except Exception:
+        return []
+    return [n for n in names if n.startswith(incomplete)]
+
+
+@main.command("completion")
+@click.argument("shell", type=click.Choice(["bash", "zsh", "fish"]))
+@click.pass_context
+def cmd_completion(ctx: click.Context, shell: str) -> None:
+    """Print a shell completion script for zkm.
+
+    Install (bash): zkm completion bash >> ~/.bashrc
+    Install (zsh):  zkm completion zsh >> ~/.zshrc
+    Install (fish): zkm completion fish > ~/.config/fish/completions/zkm.fish
+    """
+    import click.shell_completion as sc
+
+    prog_name = ctx.find_root().info_name or "zkm"
+    complete_var = f"_{prog_name.upper().replace('-', '_')}_COMPLETE"
+    comp_cls = sc.get_completion_class(shell)
+    if comp_cls is None:
+        click.echo(f"Error: unsupported shell {shell!r}", err=True)
+        sys.exit(1)
+    completion = comp_cls(main, {}, prog_name, complete_var)
+    click.echo(completion.source())
+
+
 # ---------------------------------------------------------------------------
 # zkm init
 # ---------------------------------------------------------------------------
@@ -562,7 +602,7 @@ def cmd_fetch(
 
 
 @main.command("convert")
-@click.argument("plugin")
+@click.argument("plugin", shell_complete=_complete_plugin_names)
 @click.option(
     "--store",
     "store_override",
@@ -846,7 +886,7 @@ def cmd_test(plugin: str, advisory: bool) -> None:
 
 
 @main.command("scrub")
-@click.argument("plugin")
+@click.argument("plugin", shell_complete=_complete_plugin_names)
 @click.option("--apply", "do_apply", is_flag=True, help="Write changes (default: dry-run)")
 @click.option("--verbose", is_flag=True, help="Print each modified file path")
 @click.option("--no-progress", is_flag=True, help="Suppress progress bar")

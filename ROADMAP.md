@@ -30,7 +30,7 @@ the gate (N9c/N9d accepted-as-is decisions stand).
 
 ## Items
 
-- [ ] [ROUTINE] **Shell autocompletion for `zkm` (bash + zsh + fish)** <!-- id:e9e2 -->
+- [x] [ROUTINE] **Shell autocompletion for `zkm` (bash + zsh + fish)** <!-- id:e9e2 -->
   Ship a `zkm completion [bash|zsh|fish]` subcommand that prints the shell
   completion script (Click's native `_ZKM_COMPLETE=<shell>_source` mechanism) plus
   install docs in `docs/install.md`. Wire DYNAMIC plugin-name completion on the
