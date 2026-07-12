@@ -509,3 +509,7 @@ manifest scan (no heavy plugin imports on <TAB>). Added install docs to
 docs/install.md. tests/test_completion.py 4/4 green, full suite 632 passed,
 ruff introduces no new errors vs baseline. Ticked ROADMAP checkbox.
 Friction: none.
+
+## 2026-07-12 21:58 — executor (sonnet, relay-loop)
+
+Shipped zkm completion subcommand (bash/zsh/fish) + dynamic plugin-name shell_complete on convert/scrub; id:e9e2 closed, full suite 632 green. [id:e9e2]
