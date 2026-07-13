@@ -21,7 +21,6 @@ from zkm.hygiene import (
 from zkm.inbox import symlink_with_sidecar
 from zkm.sidecar import read_sidecar
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

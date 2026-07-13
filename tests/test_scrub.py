@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+
 import pytest
 from click.testing import CliRunner
 
 from zkm.cli import main
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -155,7 +155,10 @@ def _make_plugin_with_on_file_done(plugins_dir: Path, name: str) -> Path:
         "    files = sorted(store_path.rglob('*.md'))\n"
         "    if resume_after_file:\n"
         "        resume = Path(resume_after_file)\n"
-        "        idx = next((i for i, p in enumerate(files) if p.relative_to(store_path) == resume), None)\n"
+        "        idx = next(\n"
+        "            (i for i, p in enumerate(files) if p.relative_to(store_path) == resume),\n"
+        "            None,\n"
+        "        )\n"
         "        if idx is not None:\n"
         "            files = files[idx + 1:]\n"
         "    for f in files:\n"

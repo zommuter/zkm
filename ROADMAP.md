@@ -46,7 +46,7 @@ the gate (N9c/N9d accepted-as-is decisions stand).
     `uv run ruff check src/zkm/cli.py` introduces no NEW lint errors vs. baseline.
   - Reverse-handoff mini-handoff of TODO id:e9e2 (single-id-two-views; reuse token).
 
-- [ ] [ROUTINE] **Clear the CI `ruff check` lint debt (122 errors → 0)** <!-- id:04e5 -->
+- [x] [ROUTINE] **Clear the CI `ruff check` lint debt (122 errors → 0)** <!-- id:04e5 -->
   The `.github/workflows/ci.yml` Lint step runs `uv run ruff check` and fails today
   with 122 violations against the locked ruff 0.15.10 (78 E501 line-too-long, 24 I001
   import-order, 7 UP017, 6 UP035, 3 F401, 2 UP037, 1 F841, 1 F541). Repo-wide debt

@@ -13,8 +13,8 @@ unifying both paths on the try/except guard.
 from __future__ import annotations
 
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from zkm.index import build_index, save_index, write_watermark
 

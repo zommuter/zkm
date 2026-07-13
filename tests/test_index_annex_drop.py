@@ -9,13 +9,11 @@ here we use a dedicated `annex_store` fixture that initialises a real annex repo
 
 from __future__ import annotations
 
-import json
 import subprocess
 from pathlib import Path
 
 import numpy as np
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Helper utilities
@@ -186,7 +184,7 @@ def test_annex_drop_superseded_key_leaves_one_key(annex_store: Path) -> None:
     ok2 = annex_add_and_commit(annex_store, ".zkm-index/embeddings.npz")
     assert ok2, "Second annex_add_and_commit should succeed"
 
-    key_after_second = get_annex_key(annex_store, ".zkm-index/embeddings.npz")
+    _key_after_second = get_annex_key(annex_store, ".zkm-index/embeddings.npz")
     # Keys may be identical if random content collides — but with random 4-float vecs
     # that's astronomically unlikely; if they ARE identical, drop is a no-op (still 1 key).
 

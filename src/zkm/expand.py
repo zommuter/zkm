@@ -31,7 +31,8 @@ _EXPANSION_PROMPT = (
     "Translate the question's main concepts into the OTHER language. Do not repeat phrases. "
     "Do NOT echo the question verbatim or as a near-verbatim substring — "
     "every phrase must be a paraphrase, synonym, or related concept, never the question itself.\n\n"
-    "Section 2 — Hypothetical answer: one sentence that would be a plausible answer, in either language.\n\n"
+    "Section 2 — Hypothetical answer: one sentence that would be a plausible answer, "
+    "in either language.\n\n"
     "Question: {question}"
 )
 # WHY: cache keys include a prompt hash so stale entries are ignored when the prompt changes
@@ -213,10 +214,19 @@ def expand_query_with_hyp(
     }
 
     import os
+
     from zkm.config import load_config
     cfg = load_config(store)
-    warm_timeout = float(os.environ.get("ZKM_LLM_EXPAND_TIMEOUT") or cfg.core_value("expand", "timeout") or _EXPAND_TIMEOUT_DEFAULT)
-    cold_timeout = float(os.environ.get("ZKM_LLM_EXPAND_COLD_TIMEOUT") or cfg.core_value("expand", "cold_timeout") or _EXPAND_COLD_TIMEOUT_DEFAULT)
+    warm_timeout = float(
+        os.environ.get("ZKM_LLM_EXPAND_TIMEOUT")
+        or cfg.core_value("expand", "timeout")
+        or _EXPAND_TIMEOUT_DEFAULT
+    )
+    cold_timeout = float(
+        os.environ.get("ZKM_LLM_EXPAND_COLD_TIMEOUT")
+        or cfg.core_value("expand", "cold_timeout")
+        or _EXPAND_COLD_TIMEOUT_DEFAULT
+    )
 
     loaded = _probe_model_loaded(endpoint, model)
     if loaded is False:

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+
 def test_round_trip(tmp_path: Path):  # roadmap:f399
     from zkm.state import load_state, save_state
 

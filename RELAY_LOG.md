@@ -517,3 +517,14 @@ Shipped zkm completion subcommand (bash/zsh/fish) + dynamic plugin-name shell_co
 ## 2026-07-13 13:20 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 review: promote ruff CI-lint debt → ROADMAP [ROUTINE] id:04e5; fix e9e2 cross-ledger drift; pytest 632 green, lint RED verified [id:04e5,e9e2]
+
+## 2026-07-13 — executor (sonnet)
+
+Worked id:04e5 — cleared all 122 ruff errors (55 auto-fixed via `ruff check --fix`
+for I001/F401/UP0xx; remaining 76 manual: 75 E501 line-too-long wraps across
+contrib/, examples/, src/zkm/{cli,conformance,convert,expand,query,scrub}.py and
+10 tests/ files, plus 1 F841 unused-variable in test_index_annex_drop.py fixed by
+underscore-prefixing the intentionally-unused read). No behaviour changes — pure
+reflow/wrap, no assertions weakened. `uv run ruff check` exits 0; full
+`uv run pytest -q` still 632 passed. Ticked ROADMAP checkbox.
+Friction: none — mechanical wrapping, no test or logic edits needed.

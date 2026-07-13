@@ -12,7 +12,7 @@ import os
 import signal
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from types import FrameType
 from typing import Any
@@ -103,7 +103,7 @@ class RunSession:
         self._command = command
         self._args = list(args or [])
         self._pid = os.getpid()
-        self._started_at = datetime.now(timezone.utc).isoformat()
+        self._started_at = datetime.now(UTC).isoformat()
 
         self._phase = "init"
         self._current = 0
@@ -215,7 +215,7 @@ class RunSession:
             "total": self._total,
             "message": self._message,
             "eta_seconds": self._eta_seconds,
-            "last_updated": datetime.now(timezone.utc).isoformat(),
+            "last_updated": datetime.now(UTC).isoformat(),
         }
 
     def _write_file(self) -> None:
@@ -239,7 +239,7 @@ class RunSession:
             eta_str = f" ETA ~{mins}m{secs:02d}s" if mins else f" ETA ~{secs}s"
         sys.stderr.write(
             f"{self._command} phase={self._phase} {pct} "
-            f"{datetime.now(timezone.utc).astimezone().strftime('%H:%M:%S')}"
+            f"{datetime.now(UTC).astimezone().strftime('%H:%M:%S')}"
             f"{eta_str}\n"
         )
         sys.stderr.flush()

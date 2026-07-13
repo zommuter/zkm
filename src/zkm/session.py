@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 MAX_TOOL_INPUT_LEN = 80
 
@@ -82,9 +82,9 @@ def parse_iso_date(ts: str) -> str | None:
     try:
         dt = datetime.fromisoformat(ts.rstrip("Z"))
         if ts.endswith("Z"):
-            dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
         return dt.isoformat(timespec="seconds")
     except ValueError:
         return ts
@@ -97,7 +97,7 @@ def format_ts(ts: str) -> str:
     try:
         dt = datetime.fromisoformat(ts.rstrip("Z"))
         if ts.endswith("Z"):
-            dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
         return dt.strftime("%Y-%m-%d %H:%M UTC")
     except ValueError:
         return ts

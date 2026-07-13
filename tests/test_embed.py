@@ -509,7 +509,8 @@ def test_chunk_texts_long_doc_yields_multiple_with_overlap(
     for i in range(len(chunks) - 1):
         # The last 200 chars of chunk i's body window == first 200 chars of chunk i+1's body window
         # Strip the header (no title/tags in this fixture) — chunks[i] == window text only
-        assert chunks[i][-200:] == chunks[i + 1][: len(chunks[i + 1]) - len(chunks[i + 1].lstrip("A"))][:200]
+        stripped_len = len(chunks[i + 1]) - len(chunks[i + 1].lstrip("A"))
+        assert chunks[i][-200:] == chunks[i + 1][:stripped_len][:200]
 
 
 def test_chunk_texts_long_doc_overlap_content(
@@ -550,7 +551,7 @@ def test_chunk_texts_legacy_max_chars_deprecation(
     monkeypatch.delenv("ZKM_EMBED_CHUNK_CHARS", raising=False)
     store = tmp_path / "store"
     init_store(store, backend="none")
-    body = "C" * 800  # stride = 300-200=100? No — legacy sets chunk_chars=300, overlap still default 200
+    body = "C" * 800  # legacy sets chunk_chars=300, overlap still default 200
     # With chunk_chars=300, overlap=200, stride=100; body=800 → starts 0,100,200,...,700 → 8 chunks
     # But we just care about the deprecation warning appearing
     doc = _make_doc(store, "notes/legacy.md", body=body, mtime_ns=1000)
@@ -566,7 +567,8 @@ def test_chunk_texts_includes_entity_value_and_canonical(tmp_path: Path) -> None
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         "---\nentities:\n"
-        "  - {scope: body, type: email, value: 'alice@example.com', canonical: 'alice@example.com'}\n"
+        "  - {scope: body, type: email, value: 'alice@example.com',"
+        " canonical: 'alice@example.com'}\n"
         "---\nhello world\n"
     )
     doc = Doc(rel_path="mail/msg.md", mtime_ns=1000, metadata={}, tokens=[])

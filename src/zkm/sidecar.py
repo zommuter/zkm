@@ -5,8 +5,8 @@ from __future__ import annotations
 import contextlib
 import fcntl
 import json
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 from .atomic import write_atomic
 

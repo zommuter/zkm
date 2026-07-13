@@ -117,7 +117,9 @@ def test_search_hybrid_trace_no_endpoint(
     _write_and_index(store, [("notes/doc.md", "electricity bill")])
     _make_embed_store(store, ["notes/doc.md"], np.eye(1, 4))
     # Patch resolve_embed_config to return empty endpoint (simulating disabled dense)
-    monkeypatch.setattr("zkm.query.resolve_embed_config", lambda store, **kw: ("", "bge-m3", "", 1800.0))
+    monkeypatch.setattr(
+        "zkm.query.resolve_embed_config", lambda store, **kw: ("", "bge-m3", "", 1800.0)
+    )
     hits, trace = search_hybrid_traced(store, "electricity", top_k=5, dense=True)
     assert any("doc" in h.path for h in hits)
     assert trace.dense_skipped_reason == "no_endpoint"
@@ -176,7 +178,7 @@ def test_cmd_search_warns_on_dense_skip(tmp_path: Path) -> None:
 def test_cmd_search_expand_calls_search_with_expansion(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """--expand flag routes through search_with_expansion_traced; default uses search_hybrid_traced."""
+    """--expand routes through search_with_expansion_traced; default uses search_hybrid_traced."""
     from click.testing import CliRunner
 
     from zkm.cli import main
@@ -207,7 +209,9 @@ def test_cmd_search_expand_calls_search_with_expansion(
         m.setattr("zkm.query.search_with_expansion_traced", fake_expansion)
         runner.invoke(main, ["search", "--store", str(sdir), "test"])
     assert hybrid_called, "search_hybrid_traced should be called without --expand"
-    assert not expansion_called, "search_with_expansion_traced should not be called without --expand"
+    assert not expansion_called, (
+        "search_with_expansion_traced should not be called without --expand"
+    )
 
     expansion_called.clear()
     hybrid_called.clear()
@@ -235,7 +239,9 @@ def test_search_show_expansion_prints_keywords(tmp_path: Path, monkeypatch) -> N
     idx = build_index(sdir)
     save_index(sdir, idx)
 
-    stub_trace = SearchTrace(1, 0, None, True, ["Stromrechnung", "utility invoice"], "Here is a sample electricity bill.")
+    stub_trace = SearchTrace(
+        1, 0, None, True, ["Stromrechnung", "utility invoice"], "Here is a sample electricity bill."
+    )
 
     def fake_expansion(*a, **kw):
         return [], stub_trace
@@ -243,7 +249,9 @@ def test_search_show_expansion_prints_keywords(tmp_path: Path, monkeypatch) -> N
     runner = CliRunner()
     with monkeypatch.context() as m:
         m.setattr("zkm.query.search_with_expansion_traced", fake_expansion)
-        result = runner.invoke(main, ["search", "--store", str(sdir), "--expand", "--show-expansion", "test"])
+        result = runner.invoke(
+            main, ["search", "--store", str(sdir), "--expand", "--show-expansion", "test"]
+        )
 
     assert "zkm: query expansion" in result.output
     assert "Stromrechnung" in result.output
@@ -304,7 +312,9 @@ def test_query_show_expansion_prints_keywords(tmp_path: Path, monkeypatch) -> No
     with monkeypatch.context() as m:
         m.setattr("zkm.query.search_with_expansion_traced", fake_expansion)
         m.setattr("zkm.query.llm_stream", fake_llm_stream)
-        result = runner.invoke(main, ["query", "--store", str(sdir), "--show-expansion", "test question"])
+        result = runner.invoke(
+            main, ["query", "--store", str(sdir), "--show-expansion", "test question"]
+        )
 
     assert "zkm: query expansion" in result.output
     assert "Stromrechnung" in result.output
@@ -361,7 +371,7 @@ def test_zkm_query_sources_block_is_numbered(tmp_path: Path, monkeypatch) -> Non
 # ---------------------------------------------------------------------------
 
 
-def _failing_expansion_trace(reason: str) -> "SearchTrace":
+def _failing_expansion_trace(reason: str) -> SearchTrace:
     return SearchTrace(bm25_hits=1, dense_hits=0, dense_skipped_reason=None, expanded=True,
                        keywords=[], hyp_text="", expand_skipped_reason=reason)
 
@@ -464,7 +474,9 @@ def test_zkm_query_allow_fallback_continues_on_expansion_failure(
     with monkeypatch.context() as m:
         m.setattr("zkm.query.search_with_expansion_traced", fake_expansion)
         m.setattr("zkm.query.llm_stream", fake_llm_stream)
-        result = runner.invoke(main, ["query", "--store", str(sdir), "--allow-fallback", "test question"])
+        result = runner.invoke(
+            main, ["query", "--store", str(sdir), "--allow-fallback", "test question"]
+        )
 
     assert result.exit_code == 0
     assert "fallback answer" in result.output

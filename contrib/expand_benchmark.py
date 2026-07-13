@@ -34,8 +34,8 @@ from llm_benchmark import load_model, warn_contention  # noqa: E402
 
 # Reuse production expand logic (prompt + parsers)
 from zkm.expand import (  # noqa: E402
-    _EXPANSION_PROMPT,
     _EOS_TOKEN_RE,
+    _EXPANSION_PROMPT,
     _chat_url,
     _parse_keywords,
 )

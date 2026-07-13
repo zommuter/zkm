@@ -355,7 +355,8 @@ def _write_yaml_key(yaml_path: Path, section: str, key: str, value: str) -> None
     section_data[key] = value
     fd, tmp = tempfile.mkstemp(dir=yaml_path.parent, prefix=yaml_path.name + ".tmp")
     try:
-        os.write(fd, yaml.dump(existing_data, default_flow_style=False, allow_unicode=True).encode("utf-8"))
+        dumped = yaml.dump(existing_data, default_flow_style=False, allow_unicode=True)
+        os.write(fd, dumped.encode("utf-8"))
     finally:
         os.close(fd)
     os.replace(tmp, yaml_path)
@@ -375,7 +376,7 @@ def run_convert(
     store_path: Path,
     extra_env: dict[str, str] | None = None,
     progress: ProgressCallback | None = None,
-    created: "list[Path] | None" = None,
+    created: list[Path] | None = None,
 ) -> list[Path]:
     """
     Load plugin by name, resolve config, and call its convert() function.

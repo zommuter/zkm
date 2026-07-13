@@ -28,7 +28,7 @@ for that extractor become cache misses and are lazily overwritten on next put.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from zkm.atomic import write_atomic
@@ -92,7 +92,7 @@ class ExtractionCache:
 
         entries[f"{model_name}:{model_version}"] = {
             "entities": value,
-            "cached_at": datetime.now(timezone.utc).isoformat(),
+            "cached_at": datetime.now(UTC).isoformat(),
         }
 
         payload = {

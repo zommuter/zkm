@@ -39,7 +39,9 @@ def convert(store_path: Path, config: dict, *, progress=None) -> list[Path]:
     notes_dir.mkdir(parents=True, exist_ok=True)
 
     val = config.get("default_tags", "")
-    default_tags = val if isinstance(val, list) else [t.strip() for t in val.split(",") if t.strip()]
+    default_tags = (
+        val if isinstance(val, list) else [t.strip() for t in val.split(",") if t.strip()]
+    )
     existing_shas = _scan_existing_shas(notes_dir)
 
     candidates = [

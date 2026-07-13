@@ -11,7 +11,6 @@ import pytest
 from zkm import devcheck
 from zkm.devcheck import _stash_touches_scope, assert_clean, find_repo_root, is_dirty
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -96,7 +95,9 @@ def test_is_dirty_untracked_file_does_not_count(tmp_path: Path) -> None:
 
 def _patch_core(monkeypatch: pytest.MonkeyPatch, core_path: Path) -> None:
     """Make assert_clean think zkm.__file__ lives at core_path/zkm/__init__.py."""
-    monkeypatch.setattr(devcheck, "_zkm_module_path", lambda: core_path / "src" / "zkm" / "__init__.py")
+    monkeypatch.setattr(
+        devcheck, "_zkm_module_path", lambda: core_path / "src" / "zkm" / "__init__.py"
+    )
 
 
 def test_assert_clean_passes_on_clean_core(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

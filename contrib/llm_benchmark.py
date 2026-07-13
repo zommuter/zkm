@@ -2,7 +2,8 @@
 """Benchmark all llama-swap models on zkm-style RAG prompts.
 
 Usage:
-  uv run contrib/llm_benchmark.py [--endpoint URL] [--models A B ...] [--exclude A B ...] [--thinking-disabled]
+  uv run contrib/llm_benchmark.py [--endpoint URL] [--models A B ...] \
+      [--exclude A B ...] [--thinking-disabled]
 
 Defaults: zomni llama-swap (http://zomni.local:8080).
 Models: auto-discovered from /v1/models, minus known embedding-only models (bge-m3).
@@ -25,8 +26,8 @@ import argparse
 import json
 import sys
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Iterator
 
 import httpx
 
@@ -56,7 +57,8 @@ CASES: list[dict] = [
             "[1] mail/messages/2025-09-01_swisscom_rechnung.md\n"
             "date: 2025-09-01\ntags: [bill, swisscom]\n\n"
             "Ihre Rechnung für September 2025 beträgt CHF 68.90. "
-            "Bitte überweisen Sie den Betrag bis 2025-09-20 auf unser Konto IBAN CH56 0483 5012 3456 7800 9."
+            "Bitte überweisen Sie den Betrag bis 2025-09-20 auf unser Konto "
+            "IBAN CH56 0483 5012 3456 7800 9."
         ),
         "question": "Wie hoch war meine Swisscom-Rechnung im September 2025?",
         "expect_values": ["68.90", "68,90"],
@@ -134,7 +136,9 @@ def running_models(endpoint: str) -> list[dict]:
         return []
 
 
-def wait_until_ready(endpoint: str, model: str, *, poll_interval: float = 0.5, timeout: float = 180.0) -> bool:
+def wait_until_ready(
+    endpoint: str, model: str, *, poll_interval: float = 0.5, timeout: float = 180.0
+) -> bool:
     """Poll /running until `model` appears with state=='ready'. Return True on success."""
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -183,7 +187,9 @@ def _chat_url(endpoint: str) -> str:
     return endpoint + "/v1/chat/completions"
 
 
-def _stream(endpoint: str, model: str, system: str, user: str, *, thinking_disabled: bool = False) -> Iterator[str]:
+def _stream(
+    endpoint: str, model: str, system: str, user: str, *, thinking_disabled: bool = False
+) -> Iterator[str]:
     url = _chat_url(endpoint)
     payload: dict = {
         "model": model,
@@ -287,7 +293,9 @@ def run_case(endpoint: str, model: str, case: dict, *, thinking_disabled: bool =
     first_token = False
     try:
         chunks: list[str] = []
-        for chunk in _stream(endpoint, model, SYSTEM_PROMPT, user_content, thinking_disabled=thinking_disabled):
+        for chunk in _stream(
+            endpoint, model, SYSTEM_PROMPT, user_content, thinking_disabled=thinking_disabled
+        ):
             if not first_token:
                 result.ttft_s = time.monotonic() - t0
                 first_token = True
@@ -358,7 +366,9 @@ def print_comparison(results: list[Result], models: list[str]) -> None:
 
 def print_summary(results: list[Result], models: list[str], load_times: dict[str, float]) -> None:
     print("\nSUMMARY  (load = warmup+ready time; TTFT = first-token latency when warm)")
-    print(f"  {'model':<22}  {'load':>6}  {'ttft avg':>8}  {'total avg':>9}  {'~tok/s':>7}  quality")
+    print(
+        f"  {'model':<22}  {'load':>6}  {'ttft avg':>8}  {'total avg':>9}  {'~tok/s':>7}  quality"
+    )
     print(f"  {'─'*22}  {'─'*6}  {'─'*8}  {'─'*9}  {'─'*7}  ───────")
     for mdl in models:
         mdl_results = [r for r in results if r.model == mdl and r.ok]
@@ -408,8 +418,11 @@ def main() -> int:
                         help="Models to benchmark (default: auto-discover all chat models)")
     parser.add_argument("--exclude", nargs="+", default=[],
                         help="Model IDs to skip (added to built-in embedding skip list)")
-    parser.add_argument("--thinking-disabled", action="store_true",
-                        help="Inject {\"thinking\":{\"type\":\"disabled\"}} into all requests (for reasoning models)")
+    parser.add_argument(
+        "--thinking-disabled",
+        action="store_true",
+        help='Inject {"thinking":{"type":"disabled"}} into all requests (for reasoning models)',
+    )
     args = parser.parse_args()
 
     endpoint = args.endpoint

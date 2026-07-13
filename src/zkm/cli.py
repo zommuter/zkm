@@ -625,7 +625,9 @@ def cmd_fetch(
     help="Re-process all files managed by this plugin",
 )
 @click.option("--no-progress", is_flag=True, help="Suppress progress bar")
-@click.option("--no-amenders", is_flag=True, help="Skip auto-running amender plugins after conversion")
+@click.option(
+    "--no-amenders", is_flag=True, help="Skip auto-running amender plugins after conversion"
+)
 def cmd_convert(
     plugin: str,
     store_override: str | None,
@@ -679,7 +681,11 @@ def cmd_convert(
                     return
                 if bar is None:
                     bar = tqdm(
-                        total=total, unit="item", leave=False, file=sys.stderr, bar_format=_BAR_FORMAT
+                        total=total,
+                        unit="item",
+                        leave=False,
+                        file=sys.stderr,
+                        bar_format=_BAR_FORMAT,
                     )
                     if cancel_status:
                         bar.set_description(cancel_status)
@@ -998,7 +1004,9 @@ def cmd_scrub(
     removed = stats.get("entities_removed", 0)
 
     verifier_dropped = stats.get("entities_dropped_by_verifier", 0)
-    verifier_note = f" ({verifier_dropped} via verifier)" if with_verifier and verifier_dropped else ""
+    verifier_note = (
+        f" ({verifier_dropped} via verifier)" if with_verifier and verifier_dropped else ""
+    )
     click.echo(
         f"Scrubbed {removed}{verifier_note} entities across {changed}/{scanned} files"
         f" ({'dry run' if dry_run else 'applied'})."
@@ -1016,7 +1024,9 @@ def cmd_scrub(
         if pilot_records:
             click.echo(f"Pilot dump: {pilot_dump_path} ({pilot_records} records)")
         else:
-            click.echo("Pilot dump: no verifier calls made (all cache hits or no suspicious entities).")
+            click.echo(
+                "Pilot dump: no verifier calls made (all cache hits or no suspicious entities)."
+            )
     if dry_run and changed:
         click.echo("Re-run with --apply to write changes.")
 
@@ -1121,8 +1131,10 @@ def cmd_index(store_override: str | None, no_progress: bool, no_embed: bool, ful
         # Dense embedding pass
         if not no_embed:
             from zkm.embed import (
-                EmbedUnavailable,
                 _NPZ_FILE as _NPZ_REL,
+            )
+            from zkm.embed import (
+                EmbedUnavailable,
                 annex_add_and_commit,
                 annex_drop_superseded_key,
                 build_embed_store,
@@ -1249,7 +1261,9 @@ def _take_status_snapshot(running_dir: Path, send_sigusr1: bool = True) -> list[
 def _format_status_lines(rows: list[dict]) -> list[str]:
     from datetime import datetime as _dt
 
-    header = f"{'PID':<8} {'CMD':<10} {'PHASE':<8} {'STARTED':<21} {'PROGRESS':<14} {'ETA':<8} MESSAGE"
+    header = (
+        f"{'PID':<8} {'CMD':<10} {'PHASE':<8} {'STARTED':<21} {'PROGRESS':<14} {'ETA':<8} MESSAGE"
+    )
     lines: list[str] = [header, "-" * len(header)]
     for row in rows:
         pid_s = str(row.get("pid", "?"))
@@ -1258,7 +1272,11 @@ def _format_status_lines(rows: list[dict]) -> list[str]:
         cmd = (f"{cmd_base}({args[0]})" if args else cmd_base)[:9]
         phase = str(row.get("phase", "?"))[:7]
         try:
-            started = _dt.fromisoformat(str(row.get("started_at", ""))).astimezone().strftime("%Y-%m-%d %H:%M:%S")
+            started = (
+                _dt.fromisoformat(str(row.get("started_at", "")))
+                .astimezone()
+                .strftime("%Y-%m-%d %H:%M:%S")
+            )
         except Exception:
             started = str(row.get("started_at", ""))[:19].replace("T", " ")
         current = row.get("current", 0)
@@ -1271,7 +1289,9 @@ def _format_status_lines(rows: list[dict]) -> list[str]:
         else:
             eta_str = ""
         message = str(row.get("message", ""))[:40]
-        lines.append(f"{pid_s:<8} {cmd:<10} {phase:<8} {started:<21} {progress:<14} {eta_str:<8} {message}")
+        lines.append(
+            f"{pid_s:<8} {cmd:<10} {phase:<8} {started:<21} {progress:<14} {eta_str:<8} {message}"
+        )
     return lines
 
 
@@ -1284,7 +1304,12 @@ def _format_status_lines(rows: list[dict]) -> list[str]:
     is_flag=True,
     help="With --follow: exit when no processes remain",
 )
-@click.option("--wait", "wait", is_flag=True, help="Wait until all processes finish (shorthand for --follow --leave-if-done)")
+@click.option(
+    "--wait",
+    "wait",
+    is_flag=True,
+    help="Wait until all processes finish (shorthand for --follow --leave-if-done)",
+)
 @click.option(
     "--store",
     "store_override",
@@ -1292,7 +1317,9 @@ def _format_status_lines(rows: list[dict]) -> list[str]:
     metavar="PATH",
     help="Store path (default: $ZKM_STORE or ~/knowledge)",
 )
-def cmd_status(as_json: bool, follow: bool, leave_if_done: bool, wait: bool, store_override: str | None) -> None:
+def cmd_status(
+    as_json: bool, follow: bool, leave_if_done: bool, wait: bool, store_override: str | None
+) -> None:
     """Show running zkm processes and their progress."""
     import json as _json
     import sys as _sys
@@ -1324,7 +1351,7 @@ def cmd_status(as_json: bool, follow: bool, leave_if_done: bool, wait: bool, sto
                 click.echo(line)
         # Erase leftover lines from a taller previous render
         for _ in range(max(0, prev_n - len(lines))):
-            _sys.stdout.write(f"\r\033[K\n")
+            _sys.stdout.write("\r\033[K\n")
         if use_ansi:
             _sys.stdout.flush()
         # Track how many lines occupy the terminal block (always grows to max seen)
@@ -1448,7 +1475,11 @@ def cmd_doctor(store_override: str | None, entities: bool) -> None:
             resp = httpx.post(
                 _chat_url(l_ep),
                 headers=headers,
-                json={"model": l_mdl, "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1},
+                json={
+                    "model": l_mdl,
+                    "messages": [{"role": "user", "content": "hi"}],
+                    "max_tokens": 1,
+                },
                 timeout=30.0,
             )
             resp.raise_for_status()
@@ -1480,7 +1511,11 @@ def cmd_doctor(store_override: str | None, entities: bool) -> None:
                 resp = httpx.post(
                     _chat_url(x_ep),
                     headers=headers,
-                    json={"model": x_mdl, "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1},
+                    json={
+                        "model": x_mdl,
+                        "messages": [{"role": "user", "content": "hi"}],
+                        "max_tokens": 1,
+                    },
                     timeout=30.0,
                 )
                 resp.raise_for_status()
