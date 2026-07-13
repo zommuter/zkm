@@ -12,7 +12,6 @@ from click.testing import CliRunner
 from zkm.cli import main
 from zkm.store import init_store
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

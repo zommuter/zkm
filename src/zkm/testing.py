@@ -6,8 +6,8 @@ every messaging plugin uses to assert deterministic emission.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable
 from pathlib import Path
-from typing import Callable, Iterable
 
 
 def assert_reemit_identical(emit: Callable[[], Iterable[Path]]) -> None:

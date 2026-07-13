@@ -12,7 +12,15 @@ import pytest
 
 from zkm.embed import EmbedStore, save_embed_store
 from zkm.index import build_index, save_index
-from zkm.query import _chat_url, _resolve_expand_config, llm_query, llm_stream, search, search_hybrid, search_with_expansion
+from zkm.query import (
+    _chat_url,
+    _resolve_expand_config,
+    llm_query,
+    llm_stream,
+    search,
+    search_hybrid,
+    search_with_expansion,
+)
 from zkm.store import init_store
 
 
@@ -570,7 +578,10 @@ def test_search_with_expansion_dense_temporal_filter(
 def test_llm_stream_strips_eos_tokens(
     store: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """llm_stream must strip <|..._TOKEN|> control tokens emitted by some models (e.g. aya-expanse-8b)."""
+    """llm_stream must strip <|..._TOKEN|> control tokens emitted by some models
+
+    (e.g. aya-expanse-8b).
+    """
     monkeypatch.setenv("ZKM_LLM_ENDPOINT", "http://localhost:11434")
     monkeypatch.setenv("ZKM_LLM_MODEL", "test-model")
     monkeypatch.setenv("ZKM_LLM_KEY", "")
@@ -580,8 +591,12 @@ def test_llm_stream_strips_eos_tokens(
 
         def iter_lines(self):
             yield f"data: {json.dumps({'choices': [{'delta': {'content': 'Hello'}}]})}"
-            yield f"data: {json.dumps({'choices': [{'delta': {'content': '<|END_OF_TURN_TOKEN|>'}}]})}"
-            yield f"data: {json.dumps({'choices': [{'delta': {'content': ' world<|END_OF_TURN_TOKEN|>'}}]})}"
+            eos_chunk = {"choices": [{"delta": {"content": "<|END_OF_TURN_TOKEN|>"}}]}
+            yield f"data: {json.dumps(eos_chunk)}"
+            world_chunk = {
+                "choices": [{"delta": {"content": " world<|END_OF_TURN_TOKEN|>"}}]
+            }
+            yield f"data: {json.dumps(world_chunk)}"
             yield "data: [DONE]"
 
         def __enter__(self):
@@ -635,8 +650,9 @@ def test_search_expand_model_flag_forwarded(
 ) -> None:
     """--expand-model CLI flag is forwarded to search_with_expansion_traced."""
     from click.testing import CliRunner
-    from zkm.cli import main
+
     import zkm.query as qmod
+    from zkm.cli import main
 
     calls: list[str | None] = []
 
@@ -652,7 +668,17 @@ def test_search_expand_model_flag_forwarded(
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["search", "--store", str(indexed_store), "--expand", "--expand-model", "aya-expanse-8b", "test"],
+        [
+            "search",
+            "--store",
+            str(indexed_store),
+            "--expand",
+            "--expand-model",
+            "aya-expanse-8b",
+            "test",
+        ],
         catch_exceptions=False,
     )
-    assert calls == ["aya-expanse-8b"], f"model not forwarded, calls={calls}, output={result.output}"
+    assert calls == ["aya-expanse-8b"], (
+        f"model not forwarded, calls={calls}, output={result.output}"
+    )

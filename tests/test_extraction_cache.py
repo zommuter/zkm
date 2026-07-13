@@ -5,8 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from zkm.extraction_cache import ExtractionCache, _SCHEMA_VERSION, _STATE_DIR
-
+from zkm.extraction_cache import _SCHEMA_VERSION, _STATE_DIR, ExtractionCache
 
 # ---------------------------------------------------------------------------
 # Helpers

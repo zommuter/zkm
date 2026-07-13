@@ -3,12 +3,19 @@
 from __future__ import annotations
 
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 import pytest
 
-from zkm.index import _read_watermark, build_index, load_index, save_index, tokenize, write_watermark
+from zkm.index import (
+    _read_watermark,
+    build_index,
+    load_index,
+    save_index,
+    tokenize,
+    write_watermark,
+)
 
 # ---------------------------------------------------------------------------
 # tokenize
@@ -212,7 +219,8 @@ def test_tokenize_doc_includes_entity_values(
     make_note(
         "notes/ner.md",
         "call me",
-        "entities:\n  - {scope: body, type: email, value: 'alice@example.com', canonical: 'alice@example.com'}",
+        "entities:\n  - {scope: body, type: email, value: 'alice@example.com',"
+        " canonical: 'alice@example.com'}",
     )
     idx = build_index(store)
     # tokenize splits "alice@example.com" → ["alice", "example", "com"]
@@ -227,7 +235,8 @@ def test_tokenize_doc_includes_entity_canonical(
     make_note(
         "notes/ner2.md",
         "send money",
-        "entities:\n  - {scope: body, type: iban, value: 'DE44 5001 0517 5407 3249 31', canonical: 'DE44500105175407324931', standard: 'ISO 13616'}",
+        "entities:\n  - {scope: body, type: iban, value: 'DE44 5001 0517 5407 3249 31',"
+        " canonical: 'DE44500105175407324931', standard: 'ISO 13616'}",
     )
     idx = build_index(store)
     tokens = idx.docs[0].tokens

@@ -26,7 +26,7 @@ _DEFAULT_MAX_DOC_CHARS = 500  # ~125 tokens; fits 20 docs inside an 8k-token con
 _SNIPPET_WINDOW = 240
 _DENSE_POOL_MULT = 20      # WHY: 3× saturates on corpora with large literal-match clusters
 _DENSE_POOL_FLOOR = 200    # minimum to clear typical literal-match cluster
-_CHUNK_OVERSAMPLE = 3      # extra topk rows to fetch per pool slot to account for chunk multiplicity
+_CHUNK_OVERSAMPLE = 3      # extra topk rows to fetch per pool slot for chunk multiplicity
 _EOS_TOKEN_RE = re.compile(r"<\|[A-Z_]+_TOKEN\|>")
 
 
@@ -424,7 +424,9 @@ def search_with_expansion_traced(
 
     from zkm.expand import expand_query_with_hyp  # lazy import avoids circular dependency
 
-    variant_lists, hyp_text, keywords, expand_reason = expand_query_with_hyp(question, store, ep, mdl, key)
+    variant_lists, hyp_text, keywords, expand_reason = expand_query_with_hyp(
+        question, store, ep, mdl, key
+    )
 
     if not dense:
         hit_lists = [_search(store, idx, tokens, date_range, top_k) for tokens in variant_lists]
@@ -437,11 +439,15 @@ def search_with_expansion_traced(
 
     es = load_embed_store(store)
     if es is None:
-        return bm25_rrf_hits[:top_k], SearchTrace(len(bm25_rrf_hits), 0, "no_embed_store", True, keywords, hyp_text, expand_reason)
+        return bm25_rrf_hits[:top_k], SearchTrace(
+            len(bm25_rrf_hits), 0, "no_embed_store", True, keywords, hyp_text, expand_reason
+        )
 
     e_ep, e_mdl, e_key, _stall = resolve_embed_config(store)
     if not e_ep:
-        return bm25_rrf_hits[:top_k], SearchTrace(len(bm25_rrf_hits), 0, "no_endpoint", True, keywords, hyp_text, expand_reason)
+        return bm25_rrf_hits[:top_k], SearchTrace(
+            len(bm25_rrf_hits), 0, "no_endpoint", True, keywords, hyp_text, expand_reason
+        )
 
     embed_texts_input = [question]
     if hyp_text:
@@ -452,13 +458,19 @@ def search_with_expansion_traced(
             store, es, embed_texts_input, date_range, top_k, pool, e_ep, e_mdl, e_key
         )
     except EmbedUnavailable:
-        return bm25_rrf_hits[:top_k], SearchTrace(len(bm25_rrf_hits), 0, "embed_failed", True, keywords, hyp_text, expand_reason)
+        return bm25_rrf_hits[:top_k], SearchTrace(
+            len(bm25_rrf_hits), 0, "embed_failed", True, keywords, hyp_text, expand_reason
+        )
 
     if not dense_hits:
-        return bm25_rrf_hits[:top_k], SearchTrace(len(bm25_rrf_hits), 0, None, True, keywords, hyp_text, expand_reason)
+        return bm25_rrf_hits[:top_k], SearchTrace(
+            len(bm25_rrf_hits), 0, None, True, keywords, hyp_text, expand_reason
+        )
 
     merged = rrf_merge([bm25_rrf_hits, dense_hits])[:top_k]
-    return merged, SearchTrace(len(bm25_rrf_hits), len(dense_hits), None, True, keywords, hyp_text, expand_reason)
+    return merged, SearchTrace(
+        len(bm25_rrf_hits), len(dense_hits), None, True, keywords, hyp_text, expand_reason
+    )
 
 
 def search_with_expansion(
@@ -512,7 +524,11 @@ def _resolve_expand_config(store: Path) -> tuple[str, str, str]:
     """
     from zkm.config import load_config
     cfg = load_config(store)
-    ep = cfg.core_value("expand", "endpoint") or cfg.core_value("llm", "endpoint") or _DEFAULT_ENDPOINT
+    ep = (
+        cfg.core_value("expand", "endpoint")
+        or cfg.core_value("llm", "endpoint")
+        or _DEFAULT_ENDPOINT
+    )
     mdl = (
         os.environ.get("ZKM_LLM_EXPAND_MODEL")
         or cfg.core_value("expand", "model")

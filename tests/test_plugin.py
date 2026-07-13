@@ -11,7 +11,6 @@ from zkm.convert import (
     Plugin,
     _load_plugin_module,
     add_plugin,
-    append_env,
     find_plugin,
     list_amenders,
     list_plugins,
@@ -82,7 +81,9 @@ def test_add_local_plugin_zkm_prefixed_name(isolated_plugins: Path, tmp_path: Pa
     src = tmp_path / "zkm-eml-fixture"
     src.mkdir()
     (src / "plugin.yaml").write_text("name: zkm-eml\nversion: 0.1.0\ncreates_dirs: []\n")
-    (src / "convert.py").write_text("def convert(store_path, config, *, progress=None): return []\n")
+    (src / "convert.py").write_text(
+        "def convert(store_path, config, *, progress=None): return []\n"
+    )
     plugin = add_plugin(str(src))
     assert plugin.name == "zkm-eml"
     assert (isolated_plugins / "zkm-eml").exists()
@@ -94,7 +95,9 @@ def test_add_self_link_guard(isolated_plugins: Path, capsys: pytest.CaptureFixtu
     src = isolated_plugins / "zkm-eml"
     src.mkdir()
     (src / "plugin.yaml").write_text("name: zkm-eml\nversion: 0.1.0\ncreates_dirs: []\n")
-    (src / "convert.py").write_text("def convert(store_path, config, *, progress=None): return []\n")
+    (src / "convert.py").write_text(
+        "def convert(store_path, config, *, progress=None): return []\n"
+    )
     plugin = add_plugin(str(src))
     assert plugin.name == "zkm-eml"
     assert not (isolated_plugins / "zkm-zkm-eml").exists()
@@ -237,7 +240,9 @@ def test_remove_entry_point_plugin_refuses(
     with pytest.raises(ValueError, match="wheel-installed"):
         remove_plugin("ep_wheel")
 
-    assert pkg_dir.exists(), "remove_plugin must not delete the package dir for a wheel-origin plugin"
+    assert pkg_dir.exists(), (
+        "remove_plugin must not delete the package dir for a wheel-origin plugin"
+    )
 
 
 def test_remove_filesystem_plugin_shadowing_wheel(
@@ -730,7 +735,8 @@ def test_created_forwarded_only_to_plugin_that_declares_it(
         "from pathlib import Path\n"
         "def convert(store_path: Path, config: dict, *, created=None) -> list[Path]:\n"
         "    sidecar = store_path / 'aware_received.json'\n"
-        "    sidecar.write_text(json.dumps([str(p) for p in created] if created is not None else None))\n"
+        "    val = [str(p) for p in created] if created is not None else None\n"
+        "    sidecar.write_text(json.dumps(val))\n"
         "    return []\n"
     )
 
@@ -800,6 +806,7 @@ def test_prompt_required_config_writes_yaml(
     """prompt_required_config prompts for required keys; plain keys go to zkm-config.yaml,
     secret keys go to .zkm-secrets.yaml."""
     import getpass
+
     import yaml
 
     plugin = add_plugin(str(two_key_plugin))
@@ -831,6 +838,7 @@ def test_prompt_skips_existing_yaml_keys(
 ) -> None:
     """Keys already in zkm-config.yaml are not re-prompted."""
     import getpass
+
     import yaml
 
     plugin = add_plugin(str(two_key_plugin))
@@ -901,7 +909,9 @@ def test_plugin_kind_defaults_to_converter(isolated_plugins: Path, tmp_path: Pat
 def test_plugin_kind_amender_loaded(isolated_plugins: Path, tmp_path: Path) -> None:
     src = tmp_path / "zkm-myamender"
     src.mkdir()
-    (src / "plugin.yaml").write_text("name: myamender\nversion: 0.1.0\nkind: amender\ncreates_dirs: []\n")
+    (src / "plugin.yaml").write_text(
+        "name: myamender\nversion: 0.1.0\nkind: amender\ncreates_dirs: []\n"
+    )
     (src / "convert.py").write_text("def convert(store_path, config): return []\n")
     plugin = add_plugin(str(src))
     assert plugin.kind == "amender"
@@ -916,7 +926,9 @@ def test_list_amenders_returns_only_amenders(isolated_plugins: Path, tmp_path: P
 
     amend_src = tmp_path / "zkm-amend"
     amend_src.mkdir()
-    (amend_src / "plugin.yaml").write_text("name: amend\nversion: 0.1.0\nkind: amender\ncreates_dirs: []\n")
+    (amend_src / "plugin.yaml").write_text(
+        "name: amend\nversion: 0.1.0\nkind: amender\ncreates_dirs: []\n"
+    )
     (amend_src / "convert.py").write_text("def convert(store_path, config): return []\n")
     add_plugin(str(amend_src))
 
@@ -940,6 +952,7 @@ def test_cmd_convert_runs_amenders_by_default(
 ) -> None:
     """Amender plugins run automatically after a body-producer convert (default-on)."""
     from click.testing import CliRunner
+
     from zkm.cli import main
 
     src = tmp_path / "src_notes"
@@ -950,7 +963,9 @@ def test_cmd_convert_runs_amenders_by_default(
 
     amend_dir = isolated_plugins / "zkm-amend"
     amend_dir.mkdir()
-    (amend_dir / "plugin.yaml").write_text("name: amend\nversion: 0.1.0\nkind: amender\ncreates_dirs: []\n")
+    (amend_dir / "plugin.yaml").write_text(
+        "name: amend\nversion: 0.1.0\nkind: amender\ncreates_dirs: []\n"
+    )
     sentinel = tmp_path / "amender_ran"
     (amend_dir / "convert.py").write_text(
         f"def convert(store_path, config):\n"
@@ -974,6 +989,7 @@ def test_cmd_convert_no_amenders_flag_skips_amenders(
 ) -> None:
     """--no-amenders suppresses the amender chain."""
     from click.testing import CliRunner
+
     from zkm.cli import main
 
     src = tmp_path / "src_notes"
@@ -984,7 +1000,9 @@ def test_cmd_convert_no_amenders_flag_skips_amenders(
 
     amend_dir = isolated_plugins / "zkm-amend"
     amend_dir.mkdir()
-    (amend_dir / "plugin.yaml").write_text("name: amend\nversion: 0.1.0\nkind: amender\ncreates_dirs: []\n")
+    (amend_dir / "plugin.yaml").write_text(
+        "name: amend\nversion: 0.1.0\nkind: amender\ncreates_dirs: []\n"
+    )
     sentinel = tmp_path / "amender_ran"
     (amend_dir / "convert.py").write_text(
         f"def convert(store_path, config):\n"
@@ -1007,11 +1025,14 @@ def test_cmd_convert_amender_plugin_does_not_trigger_amender_chain(
 ) -> None:
     """Calling zkm convert on an amender plugin directly does not re-run amenders."""
     from click.testing import CliRunner
+
     from zkm.cli import main
 
     amend_dir = isolated_plugins / "zkm-amend"
     amend_dir.mkdir()
-    (amend_dir / "plugin.yaml").write_text("name: amend\nversion: 0.1.0\nkind: amender\ncreates_dirs: []\n")
+    (amend_dir / "plugin.yaml").write_text(
+        "name: amend\nversion: 0.1.0\nkind: amender\ncreates_dirs: []\n"
+    )
     sentinel = tmp_path / "amender_ran_count"
     sentinel.write_text("0")
     (amend_dir / "convert.py").write_text(

@@ -132,7 +132,10 @@ def test_parse_keywords_aya_markdown_blocked_format() -> None:
 
 def test_parse_keywords_section_header_not_a_keyword() -> None:
     """The 'Section 1 — Search terms:' label itself must not appear in the result."""
-    text = "Section 1 — Search terms:\n- Rechnung\n- invoice\n\nSection 2 — Hypothetical answer: ..."
+    text = (
+        "Section 1 — Search terms:\n- Rechnung\n- invoice\n\n"
+        "Section 2 — Hypothetical answer: ..."
+    )
     kws = _parse_keywords(text)
     assert not any("Section" in k or "Search" in k for k in kws)
     assert "Rechnung" in kws
@@ -199,7 +202,10 @@ def test_parse_hypothetical_text_strips_section2_label() -> None:
 
 def test_parse_hypothetical_text_section2_marker_no_blank_line() -> None:
     """When sections are separated by newline only (no blank line), still extracts hyp."""
-    text = "Section 1 — Search terms:\n- term one\nSection 2 — Hypothetical answer: It costs 80 EUR."
+    text = (
+        "Section 1 — Search terms:\n- term one\n"
+        "Section 2 — Hypothetical answer: It costs 80 EUR."
+    )
     hyp = _parse_hypothetical_text(text)
     assert "80 EUR" in hyp
     assert "Section" not in hyp
@@ -519,7 +525,9 @@ def test_expand_query_uses_warm_timeout_when_probe_returns_none(
 def test_expand_query_with_hyp_returns_reason_timeout(
     store: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(httpx, "get", lambda *a, **kw: (_ for _ in ()).throw(Exception("no server")))
+    monkeypatch.setattr(
+        httpx, "get", lambda *a, **kw: (_ for _ in ()).throw(Exception("no server"))
+    )
     monkeypatch.setattr(httpx, "post", lambda *a, **kw: (_ for _ in ()).throw(
         httpx.TimeoutException("timed out")
     ))
@@ -530,7 +538,9 @@ def test_expand_query_with_hyp_returns_reason_timeout(
 def test_expand_query_with_hyp_returns_reason_endpoint_error(
     store: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(httpx, "get", lambda *a, **kw: (_ for _ in ()).throw(Exception("no server")))
+    monkeypatch.setattr(
+        httpx, "get", lambda *a, **kw: (_ for _ in ()).throw(Exception("no server"))
+    )
     monkeypatch.setattr(httpx, "post", lambda *a, **kw: (_ for _ in ()).throw(
         httpx.ConnectError("connection refused")
     ))
@@ -541,7 +551,9 @@ def test_expand_query_with_hyp_returns_reason_endpoint_error(
 def test_expand_query_with_hyp_returns_none_reason_on_success(
     store: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(httpx, "get", lambda *a, **kw: (_ for _ in ()).throw(Exception("no server")))
+    monkeypatch.setattr(
+        httpx, "get", lambda *a, **kw: (_ for _ in ()).throw(Exception("no server"))
+    )
     monkeypatch.setattr(httpx, "post", lambda *a, **kw: _FakePostResp())
     _, _, _, reason = expand_query_with_hyp("test", store, "http://localhost", "m", "")
     assert reason is None

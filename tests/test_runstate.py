@@ -12,8 +12,13 @@ import pytest
 from click.testing import CliRunner
 
 from zkm.cli import main
-from zkm.runstate import ConcurrentRunError, RunSession, _conflicts_with, _scan_running_dir, _should_write
-
+from zkm.runstate import (
+    ConcurrentRunError,
+    RunSession,
+    _conflicts_with,
+    _scan_running_dir,
+    _should_write,
+)
 
 # ---------------------------------------------------------------------------
 # _should_write helpers
@@ -89,7 +94,17 @@ def test_running_dir_created_automatically(tmp_path: Path) -> None:
 def test_pid_file_schema_fields(tmp_path: Path) -> None:
     with RunSession(tmp_path, "index", args=[]) as session:
         data = json.loads(session._pid_file.read_text())  # type: ignore[union-attr]
-    required = {"command", "pid", "started_at", "args", "phase", "current", "total", "message", "last_updated"}
+    required = {
+        "command",
+        "pid",
+        "started_at",
+        "args",
+        "phase",
+        "current",
+        "total",
+        "message",
+        "last_updated",
+    }
     assert required.issubset(data.keys())
 
 
@@ -312,7 +327,9 @@ def test_sigusr1_handler_restored_on_exit(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _make_pid_file(running_dir: Path, pid: int, command: str = "convert", args: list | None = None) -> Path:
+def _make_pid_file(
+    running_dir: Path, pid: int, command: str = "convert", args: list | None = None
+) -> Path:
     running_dir.mkdir(parents=True, exist_ok=True)
     data = {
         "pid": pid,
@@ -358,7 +375,9 @@ def test_status_no_processes_no_follow(tmp_path: Path) -> None:
 def test_status_leave_if_done_exits_immediately_when_empty(tmp_path: Path) -> None:
     """`--follow --leave-if-done` exits immediately when no processes are present."""
     runner = CliRunner()
-    result = runner.invoke(main, ["status", "--follow", "--leave-if-done", "--store", str(tmp_path)])
+    result = runner.invoke(
+        main, ["status", "--follow", "--leave-if-done", "--store", str(tmp_path)]
+    )
     assert result.exit_code == 0
     assert "no running" in result.output
 
@@ -378,13 +397,16 @@ def test_status_leave_if_done_exits_after_process_gone(tmp_path: Path) -> None:
         # Second call: file is gone
         return []
 
-    from zkm import cli as _cli_mod
     import unittest.mock as _mock
+
+    from zkm import cli as _cli_mod
 
     with _mock.patch.object(_cli_mod, "_take_status_snapshot", _fake_snapshot):
         with _mock.patch("time.sleep"):
             runner = CliRunner()
-            result = runner.invoke(main, ["status", "--follow", "--leave-if-done", "--store", str(tmp_path)])
+            result = runner.invoke(
+                main, ["status", "--follow", "--leave-if-done", "--store", str(tmp_path)]
+            )
     assert result.exit_code == 0
     assert call_count == 2
 
@@ -405,7 +427,10 @@ def test_status_json_follow_leave_if_done(tmp_path: Path) -> None:
     with _mock.patch.object(_cli_mod, "_take_status_snapshot", _fake_snapshot):
         with _mock.patch("time.sleep"):
             runner = CliRunner()
-            result = runner.invoke(main, ["status", "--json", "--follow", "--leave-if-done", "--store", str(tmp_path)])
+            result = runner.invoke(
+                main,
+                ["status", "--json", "--follow", "--leave-if-done", "--store", str(tmp_path)],
+            )
     assert result.exit_code == 0
     assert result.output.strip() == "[]"
 
@@ -413,6 +438,7 @@ def test_status_json_follow_leave_if_done(tmp_path: Path) -> None:
 def test_status_follow_does_not_send_sigusr1_in_loop(tmp_path: Path) -> None:
     """In --follow mode, SIGUSR1 is sent only on the initial snapshot, not in the poll loop."""
     import unittest.mock as _mock
+
     from zkm import cli as _cli_mod
 
     sigusr1_flags: list[bool] = []

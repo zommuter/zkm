@@ -10,14 +10,12 @@ import yaml
 
 from zkm.config import (
     ConfigError,
-    StoreConfig,
     _assert_env_cutover,
     _coerce,
     _deep_merge,
     load_config,
     migrate_env,
 )
-
 
 # ---------------------------------------------------------------------------
 # _deep_merge
@@ -100,7 +98,10 @@ def test_load_config_no_files(tmp_path: Path) -> None:
 
 
 def test_load_config_yaml_round_trip(tmp_path: Path) -> None:
-    data = {"core": {"llm": {"endpoint": "http://myserver", "model": "llama"}}, "eml": {"source_dir": "~/inbox"}}
+    data = {
+        "core": {"llm": {"endpoint": "http://myserver", "model": "llama"}},
+        "eml": {"source_dir": "~/inbox"},
+    }
     (tmp_path / "zkm-config.yaml").write_text(yaml.dump(data))
     cfg = load_config(tmp_path)
     assert cfg.core_value("llm", "endpoint") == "http://myserver"
@@ -146,7 +147,9 @@ def test_core_value_missing_path(tmp_path: Path) -> None:
 
 
 def test_core_value_deep_path(tmp_path: Path) -> None:
-    (tmp_path / "zkm-config.yaml").write_text(yaml.dump({"core": {"query": {"low_bm25_threshold": 2.0}}}))
+    (tmp_path / "zkm-config.yaml").write_text(
+        yaml.dump({"core": {"query": {"low_bm25_threshold": 2.0}}})
+    )
     cfg = load_config(tmp_path)
     assert cfg.core_value("query", "low_bm25_threshold") == 2.0
 

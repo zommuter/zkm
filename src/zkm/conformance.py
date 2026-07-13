@@ -234,9 +234,21 @@ def check_manifest(plugin) -> list[Finding]:  # plugin: Plugin
     # gitignore_patterns: each must be a non-empty string with no leading /
     for pat in plugin.gitignore_patterns:
         if not isinstance(pat, str) or not pat.strip():
-            findings.append(Finding("fail", "manifest", f"gitignore_patterns entry {pat!r} is not a non-empty string"))
+            findings.append(
+                Finding(
+                    "fail",
+                    "manifest",
+                    f"gitignore_patterns entry {pat!r} is not a non-empty string",
+                )
+            )
         elif pat.startswith("/"):
-            findings.append(Finding("fail", "manifest", f"gitignore_patterns entry {pat!r} must be relative (no leading /)"))
+            findings.append(
+                Finding(
+                    "fail",
+                    "manifest",
+                    f"gitignore_patterns entry {pat!r} must be relative (no leading /)",
+                )
+            )
 
     # config entries: each value must be a dict with only known keys
     for k, spec in plugin.config_keys.items():

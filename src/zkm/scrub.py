@@ -8,7 +8,7 @@ import json
 import types
 from pathlib import Path
 
-from zkm.convert import find_plugin, Plugin
+from zkm.convert import Plugin, find_plugin
 
 
 def _load_module(plugin: Plugin) -> types.ModuleType:
@@ -92,7 +92,9 @@ def run_scrub(
         kwargs["resume_after_file"] = resume_after_file
         kwargs["on_file_done"] = on_file_done
 
-    result = mod.scrub(store_path, config, dry_run=dry_run, verbose=verbose, progress=progress, **kwargs)
+    result = mod.scrub(
+        store_path, config, dry_run=dry_run, verbose=verbose, progress=progress, **kwargs
+    )
     # Watermark is only deleted on clean completion; exceptions leave it intact.
     watermark_path.unlink(missing_ok=True)
     return result
