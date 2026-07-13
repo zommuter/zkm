@@ -34,3 +34,4 @@ Max ~10 open boxes; the reviewer prunes resolved ones each review turn.
   (I001/F401) + address E501, or relax the ruff config — either way the CI Lint step
   fails today. Advisory — does not block this review (pytest green, work verified
   genuine).
+  — DECIDED 2026-07-13 (relay human): FIX + E501 path — run `ruff check --fix` (43 auto: I001/F401) then manually resolve the 78 E501 line-too-long; do NOT relax config or pin an older ruff. Re-lane as [ROUTINE] executor work.
