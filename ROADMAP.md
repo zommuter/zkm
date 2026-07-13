@@ -46,6 +46,24 @@ the gate (N9c/N9d accepted-as-is decisions stand).
     `uv run ruff check src/zkm/cli.py` introduces no NEW lint errors vs. baseline.
   - Reverse-handoff mini-handoff of TODO id:e9e2 (single-id-two-views; reuse token).
 
+- [ ] [ROUTINE] **Clear the CI `ruff check` lint debt (122 errors → 0)** <!-- id:04e5 -->
+  The `.github/workflows/ci.yml` Lint step runs `uv run ruff check` and fails today
+  with 122 violations against the locked ruff 0.15.10 (78 E501 line-too-long, 24 I001
+  import-order, 7 UP017, 6 UP035, 3 F401, 2 UP037, 1 F841, 1 F541). Repo-wide debt
+  from ruff-version drift, NOT introduced by any recent window. DECIDED 2026-07-13
+  (relay human): FIX path — do NOT relax the ruff config or pin an older ruff.
+  - **Steps**: (1) `uv run ruff check --fix` to auto-resolve the 43 fixable (I001/F401)
+    and the mechanical UP0xx pyupgrade rules; (2) manually resolve the remaining E501
+    line-too-long (wrap/reflow long lines — do not add per-line `# noqa` en masse; a
+    justified `# noqa: E501` is acceptable only for genuinely unbreakable lines such as
+    long URLs/paths). Do not weaken assertions or delete tests to satisfy the linter.
+  - **Acceptance**: `uv run ruff check` exits 0 (the CI Lint tier is the spec — currently
+    RED with 122 errors, so it IS the red spec; no separate pytest file needed).
+  - **Done-check**: `uv run ruff check` exits 0 AND `uv run pytest -q` still fully green
+    (632 passed at review time) — no behaviour change from the lint cleanup.
+  - Promoted from the DECIDED REVIEW_ME box (relay human 2026-07-13); genuinely new
+    work, fresh id (no prior TODO token for lint debt).
+
 ## Pointers (NOT executor items — wrong repo or gated)
 
 - zkm-whatsapp W-series (W6f media manifest, W-key secret source, W8 owner-JID
