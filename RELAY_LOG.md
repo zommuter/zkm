@@ -513,3 +513,7 @@ Friction: none.
 ## 2026-07-12 21:58 — executor (sonnet, relay-loop)
 
 Shipped zkm completion subcommand (bash/zsh/fish) + dynamic plugin-name shell_complete on convert/scrub; id:e9e2 closed, full suite 632 green. [id:e9e2]
+
+## 2026-07-13 13:20 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+review: promote ruff CI-lint debt → ROADMAP [ROUTINE] id:04e5; fix e9e2 cross-ledger drift; pytest 632 green, lint RED verified [id:04e5,e9e2]
