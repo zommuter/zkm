@@ -22,7 +22,7 @@ Max ~10 open boxes; the reviewer prunes resolved ones each review turn.
   to dotclaude-skills so the loud detector shrinks rather than re-litigating. See
   docs/meeting-notes/2026-07-11-2132-inventory-data-scope.md (Amendment session).
 
-- [ ] **CI `ruff check` tier is RED (122 errors) — PRE-EXISTING, not this window.**
+- [x] **CI `ruff check` tier is RED (122 errors) — PRE-EXISTING, not this window.**
   (relay review 2026-07-12) The `.github/workflows/ci.yml` Lint step runs
   `uv run ruff check`; against the locked ruff 0.15.10 it reports 122 violations
   (78 E501 line-too-long, 24 I001 import-order, 7 UP017, 6 UP035, 3 F401, 2 UP037,
@@ -35,3 +35,4 @@ Max ~10 open boxes; the reviewer prunes resolved ones each review turn.
   fails today. Advisory — does not block this review (pytest green, work verified
   genuine).
   — DECIDED 2026-07-13 (relay human): FIX + E501 path — run `ruff check --fix` (43 auto: I001/F401) then manually resolve the 78 E501 line-too-long; do NOT relax config or pin an older ruff. Re-lane as [ROUTINE] executor work.
+  **PROMOTED 2026-07-13 (relay review) → ROADMAP `[ROUTINE]` id:04e5** (reverse-handoff, §5b; fresh id — no prior TODO token for lint debt). Verified this window: `uv run ruff check` = 122 errors (43 fixable); `uv run pytest -q` = 632 passed. Box resolved.
