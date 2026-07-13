@@ -528,3 +528,7 @@ underscore-prefixing the intentionally-unused read). No behaviour changes — pu
 reflow/wrap, no assertions weakened. `uv run ruff check` exits 0; full
 `uv run pytest -q` still 632 passed. Ticked ROADMAP checkbox.
 Friction: none — mechanical wrapping, no test or logic edits needed.
+
+## 2026-07-13 13:42 — executor (sonnet, relay-loop)
+
+Cleared the CI ruff lint debt (122 -> 0 errors, id:04e5): 55 auto-fixed, 75 E501 wraps + 1 F841 fixed by hand; pytest 632 green. [id:04e5]
