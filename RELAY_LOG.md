@@ -536,3 +536,7 @@ Cleared the CI ruff lint debt (122 -> 0 errors, id:04e5): 55 auto-fixed, 75 E501
 ## 2026-07-14 13:03 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 review: id:04e5 (CI ruff lint debt 122->0) verified genuine-green — ruff 0 errors + pytest 632 passed; gaming-scan clean, test edits pure E501/F841 lint; 0 open ROADMAP items [id:04e5]
+
+## 2026-07-15 12:35 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+review: docs-only window (e7c1 meeting decomp + 2 TODO lines) verified clean; typed gated-on/children edges added to e7c1 seams, contract pointer v6→v7; ROADMAP 0 open ROUTINE, repo needs HANDOFF to spec A/B [id:e7c1,4a4f,173f]
