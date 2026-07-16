@@ -540,3 +540,7 @@ review: id:04e5 (CI ruff lint debt 122->0) verified genuine-green — ruff 0 err
 ## 2026-07-15 12:35 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 review: docs-only window (e7c1 meeting decomp + 2 TODO lines) verified clean; typed gated-on/children edges added to e7c1 seams, contract pointer v6→v7; ROADMAP 0 open ROUTINE, repo needs HANDOFF to spec A/B [id:e7c1,4a4f,173f]
+
+## 2026-07-16 12:58 — reviewer (claude-opus-4-8)
+
+handoff: promoted id:3aa3 (core-half tokenless OIDC release.yml) with C3 red spec (6 specs); lane-triaged 2 of 7 surface items (5f86→access, cf18→routine); 5 left for owner input. Two premise corrections + scope narrowing filed to REVIEW_ME as owner decisions. Plugin-repo replication split out as id:2b63.
