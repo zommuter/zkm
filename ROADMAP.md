@@ -80,10 +80,14 @@ the gate (N9c/N9d accepted-as-is decisions stand).
     other repos are separate git repos that are NOT present in a zkm-core worktree
     (`plugins/` is untracked — see the Scope rule at the top of this file), so an
     executor cannot touch them from here. Replication to the plugin repos is a
-    separate seam, id:2b63, tracked in TODO.md — do NOT attempt it in this item.
+    separate seam tracked in TODO.md as token 2b63 — do NOT attempt it in this item.
+    (Tokens are named bare, without the `id:` prefix, everywhere except this item's
+    own trailing marker: `unpromoted-scan.sh` treats ANY `id:<token>` string in this
+    file as that item's ROADMAP twin, so a prose mention would silently hide the
+    referenced item from the backlog scan.)
   - **This item does NOT make a publish succeed** and is not expected to. The
     Trusted-Publisher registration on PyPI is a human credential action gated behind
-    TODO id:df4e (`[INPUT — access]`), and PyPI publishing for this project is
+    TODO token df4e (`[INPUT — access]`), and PyPI publishing for this project is
     currently DEFERRED pending account recovery (see the 2026-06-21 correction banner
     in `docs/meeting-notes/2026-05-13-1325-pypi-publish-canary.md`). The workflow is
     authored-and-dormant until then: it is valid, committed, and fires only on a `v*`
@@ -105,7 +109,8 @@ the gate (N9c/N9d accepted-as-is decisions stand).
   in zkm-ner / zkm-eml repos per TODO.md; core `scrub.py` is only the dispatcher.
 - SOC1–SOC6 zkm-social — gated on GitHub remote + user review (TODO id:e395).
 - Stage 2 OIDC trusted publishing — the CORE-repo half is now a real executor item
-  above (id:3aa3). What stays OUT of this roadmap: replication of `release.yml` to the
-  plugin repos (TODO id:2b63 — separate repos, unreachable from a core worktree) and
-  the PyPI Trusted-Publisher credential registration (TODO id:df4e — `[INPUT — access]`,
-  human-held). PyPI publishing overall is DEFERRED pending account recovery.
+  above (token 3aa3). What stays OUT of this roadmap: replication of `release.yml` to
+  the plugin repos (TODO token 2b63 — separate repos, unreachable from a core worktree)
+  and the PyPI Trusted-Publisher credential registration (TODO token df4e —
+  `[INPUT — access]`, human-held). PyPI publishing overall is DEFERRED pending account
+  recovery. Tokens are named bare here on purpose — see the note on the 3aa3 item above.
