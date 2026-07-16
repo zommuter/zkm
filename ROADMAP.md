@@ -64,7 +64,7 @@ the gate (N9c/N9d accepted-as-is decisions stand).
   - Promoted from the DECIDED REVIEW_ME box (relay human 2026-07-13); genuinely new
     work, fresh id (no prior TODO token for lint debt).
 
-- [ ] [ROUTINE] **Stage 2 (core repo half): tokenless OIDC `release.yml`** <!-- id:3aa3 -->
+- [x] [ROUTINE] **Stage 2 (core repo half): tokenless OIDC `release.yml`** <!-- id:3aa3 -->
   Author `.github/workflows/release.yml` in THIS repo (zkm core) so a pushed `vX.Y.Z`
   tag builds and publishes to PyPI via a **Trusted Publisher (OIDC)** — no API token,
   no `UV_PUBLISH_TOKEN`, no repo secret anywhere in the workflow. Mirror `ci.yml`'s
