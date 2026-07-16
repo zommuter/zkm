@@ -555,3 +555,7 @@ Ticked ROADMAP checkbox. Scope held to core repo only, per the item's own note (
 replication is id:2b63, PyPI Trusted-Publisher registration is id:df4e, both out of scope).
 refactor: none needed — new 17-line workflow file, no duplication introduced.
 Friction: none.
+
+## 2026-07-16 13:06 — executor (sonnet, relay-loop)
+
+id:3aa3 — authored tokenless OIDC release.yml (core repo half); suite 638/0, ruff clean [id:3aa3]
