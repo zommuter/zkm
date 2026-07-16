@@ -544,3 +544,14 @@ review: docs-only window (e7c1 meeting decomp + 2 TODO lines) verified clean; ty
 ## 2026-07-16 12:58 — reviewer (claude-opus-4-8)
 
 handoff: promoted id:3aa3 (core-half tokenless OIDC release.yml) with C3 red spec (6 specs); lane-triaged 2 of 7 surface items (5f86→access, cf18→routine); 5 left for owner input. Two premise corrections + scope narrowing filed to REVIEW_ME as owner decisions. Plugin-repo replication split out as id:2b63.
+
+## 2026-07-16 — executor (sonnet)
+
+Worked id:3aa3 — authored `.github/workflows/release.yml` (tag-triggered `v*` push,
+`id-token: write` + `contents: read`, `environment: pypi`, `uv build` then
+`pypa/gh-action-pypi-publish@release/v1`) mirroring `ci.yml`'s checkout+setup-uv style.
+`tests/test_release_workflow.py` 6/6 green; full suite 638 passed; `ruff check` clean.
+Ticked ROADMAP checkbox. Scope held to core repo only, per the item's own note (plugin
+replication is id:2b63, PyPI Trusted-Publisher registration is id:df4e, both out of scope).
+refactor: none needed — new 17-line workflow file, no duplication introduced.
+Friction: none.
