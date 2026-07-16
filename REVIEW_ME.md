@@ -3,7 +3,18 @@
 Judgment calls encoded in red tests — confirm or correct the interpretation.
 Max ~10 open boxes; the reviewer prunes resolved ones each review turn.
 
-- [ ] **id:3aa3 was promoted on a FALSE premise — confirm the narrowed scope.**
+- [x] **id:3aa3 was promoted on a FALSE premise — confirm the narrowed scope.** — **BOTH RATIFIED
+  BY THE OWNER (relay human 2026-07-16).** Not an auto-answer: the owner decided each half.
+  1. **Tokens premise → KEEP as authored-and-dormant.** Owner's call: the author-half is genuinely
+     buildable without a credential (exactly what the author-then-run split is for), so id:3aa3
+     stays promoted and stays `[ROUTINE]`. The `release.yml` will be correct, committed, and
+     publish nothing until id:df4e (pip account recovery) lands. Accepted trade-off: it cannot be
+     exercised end-to-end until then. NOT parked.
+  2. **Scope → CORE `zkm` ONLY, for now.** Owner's call: the narrowing to the core repo is
+     ratified, and **id:2b63 stays OPEN** as the unanswered replication question — no plugin repo
+     gets a `release.yml` on this decision. The "19 plugin repos vs the stale 7" finding is
+     recorded there; the owner names any subset later.
+  (original box text below, kept for the audit trail:)
   (relay handoff 2026-07-16) The TODO line said "OIDC Trusted Publisher +
   `release.yml` in all 7 repos" with "per-project tokens available (created after
   first publish)". Two parts of that do not survive contact:
