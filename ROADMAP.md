@@ -64,6 +64,37 @@ the gate (N9c/N9d accepted-as-is decisions stand).
   - Promoted from the DECIDED REVIEW_ME box (relay human 2026-07-13); genuinely new
     work, fresh id (no prior TODO token for lint debt).
 
+- [ ] [ROUTINE] **Stage 2 (core repo half): tokenless OIDC `release.yml`** <!-- id:3aa3 -->
+  Author `.github/workflows/release.yml` in THIS repo (zkm core) so a pushed `vX.Y.Z`
+  tag builds and publishes to PyPI via a **Trusted Publisher (OIDC)** — no API token,
+  no `UV_PUBLISH_TOKEN`, no repo secret anywhere in the workflow. Mirror `ci.yml`'s
+  existing style (`actions/checkout@v4` + `astral-sh/setup-uv@v5`), build with
+  `uv build`, publish with `pypa/gh-action-pypi-publish@release/v1`.
+  - **Required shape** (this IS the contract the red test pins):
+    - `on: push: tags: ["v*"]` — tag-triggered, not branch-triggered.
+    - The publishing job declares `permissions: id-token: write` (the OIDC handshake)
+      and `contents: read`. `id-token: write` is what makes it tokenless.
+    - The job sets `environment: pypi` (GitHub deployment-environment gate).
+    - No `password:`/`UV_PUBLISH_TOKEN`/`secrets.*` reference in the publish step.
+  - **SCOPE — core repo ONLY.** The parent TODO id:3aa3 says "in all 7 repos"; the
+    other repos are separate git repos that are NOT present in a zkm-core worktree
+    (`plugins/` is untracked — see the Scope rule at the top of this file), so an
+    executor cannot touch them from here. Replication to the plugin repos is a
+    separate seam, id:2b63, tracked in TODO.md — do NOT attempt it in this item.
+  - **This item does NOT make a publish succeed** and is not expected to. The
+    Trusted-Publisher registration on PyPI is a human credential action gated behind
+    TODO id:df4e (`[INPUT — access]`), and PyPI publishing for this project is
+    currently DEFERRED pending account recovery (see the 2026-06-21 correction banner
+    in `docs/meeting-notes/2026-05-13-1325-pypi-publish-canary.md`). The workflow is
+    authored-and-dormant until then: it is valid, committed, and fires only on a `v*`
+    tag push. Do not "verify" it by publishing anything.
+  - **Acceptance**: `tests/test_release_workflow.py` green (currently RED — the
+    workflow file does not exist yet; 6 specs pinning trigger/permissions/environment/
+    tokenlessness/build-step/publish-action).
+  - **Done-check**: `uv run pytest tests/test_release_workflow.py` green AND
+    `uv run pytest -q` fully green AND `uv run ruff check` exits 0 (no new lint).
+  - Promoted from TODO id:3aa3 (single-id-two-views; token reused, not minted).
+
 ## Pointers (NOT executor items — wrong repo or gated)
 
 - zkm-whatsapp W-series (W6f media manifest, W-key secret source, W8 owner-JID
@@ -73,4 +104,8 @@ the gate (N9c/N9d accepted-as-is decisions stand).
 - NER FP backlog (N9c pipe-cell filter, HTML-entity artefacts) — fix paths are
   in zkm-ner / zkm-eml repos per TODO.md; core `scrub.py` is only the dispatcher.
 - SOC1–SOC6 zkm-social — gated on GitHub remote + user review (TODO id:e395).
-- Stage 2 OIDC trusted publishing — cross-repo CI work across all 7 repos.
+- Stage 2 OIDC trusted publishing — the CORE-repo half is now a real executor item
+  above (id:3aa3). What stays OUT of this roadmap: replication of `release.yml` to the
+  plugin repos (TODO id:2b63 — separate repos, unreachable from a core worktree) and
+  the PyPI Trusted-Publisher credential registration (TODO id:df4e — `[INPUT — access]`,
+  human-held). PyPI publishing overall is DEFERRED pending account recovery.
