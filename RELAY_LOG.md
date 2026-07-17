@@ -578,3 +578,7 @@ exact-command; "single-copy"/"one disk" stated as the why). `tests/test_needs_au
 (single-id-two-views).
 refactor: none needed — pure prose addition to an existing markdown file, no code/duplication.
 Friction: none.
+
+## 2026-07-17 19:00 — executor (sonnet, relay-loop)
+
+executor: closed id:cf18 — added conforming @needs-auth REVIEW_ME box for the 0b37 annex-copy auth wall (8/8 red specs green, full suite 646 passed) [id:cf18]
