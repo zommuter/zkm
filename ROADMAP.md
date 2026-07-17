@@ -99,6 +99,35 @@ the gate (N9c/N9d accepted-as-is decisions stand).
     `uv run pytest -q` fully green AND `uv run ruff check` exits 0 (no new lint).
   - Promoted from TODO id:3aa3 (single-id-two-views; token reused, not minted).
 
+- [ ] [ROUTINE] **Add a conforming `@needs-auth` REVIEW_ME box for the 0b37 second-annex-copy auth wall** <!-- id:cf18 -->
+  The 2nd-annex-copy step (TODO id:0b37 — `git annex copy --to <fievel-annex-remote>`
+  against the real `~/knowledge` store) is blocked on a human-held credential (ssh/annex
+  access to the fievel remote) that no relay child can supply unattended. Record that wall
+  as a conforming `@needs-auth` box in this repo's `REVIEW_ME.md` so the offline lister
+  (`gather-human-backlog.sh --needs-auth`, dotclaude-skills id:1750) surfaces it. Authoring
+  the box needs NO credential itself — it only DESCRIBES the credential 0b37 needs, so this
+  is executor-ready prose work, not an `[INPUT — access]` item.
+  - **The box MUST carry all four mandatory `@needs-auth` fields** (convention in
+    dotclaude-skills `relay/references/hard-lanes.md` §"The `@needs-auth` marker"):
+    - **what-secret** — ssh/annex access to the fievel annex remote (the credential that
+      lets `git annex copy --to` reach it).
+    - **where-it-goes** — where that access is applied (the ssh auth to fievel / the
+      configured git-annex special-remote the `--to` names).
+    - **exact-command** — the exact command the human runs from `~/knowledge`, i.e.
+      `git annex copy --to <fievel-annex-remote>` (then `git annex whereis`/`fsck` to
+      confirm), matching id:0b37.
+    - **why** — without a 2nd annex copy the store is single-copy ("one disk = total
+      loss"); it is also the prerequisite for reclaiming local disk via `git annex drop`.
+  - The box MUST reference `id:0b37` so the wall is traceable to the blocked work, and
+    carry the `@needs-auth` marker token so the lister and `roadmap-lint.sh` recognise it.
+  - **Acceptance**: `tests/test_needs_auth_review_box.py` green (currently RED — the box
+    does not exist yet; 5 specs pinning marker presence / 0b37 reference / all four field
+    labels / the `git annex copy --to` exact-command / the single-store "why").
+  - **Done-check**: `uv run pytest tests/test_needs_auth_review_box.py` green AND
+    `uv run pytest -q` fully green. (Pure-prose change — no `ruff` surface.)
+  - Promoted from TODO id:cf18 (single-id-two-views; token reused, not minted). INBOUND
+    routed:9b68 from dotclaude-skills id:1750; lane tagged `[ROUTINE]` at source 2026-07-16.
+
 ## Pointers (NOT executor items — wrong repo or gated)
 
 - zkm-whatsapp W-series (W6f media manifest, W-key secret source, W8 owner-JID
