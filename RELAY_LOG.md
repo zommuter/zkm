@@ -567,3 +567,14 @@ review zkm: id:3aa3 verified-green (release.yml + 6/6 specs), cross-ledger drift
 ## 2026-07-17 18:38 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
 
 handoff: promoted cf18 (@needs-auth box for 0b37 annex wall) to ROADMAP + red spec (8 cases) [id:cf18]
+
+## 2026-07-17 — executor (sonnet, relay-loop)
+
+Worked id:cf18 — added the conforming `@needs-auth` REVIEW_ME.md box for the 0b37
+second-annex-copy auth wall (all four mandatory fields: what-secret/where-it-goes/
+exact-command/why; references id:0b37; the `git annex copy --to <fievel-annex-remote>`
+exact-command; "single-copy"/"one disk" stated as the why). `tests/test_needs_auth_review_box.py`
+8/8 green; full suite 646 passed. Ticked ROADMAP + TODO checkboxes for id:cf18
+(single-id-two-views).
+refactor: none needed — pure prose addition to an existing markdown file, no code/duplication.
+Friction: none.

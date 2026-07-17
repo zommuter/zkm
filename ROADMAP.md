@@ -99,7 +99,7 @@ the gate (N9c/N9d accepted-as-is decisions stand).
     `uv run pytest -q` fully green AND `uv run ruff check` exits 0 (no new lint).
   - Promoted from TODO id:3aa3 (single-id-two-views; token reused, not minted).
 
-- [ ] [ROUTINE] **Add a conforming `@needs-auth` REVIEW_ME box for the 0b37 second-annex-copy auth wall** <!-- id:cf18 -->
+- [x] [ROUTINE] **Add a conforming `@needs-auth` REVIEW_ME box for the 0b37 second-annex-copy auth wall** <!-- id:cf18 -->
   The 2nd-annex-copy step (TODO id:0b37 — `git annex copy --to <fievel-annex-remote>`
   against the real `~/knowledge` store) is blocked on a human-held credential (ssh/annex
   access to the fievel remote) that no relay child can supply unattended. Record that wall
