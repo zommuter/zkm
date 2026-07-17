@@ -3,6 +3,23 @@
 Judgment calls encoded in red tests — confirm or correct the interpretation.
 Max ~10 open boxes; the reviewer prunes resolved ones each review turn.
 
+- [ ] **@needs-auth — second annex copy blocked on fievel ssh/annex access (id:0b37).**
+  (relay executor 2026-07-17, id:cf18) The 2nd-annex-copy step against the real
+  `~/knowledge` store cannot be run unattended — it needs a human-held credential.
+  Recorded per the `@needs-auth` convention (dotclaude-skills
+  `relay/references/hard-lanes.md` §"The `@needs-auth` marker", id:a505).
+  - **what-secret**: ssh/annex access to the fievel git-annex special remote (the
+    credential that lets `git annex copy --to` reach it).
+  - **where-it-goes**: applied via the ssh auth to fievel — i.e. the configured
+    git-annex special-remote that `--to <fievel-annex-remote>` names (ssh key /
+    login for that remote).
+  - **exact-command**: from `~/knowledge`, run
+    `git annex copy --to <fievel-annex-remote>`, then confirm with
+    `git annex whereis` / `git annex fsck` (matches TODO id:0b37).
+  - **why**: without a 2nd annex copy the store is single-copy ("one disk = total
+    loss"); it is also the prerequisite for reclaiming local disk via
+    `git annex drop`.
+
 - [x] **id:3aa3 was promoted on a FALSE premise — confirm the narrowed scope.** — **BOTH RATIFIED
   BY THE OWNER (relay human 2026-07-16).** Not an auto-answer: the owner decided each half.
   1. **Tokens premise → KEEP as authored-and-dormant.** Owner's call: the author-half is genuinely
