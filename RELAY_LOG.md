@@ -604,3 +604,7 @@ Friction: none — the ROADMAP item didn't pin an exact shard-content format (on
 per line vs. space-separated), so I picked newline-per-path as the natural convention
 matching the repro's per-drive file listing; flagging in case the real zkm-inventory
 plugin's shard format differs (best-effort read: `.splitlines()` on the whole doc body).
+
+## 2026-07-18 20:29 — executor (sonnet, relay-loop)
+
+Added `zkm locate <term>` — scopes search to inventory/find-dump/** shards only, path-aware (component split + camelCase + substring) so find-dump paths no longer lose to prose in BM25; closes id:7f90. [id:7f90]
