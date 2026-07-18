@@ -128,6 +128,33 @@ the gate (N9c/N9d accepted-as-is decisions stand).
   - Promoted from TODO id:cf18 (single-id-two-views; token reused, not minted). INBOUND
     routed:9b68 from dotclaude-skills id:1750; lane tagged `[ROUTINE]` at source 2026-07-16.
 
+- [ ] [ROUTINE] **`zkm locate` — inventory-scoped path search (fix find-dump findability)** <!-- id:7f90 -->
+  Inventory `find-dump` shards are indexed in the SAME BM25 corpus as prose (chat/mail/
+  docs) and lose to it, so file-location queries fail even when the file IS indexed.
+  Concrete repro (real store, 2026-07-18): `zkm search darwinia` → top-15 all WhatsApp/
+  mail about the *game*; the 4 indexed source-tree shards (`Cee-834R/009x`, `Manjaro-834R/
+  007x`) rank below 15. Same for `futurama`, `MediathekView`. Three compounding causes:
+  (a) **long-doc penalty** — a shard is ~2000 paths, so a term in a few lines scores far
+  below a short chat doc; (b) **path tokenization** — `darwiniaandmultiwinia` / camelCase
+  (`MediathekView`) don't split into the typed query token; (c) **semantic collision** —
+  one ranked list can't serve "the game in chats" and "the source folder" at once.
+  - **Deliver**: a `zkm locate <term>` subcommand (equivalently `zkm search --scope
+    inventory`) that searches ONLY `inventory/find-dump/**` shards, matches path-aware
+    (substring + component split on `/ _ - . space` + camelCase), ranks by path relevance,
+    and prints `<drive-id>  <path>` — never interleaved with prose docs.
+  - **Secondary (optional in same item if cheap)**: apply the same path-aware tokenizer to
+    shard docs at index time so *unified* `zkm search` degrades less badly too.
+  - **Acceptance**: new test indexes a fixture find-dump shard containing
+    `src/introversion/darwiniaandmultiwinia/darwinia/code/app.cpp` plus a prose doc
+    mentioning "darwinia"; asserts `zkm locate darwinia` returns the shard path and does
+    NOT return the prose doc; asserts camelCase `MediathekView` is found by query
+    `mediathek`. `uv run pytest -q` fully green; `ruff` clean.
+  - **Out of scope** (separate, non-code): adding drives to the store's finddump config
+    (Jay-F2KY, fievel done 2026-07-18 in `~/knowledge/zkm-config.yaml`), and whether to
+    index `.git`/hidden trees (finddump deliberately skips them — the raw-TOC + the
+    it-infra `drive-toc-grep.sh` helper cover that need).
+  - Filed 2026-07-18 from the it-infra drive-cataloguing session (owner-requested).
+
 ## Pointers (NOT executor items — wrong repo or gated)
 
 - zkm-whatsapp W-series (W6f media manifest, W-key secret source, W8 owner-JID
