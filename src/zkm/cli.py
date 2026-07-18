@@ -1705,6 +1705,48 @@ def cmd_search(
 
 
 # ---------------------------------------------------------------------------
+# zkm locate
+# ---------------------------------------------------------------------------
+
+
+@main.command("locate")
+@click.argument("term")
+@click.option("-k", "--top-k", default=20, show_default=True, help="Number of results")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+@click.option(
+    "--store",
+    "store_override",
+    default=None,
+    metavar="PATH",
+    help="Store path (default: $ZKM_STORE or ~/knowledge)",
+)
+def cmd_locate(term: str, top_k: int, as_json: bool, store_override: str | None) -> None:
+    """Locate a file path in indexed inventory/find-dump shards (path-aware, no prose)."""
+    import json as _json
+
+    from zkm.query import locate
+
+    sdir = Path(store_override) if store_override else store_path()
+    try:
+        hits = locate(sdir, term, top_k=top_k)
+    except FileNotFoundError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+    if as_json:
+        records = [{"drive_id": h.drive_id, "path": h.path, "score": h.score} for h in hits]
+        click.echo(_json.dumps(records, ensure_ascii=False))
+        return
+
+    if not hits:
+        click.echo("No results.")
+        return
+
+    for h in hits:
+        click.echo(f"{h.drive_id}  {h.path}")
+
+
+# ---------------------------------------------------------------------------
 # zkm query
 # ---------------------------------------------------------------------------
 

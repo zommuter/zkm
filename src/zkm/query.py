@@ -260,6 +260,134 @@ def rrf_merge(hit_lists: list[list[Hit]], k: int = 60) -> list[Hit]:
     return [best[p] for p in ranked]
 
 
+# ---------------------------------------------------------------------------
+# zkm locate — inventory-scoped path search (id:7f90)
+#
+# find-dump shards (inventory/find-dump/**) are per-drive filename listings —
+# ~2000 paths per shard doc. Indexed in the SAME BM25 corpus as prose, a shard
+# loses on relevance to short chat/mail docs even when the target file IS
+# indexed, and BM25's whole-token matching never splits concatenated/camelCase
+# path components (`darwiniaandmultiwinia`, `MediathekView`). `locate()` scopes
+# the search to find-dump shards only and matches path components (substring +
+# `/ _ - . space` splitting + camelCase splitting), never interleaving prose.
+# ---------------------------------------------------------------------------
+
+_FIND_DUMP_PREFIX = "inventory/find-dump/"
+_PATH_COMPONENT_SPLIT_RE = re.compile(r"[/_\-.\s]+")
+_CAMEL_BOUNDARY_RE = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
+
+
+@dataclass
+class LocateHit:
+    drive_id: str
+    path: str
+    score: int
+
+
+def path_tokenize(text: str) -> list[str]:
+    """Path-aware tokenizer: split on path separators, then on camelCase boundaries.
+
+    Unlike ``index.tokenize()`` (bag-of-words + stemming), this never merges a
+    concatenated component like ``darwiniaandmultiwinia`` — it is kept as one
+    token here too — but it DOES split ``MediathekView`` into ``mediathek`` +
+    ``view``, and splits path components apart on ``/ _ - . space``.
+    """
+    tokens: list[str] = []
+    for raw in _PATH_COMPONENT_SPLIT_RE.split(text):
+        if not raw:
+            continue
+        for sub in _CAMEL_BOUNDARY_RE.split(raw):
+            if sub:
+                tokens.append(sub.lower())
+    return tokens
+
+
+def _path_match_score(path_text: str, term_lower: str) -> int:
+    """Score a candidate path against a lowercased query term.
+
+    3 = a component (or camelCase sub-word) equals the term exactly.
+    2 = a component (or sub-word) starts with the term.
+    1 = the term appears as a substring anywhere (component or whole path).
+    0 = no match.
+    """
+    best = 0
+    for comp in _PATH_COMPONENT_SPLIT_RE.split(path_text):
+        if not comp:
+            continue
+        comp_l = comp.lower()
+        subwords = [w.lower() for w in _CAMEL_BOUNDARY_RE.split(comp) if w]
+        if comp_l == term_lower or term_lower in subwords:
+            best = max(best, 3)
+        elif comp_l.startswith(term_lower) or any(w.startswith(term_lower) for w in subwords):
+            best = max(best, 2)
+        elif term_lower in comp_l:
+            best = max(best, 1)
+    if best == 0 and term_lower in path_text.lower():
+        best = 1
+    return best
+
+
+def _drive_id_from_rel(rel_path: str) -> str:
+    """Extract the drive-id directory segment from a find-dump shard's rel_path.
+
+    ``inventory/find-dump/<drive-id>/<shard>.md`` -> ``<drive-id>``.
+    """
+    norm = rel_path.replace("\\", "/")
+    if norm.startswith("./"):
+        norm = norm[2:]
+    parts = norm.split("/")
+    if len(parts) >= 3:
+        return parts[2]
+    return norm
+
+
+def locate(store: Path, term: str, top_k: int = 20) -> list[LocateHit]:
+    """Search ONLY ``inventory/find-dump/**`` shards for paths matching *term*.
+
+    Each shard doc's content is a per-line list of file paths recorded off a
+    drive. Matching is path-aware (component split + camelCase + substring),
+    never the prose BM25 corpus — so a source-tree path never loses to an
+    unrelated chat/mail doc, and a query never returns prose docs at all.
+    """
+    idx = load_index(store)
+    if idx is None:
+        raise FileNotFoundError(
+            f"No index found at {store / '.zkm-index'}. Run: zkm index"
+        )
+    term_lower = term.strip().lower()
+    if not term_lower:
+        return []
+
+    results: list[LocateHit] = []
+    seen: set[tuple[str, str]] = set()
+    for doc in idx.docs:
+        norm = doc.rel_path.replace("\\", "/")
+        if norm.startswith("./"):
+            norm = norm[2:]
+        if not norm.startswith(_FIND_DUMP_PREFIX):
+            continue
+        try:
+            text = (store / doc.rel_path).read_text(errors="ignore")
+        except OSError:
+            continue
+        drive_id = _drive_id_from_rel(doc.rel_path)
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            score = _path_match_score(line, term_lower)
+            if score <= 0:
+                continue
+            key = (drive_id, line)
+            if key in seen:
+                continue
+            seen.add(key)
+            results.append(LocateHit(drive_id=drive_id, path=line, score=score))
+
+    results.sort(key=lambda h: (-h.score, h.drive_id, h.path))
+    return results[:top_k]
+
+
 def _dense_search(
     store: Path,
     es: EmbedStore,

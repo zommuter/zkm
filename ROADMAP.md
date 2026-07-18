@@ -128,7 +128,7 @@ the gate (N9c/N9d accepted-as-is decisions stand).
   - Promoted from TODO id:cf18 (single-id-two-views; token reused, not minted). INBOUND
     routed:9b68 from dotclaude-skills id:1750; lane tagged `[ROUTINE]` at source 2026-07-16.
 
-- [ ] [ROUTINE] **`zkm locate` — inventory-scoped path search (fix find-dump findability)** <!-- id:7f90 -->
+- [x] [ROUTINE] **`zkm locate` — inventory-scoped path search (fix find-dump findability)** <!-- id:7f90 -->
   Inventory `find-dump` shards are indexed in the SAME BM25 corpus as prose (chat/mail/
   docs) and lose to it, so file-location queries fail even when the file IS indexed.
   Concrete repro (real store, 2026-07-18): `zkm search darwinia` → top-15 all WhatsApp/

@@ -582,3 +582,25 @@ Friction: none.
 ## 2026-07-17 19:00 — executor (sonnet, relay-loop)
 
 executor: closed id:cf18 — added conforming @needs-auth REVIEW_ME box for the 0b37 annex-copy auth wall (8/8 red specs green, full suite 646 passed) [id:cf18]
+
+## 2026-07-18 — executor (sonnet)
+
+Worked id:7f90 — added `zkm locate <term>` (`src/zkm/query.py`: `locate()` +
+`path_tokenize()` + `LocateHit`; `src/zkm/cli.py`: `locate` subcommand). Scopes search
+to `inventory/find-dump/**` shard docs only (never interleaves prose), matches path
+components split on `/ _ - . space` plus camelCase boundaries, substring-fallback for
+concatenated components (e.g. `darwiniaandmultiwinia` still matches query `darwinia`
+via startswith/substring), and prints `<drive-id>  <path>` (drive-id = the directory
+segment under `find-dump/`). New `tests/test_locate.py` (16 cases: prose exclusion,
+concatenated-component match, camelCase match, drive-id extraction, empty/no-match,
+CLI smoke incl. `--json`) all green; full suite 659 passed; `ruff` clean. Left the
+secondary "apply path-aware tokenizer to shard docs at index time" bullet undone — it
+was marked optional-if-cheap and unified `zkm search` degrading less badly is a
+separate, larger change (would touch `index.py`'s tokenize-at-build-time path); the
+primary deliverable (`zkm locate`) fully covers the acceptance criteria as scoped.
+refactor: none needed — new isolated module-level functions, no existing duplication
+touched.
+Friction: none — the ROADMAP item didn't pin an exact shard-content format (one path
+per line vs. space-separated), so I picked newline-per-path as the natural convention
+matching the repro's per-drive file listing; flagging in case the real zkm-inventory
+plugin's shard format differs (best-effort read: `.splitlines()` on the whole doc body).
