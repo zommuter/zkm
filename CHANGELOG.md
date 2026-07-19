@@ -7,6 +7,10 @@
      (per-close tags are unrecoverable). Design: dotclaude-skills
      docs/meeting-notes/2026-07-17-1541-semver-trigger-and-fleet-changelog.md (D2/D4). -->
 
+## 2026-07-19
+
+- review: verified id:7f90 (zkm locate) + id:cf18 (@needs-auth box) genuinely green (659 passed, ruff clean, no gaming); fixed README zkm-locate doc-drift; roadmap clean, 0 open ROUTINE (id:7f90,cf18)
+
 ## v0.22.0 — 2026-07-18
 
 - Added `zkm locate <term>` — scopes search to inventory/find-dump/** shards only, path-aware (component split + camelCase + substring) so find-dump paths no longer lose to prose in BM25; closes id:7f90. (id:7f90)
