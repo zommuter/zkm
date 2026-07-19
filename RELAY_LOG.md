@@ -608,3 +608,7 @@ plugin's shard format differs (best-effort read: `.splitlines()` on the whole do
 ## 2026-07-18 20:29 — executor (sonnet, relay-loop)
 
 Added `zkm locate <term>` — scopes search to inventory/find-dump/** shards only, path-aware (component split + camelCase + substring) so find-dump paths no longer lose to prose in BM25; closes id:7f90. [id:7f90]
+
+## 2026-07-19 13:38 — reviewer (claude-opus-4-8, fable-standin, relay-loop)
+
+review: verified id:7f90 (zkm locate) + id:cf18 (@needs-auth box) genuinely green (659 passed, ruff clean, no gaming); fixed README zkm-locate doc-drift; roadmap clean, 0 open ROUTINE [id:7f90,cf18]
