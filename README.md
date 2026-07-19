@@ -111,7 +111,24 @@ zkm search "recipe" --json
 
 Output: ranked hits with score, date, and a text snippet.
 
-### 7. Query (LLM-augmented)
+### 7. Locate (inventory-scoped path search)
+
+Find a file path across your indexed `inventory/find-dump/**` drive shards. Unlike
+`zkm search`, `locate` searches **only** the find-dump path listings (never prose
+chat/mail/docs) and matches path-aware — splitting components on `/ _ - . space`
+plus camelCase boundaries — so a source-tree path never loses BM25 ranking to an
+unrelated prose doc, and concatenated/camelCase names still match:
+
+```bash
+zkm locate darwinia            # matches src/.../darwiniaandmultiwinia/...
+zkm locate mediathek           # matches MediathekView via camelCase split
+zkm locate app.cpp --top-k 5
+zkm locate darwinia --json
+```
+
+Output: `<drive-id>  <path>` per hit (or JSON records with `drive_id`/`path`/`score`).
+
+### 8. Query (LLM-augmented)
 
 Point zkm at any OpenAI-compatible endpoint via `$ZKM_STORE/zkm-config.yaml`
 (non-secret) and `$ZKM_STORE/.zkm-secrets.yaml` (gitignored, chmod 0600):
